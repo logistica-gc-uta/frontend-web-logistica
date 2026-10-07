@@ -45,17 +45,33 @@ La aplicación queda disponible en `http://localhost:5173`.
 ```
 src/
 ├── app/            # Componente raíz, definición de rutas y constantes de paths
+├── components/
+│   ├── layout/     # Estructura de páginas autenticadas (encabezado)
+│   └── ui/         # Componentes reutilizables: Button, TextField, Alert
 ├── config/         # Lectura centralizada de variables de entorno
+├── features/
+│   └── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
 ├── lib/
-│   ├── auth/       # Persistencia del token JWT
-│   └── http/       # Cliente axios compartido y manejo de errores de la API
-├── pages/          # Pantallas de la aplicación
-└── test/           # Configuración y utilidades compartidas de pruebas
+│   ├── auth/       # Persistencia de la sesión (token JWT + usuario)
+│   ├── errors/     # AppError: errores con mensaje para el usuario
+│   ├── http/       # Cliente axios compartido y manejo de errores de la API
+│   └── validation/ # Validadores genéricos de formularios
+├── pages/          # Pantallas generales (inicio, 404)
+├── types/          # Tipos de dominio compartidos
+└── test/           # Configuración, fixtures y utilidades compartidas de pruebas
 ```
+
+### Autenticación
+
+- El login (`POST /auth/login`) solo permite el ingreso de usuarios con rol `ADMIN`.
+- La sesión se guarda en `localStorage` y se restaura al recargar la página.
+- Si el backend responde `401` a una petición autenticada (token vencido), la sesión se cierra automáticamente.
+- Las páginas privadas se declaran dentro de `<ProtectedRoute />` en `src/app/App.tsx`.
 
 ### Convenciones
 
-- Las pruebas viven junto al archivo que prueban (`Componente.test.tsx`).
+- Cada funcionalidad vive en `src/features/<nombre>/` (servicio, componentes, validación y pruebas).
+- Las pruebas viven junto al archivo que prueban (`Componente.test.tsx`) y usan `renderWithProviders`.
 - Toda petición al backend usa `apiClient` (`src/lib/http/apiClient.ts`), que agrega el token automáticamente.
 - Los mensajes de error de la API se obtienen con `getErrorMessage` (`src/lib/http/apiError.ts`).
 - Las rutas se referencian con las constantes de `src/app/paths.ts`.

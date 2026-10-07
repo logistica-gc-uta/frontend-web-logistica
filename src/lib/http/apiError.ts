@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { AppError } from '../errors/AppError'
 
 const DEFAULT_MESSAGE = 'Ocurrió un error inesperado'
 const NETWORK_MESSAGE = 'No se pudo conectar con el servidor'
@@ -12,6 +13,7 @@ interface NestErrorBody {
  * NestJS responde `message` como string o como arreglo (errores de class-validator).
  */
 export function getErrorMessage(error: unknown, fallback = DEFAULT_MESSAGE): string {
+  if (error instanceof AppError) return error.message
   if (!axios.isAxiosError<NestErrorBody>(error)) return fallback
   if (!error.response) return NETWORK_MESSAGE
 
