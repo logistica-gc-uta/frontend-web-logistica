@@ -1,11 +1,10 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
-import { getErrorMessage } from '../../lib/http/apiError'
-import { validateLogin, type LoginErrors } from './loginValidation'
+import { useForm } from '../../hooks/useForm'
+import { validateLogin } from './loginValidation'
 import type { LoginRedirectState } from './ProtectedRoute'
 import type { LoginCredentials } from './types'
 import { useAuth } from './useAuth'
@@ -18,37 +17,18 @@ export function LoginPage() {
   const location = useLocation()
   const redirectTo = (location.state as LoginRedirectState | null)?.from ?? paths.home
 
-  const [values, setValues] = useState<LoginCredentials>(INITIAL_VALUES)
-  const [fieldErrors, setFieldErrors] = useState<LoginErrors>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { values, fieldErrors, submitError, isSubmitting, handleChange, handleSubmit } = useForm({
+    initialValues: INITIAL_VALUES,
+    validate: validateLogin,
+    errorMessage: 'No se pudo iniciar sesión',
+    onSubmit: async ({ email, password }) => {
+      await login({ email: email.trim(), password })
+      navigate(redirectTo, { replace: true })
+    },
+  })
 
   if (isAuthenticated) {
     return <Navigate to={redirectTo} replace />
-  }
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target
-    setValues((current) => ({ ...current, [name]: value }))
-    setFieldErrors((current) => ({ ...current, [name]: undefined }))
-  }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmitError(null)
-
-    const errors = validateLogin(values)
-    setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
-
-    setIsSubmitting(true)
-    try {
-      await login({ email: values.email.trim(), password: values.password })
-      navigate(redirectTo, { replace: true })
-    } catch (error) {
-      setSubmitError(getErrorMessage(error, 'No se pudo iniciar sesión'))
-      setIsSubmitting(false)
-    }
   }
 
   return (

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isBlank, isValidEmail } from './validators'
+import {
+  isBlank,
+  isNonNegativeInteger,
+  isPositiveNumber,
+  isValidEmail,
+  toNumber,
+} from './validators'
 
 describe('isBlank', () => {
   it.each(['', '   ', '\t'])('considera vacío %j', (value) => {
@@ -22,4 +28,34 @@ describe('isValidEmail', () => {
       expect(isValidEmail(value)).toBe(false)
     },
   )
+})
+
+describe('toNumber', () => {
+  it('convierte textos numéricos', () => {
+    expect(toNumber(' 25.5 ')).toBe(25.5)
+  })
+
+  it.each(['', '  ', 'abc'])('devuelve NaN para %j', (value) => {
+    expect(toNumber(value)).toBeNaN()
+  })
+})
+
+describe('isPositiveNumber', () => {
+  it.each(['0.01', '750', '25.5'])('acepta %j', (value) => {
+    expect(isPositiveNumber(value)).toBe(true)
+  })
+
+  it.each(['0', '-1', '', 'abc'])('rechaza %j', (value) => {
+    expect(isPositiveNumber(value)).toBe(false)
+  })
+})
+
+describe('isNonNegativeInteger', () => {
+  it.each(['0', '15'])('acepta %j', (value) => {
+    expect(isNonNegativeInteger(value)).toBe(true)
+  })
+
+  it.each(['-1', '1.5', '', 'abc'])('rechaza %j', (value) => {
+    expect(isNonNegativeInteger(value)).toBe(false)
+  })
 })

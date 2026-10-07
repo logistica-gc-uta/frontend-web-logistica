@@ -1,7 +1,7 @@
 import { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adminSession } from '../../test/fixtures'
-import { createHttpError } from '../../test/httpErrors'
+import { createHttpError } from '../../test/http'
 import { authStorage } from '../auth/authStorage'
 import { attachAuthToken, handleResponseError, setUnauthorizedHandler } from './apiClient'
 

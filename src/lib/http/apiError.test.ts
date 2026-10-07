@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios'
 import { describe, expect, it } from 'vitest'
-import { createHttpError } from '../../test/httpErrors'
+import { createHttpError } from '../../test/http'
 import { AppError } from '../errors/AppError'
 import { getErrorMessage } from './apiError'
 

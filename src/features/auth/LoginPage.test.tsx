@@ -5,7 +5,7 @@ import { paths } from '../../app/paths'
 import { authStorage } from '../../lib/auth/authStorage'
 import { AppError } from '../../lib/errors/AppError'
 import { adminSession } from '../../test/fixtures'
-import { createHttpError } from '../../test/httpErrors'
+import { createHttpError } from '../../test/http'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { authService } from './authService'
 

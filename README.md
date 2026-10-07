@@ -44,16 +44,20 @@ La aplicación queda disponible en `http://localhost:5173`.
 
 ```
 src/
-├── app/            # Componente raíz, definición de rutas y constantes de paths
+├── app/            # Componente raíz, rutas, constantes de paths y menú de navegación
 ├── components/
-│   ├── layout/     # Estructura de páginas autenticadas (encabezado)
-│   └── ui/         # Componentes reutilizables: Button, TextField, Alert
+│   ├── layout/     # AppLayout (encabezado y menú) y ResourcePage (formulario + listado)
+│   └── ui/         # Button, TextField, Alert, DataTable, AsyncContent
 ├── config/         # Lectura centralizada de variables de entorno
 ├── features/
-│   └── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
+│   ├── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
+│   ├── products/   # Listado y creación de productos
+│   └── zones/      # Listado y creación de zonas de entrega
+├── hooks/          # useForm (formularios) y useFetch (carga de datos)
 ├── lib/
 │   ├── auth/       # Persistencia de la sesión (token JWT + usuario)
 │   ├── errors/     # AppError: errores con mensaje para el usuario
+│   ├── format/     # Formato de fechas y moneda
 │   ├── http/       # Cliente axios compartido y manejo de errores de la API
 │   └── validation/ # Validadores genéricos de formularios
 ├── pages/          # Pantallas generales (inicio, 404)
@@ -71,6 +75,8 @@ src/
 ### Convenciones
 
 - Cada funcionalidad vive en `src/features/<nombre>/` (servicio, componentes, validación y pruebas).
+- Las páginas administrativas usan `ResourcePage`; los formularios, `useForm`; y las listas, `useFetch` + `AsyncContent` + `DataTable`.
+- Para agregar un módulo: crear su carpeta en `features/`, su ruta en `paths.ts` y `App.tsx`, y su entrada en `navigation.ts`.
 - Las pruebas viven junto al archivo que prueban (`Componente.test.tsx`) y usan `renderWithProviders`.
 - Toda petición al backend usa `apiClient` (`src/lib/http/apiClient.ts`), que agrega el token automáticamente.
 - Los mensajes de error de la API se obtienen con `getErrorMessage` (`src/lib/http/apiError.ts`).

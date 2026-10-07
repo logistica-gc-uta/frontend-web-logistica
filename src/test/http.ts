@@ -1,4 +1,7 @@
-import { AxiosError, AxiosHeaders } from 'axios'
+import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios'
+
+/** Crea una respuesta exitosa de axios con el cuerpo indicado (para simular `apiClient`). */
+export const createHttpResponse = <T>(data: T) => ({ data }) as AxiosResponse<T>
 
 interface HttpErrorOptions {
   /** Cuerpo de la respuesta (ej. `{ message: '...' }` de NestJS). */

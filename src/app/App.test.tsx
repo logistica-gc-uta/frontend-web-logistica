@@ -1,9 +1,11 @@
-import { act, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { productsService } from '../features/products/productsService'
+import { zonesService } from '../features/zones/zonesService'
 import { authStorage } from '../lib/auth/authStorage'
 import { handleResponseError } from '../lib/http/apiClient'
 import { adminSession } from '../test/fixtures'
-import { createHttpError } from '../test/httpErrors'
+import { createHttpError } from '../test/http'
 import { renderWithProviders } from '../test/renderWithProviders'
 import { App } from './App'
 import { paths } from './paths'
@@ -46,6 +48,24 @@ describe('App', () => {
     expect(loginHeading()).toBeInTheDocument()
     expect(authStorage.getSession()).toBeNull()
   })
+
+  it.each([
+    { link: 'Zonas', heading: 'Zonas de entrega' },
+    { link: 'Productos', heading: 'Productos' },
+  ])(
+    'navega a $link desde el menú principal y marca la opción activa',
+    async ({ link, heading }) => {
+      vi.spyOn(zonesService, 'list').mockResolvedValue([])
+      vi.spyOn(productsService, 'list').mockResolvedValue([])
+      const { user } = renderWithProviders(<App />, { route: paths.home, session: adminSession })
+      const nav = screen.getByRole('navigation', { name: 'Principal' })
+
+      await user.click(within(nav).getByRole('link', { name: link }))
+
+      expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+      expect(within(nav).getByRole('link', { name: link })).toHaveAttribute('aria-current', 'page')
+    },
+  )
 
   it('muestra la página 404 en rutas desconocidas', () => {
     renderWithProviders(<App />, { route: '/ruta-inexistente' })
