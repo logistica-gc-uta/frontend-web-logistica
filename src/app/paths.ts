@@ -2,4 +2,5 @@
 export const paths = {
   home: '/',
   login: '/login',
+  zones: '/zonas',
 } as const

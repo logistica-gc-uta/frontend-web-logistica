@@ -1,8 +1,8 @@
-import type { AxiosResponse } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import { AppError } from '../../lib/errors/AppError'
 import { apiClient } from '../../lib/http/apiClient'
 import { adminUser, driverUser } from '../../test/fixtures'
+import { createHttpResponse } from '../../test/http'
 import type { AuthUser } from '../../types/auth'
 import { authService, FORBIDDEN_ROLE_MESSAGE } from './authService'
 import type { LoginResponse } from './types'
@@ -12,7 +12,7 @@ const credentials = { email: 'admin@delivery.com', password: 'admin123' }
 const mockLoginResponse = (user: AuthUser) =>
   vi
     .spyOn(apiClient, 'post')
-    .mockResolvedValue({ data: { access_token: 'jwt', user } } as AxiosResponse<LoginResponse>)
+    .mockResolvedValue(createHttpResponse<LoginResponse>({ access_token: 'jwt', user }))
 
 describe('authService.login', () => {
   it('envía las credenciales al endpoint de login y devuelve la sesión', async () => {

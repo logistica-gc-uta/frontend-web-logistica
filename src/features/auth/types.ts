@@ -1,6 +1,7 @@
 import type { AuthUser } from '../../types/auth'
 
-export interface LoginCredentials {
+/** Se declara como `type` (no `interface`) para que sea compatible con `useForm`. */
+export type LoginCredentials = {
   email: string
   password: string
 }
