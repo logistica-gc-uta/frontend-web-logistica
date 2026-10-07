@@ -1,22 +1,70 @@
 import { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
-import { describe, expect, it } from 'vitest'
-import { tokenStorage } from '../auth/tokenStorage'
-import { attachAuthToken } from './apiClient'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { adminSession } from '../../test/fixtures'
+import { createHttpError } from '../../test/httpErrors'
+import { authStorage } from '../auth/authStorage'
+import { attachAuthToken, handleResponseError, setUnauthorizedHandler } from './apiClient'
 
-const createConfig = (): InternalAxiosRequestConfig => ({ headers: new AxiosHeaders() })
+const withToken = { requestHeaders: { Authorization: 'Bearer token' } }
 
 describe('attachAuthToken', () => {
+  const createConfig = (): InternalAxiosRequestConfig => ({ headers: new AxiosHeaders() })
+
   it('agrega el header Authorization cuando hay un token guardado', () => {
-    tokenStorage.set('token-de-prueba')
+    authStorage.save(adminSession)
 
     const config = attachAuthToken(createConfig())
 
-    expect(config.headers.get('Authorization')).toBe('Bearer token-de-prueba')
+    expect(config.headers.get('Authorization')).toBe(`Bearer ${adminSession.token}`)
   })
 
   it('no agrega Authorization cuando no hay token', () => {
     const config = attachAuthToken(createConfig())
 
     expect(config.headers.has('Authorization')).toBe(false)
+  })
+})
+
+describe('handleResponseError', () => {
+  const onUnauthorized = vi.fn()
+  let removeHandler: () => void
+
+  const registerHandler = () => {
+    removeHandler = setUnauthorizedHandler(onUnauthorized)
+  }
+
+  afterEach(() => {
+    removeHandler?.()
+    onUnauthorized.mockReset()
+  })
+
+  it('notifica la sesión inválida cuando una petición autenticada recibe 401', async () => {
+    registerHandler()
+    const error = createHttpError(401, withToken)
+
+    await expect(handleResponseError(error)).rejects.toBe(error)
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+  })
+
+  it('no notifica cuando el 401 viene de una petición sin token (credenciales incorrectas)', async () => {
+    registerHandler()
+
+    await expect(handleResponseError(createHttpError(401))).rejects.toBeDefined()
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it('no notifica para otros códigos de error', async () => {
+    registerHandler()
+
+    await expect(handleResponseError(createHttpError(500, withToken))).rejects.toBeDefined()
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it('deja de notificar después de quitar el registro', async () => {
+    registerHandler()
+    removeHandler()
+
+    await expect(handleResponseError(createHttpError(401, withToken))).rejects.toBeDefined()
+    expect(onUnauthorized).not.toHaveBeenCalled()
   })
 })
