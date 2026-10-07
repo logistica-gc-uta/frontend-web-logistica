@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import { AppLayout } from '../components/layout/AppLayout'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
+import { ProductsPage } from '../features/products/ProductsPage'
 import { ZonesPage } from '../features/zones/ZonesPage'
 import { HomePage } from '../pages/HomePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -15,6 +16,7 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route path={paths.home} element={<HomePage />} />
           <Route path={paths.zones} element={<ZonesPage />} />
+          <Route path={paths.products} element={<ProductsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

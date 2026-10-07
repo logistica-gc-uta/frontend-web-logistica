@@ -9,4 +9,5 @@ export interface NavItem {
 export const navItems: readonly NavItem[] = [
   { label: 'Inicio', to: paths.home },
   { label: 'Zonas', to: paths.zones },
+  { label: 'Productos', to: paths.products },
 ]
