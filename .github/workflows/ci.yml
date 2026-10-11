@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Una ejecución nueva en la misma rama cancela la anterior que siga en curso.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Mismas versiones que el backend y que `engines` en package.json.
+  NODE_VERSION: '26'
+  PNPM_VERSION: '12'
+  # Cobertura mínima exigida, igual que en el CI del backend.
+  MIN_COVERAGE: '80'
+
+jobs:
+  quality:
+    name: Lint, typecheck, pruebas y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v7
+
+      - name: Instalar Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar pnpm ${{ env.PNPM_VERSION }}
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
+
+      - name: Instalar dependencias (según el lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Análisis estático (oxlint)
+        run: pnpm lint
+
+      - name: Verificación de tipos (TypeScript)
+        run: pnpm typecheck
+
+      - name: Pruebas de componentes con cobertura mínima del ${{ env.MIN_COVERAGE }} %
+        run: >
+          pnpm test:coverage
+          --coverage.thresholds.statements=${{ env.MIN_COVERAGE }}
+          --coverage.thresholds.branches=${{ env.MIN_COVERAGE }}
+          --coverage.thresholds.functions=${{ env.MIN_COVERAGE }}
+          --coverage.thresholds.lines=${{ env.MIN_COVERAGE }}
+
+      - name: Build de producción
+        run: pnpm build
+
+      - name: Subir reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobertura-frontend
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
