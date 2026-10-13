@@ -1,5 +1,6 @@
 import { act, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { ordersService } from '../features/orders/ordersService'
 import { productsService } from '../features/products/productsService'
 import { zonesService } from '../features/zones/zonesService'
 import { authStorage } from '../lib/auth/authStorage'
@@ -50,6 +51,7 @@ describe('App', () => {
   })
 
   it.each([
+    { link: 'Pedidos', heading: 'Pedidos' },
     { link: 'Zonas', heading: 'Zonas de entrega' },
     { link: 'Productos', heading: 'Productos' },
   ])(
@@ -57,6 +59,12 @@ describe('App', () => {
     async ({ link, heading }) => {
       vi.spyOn(zonesService, 'list').mockResolvedValue([])
       vi.spyOn(productsService, 'list').mockResolvedValue([])
+      vi.spyOn(ordersService, 'list').mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 10,
+      })
       const { user } = renderWithProviders(<App />, { route: paths.home, session: adminSession })
       const nav = screen.getByRole('navigation', { name: 'Principal' })
 

@@ -50,7 +50,7 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas y productos con prefijo `IT` y un sufijo único. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos) y [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos).
 
 ## Estructura
 
@@ -59,10 +59,12 @@ src/
 ├── app/            # Componente raíz, rutas, constantes de paths y menú de navegación
 ├── components/
 │   ├── layout/     # AppLayout (encabezado y menú) y ResourcePage (formulario + listado)
-│   └── ui/         # Button, TextField, Alert, DataTable, AsyncContent
+│   ├── map/        # LocationPicker: mapa Leaflet para elegir y confirmar una ubicación
+│   └── ui/         # Button, Field, TextField, SelectField, Alert, DataTable, AsyncContent, Pagination
 ├── config/         # Lectura centralizada de variables de entorno
 ├── features/
 │   ├── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
+│   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
 │   ├── products/   # Listado y creación de productos
 │   └── zones/      # Listado y creación de zonas de entrega
 ├── hooks/          # useForm (formularios) y useFetch (carga de datos)
@@ -70,8 +72,9 @@ src/
 ├── lib/
 │   ├── auth/       # Persistencia de la sesión (token JWT + usuario)
 │   ├── errors/     # AppError: errores con mensaje para el usuario
-│   ├── format/     # Formato de fechas y moneda
+│   ├── format/     # Formato de fechas, fecha y hora (Guayaquil) y moneda
 │   ├── http/       # Cliente axios compartido y manejo de errores de la API
+│   ├── time/       # Huso horario operativo (Guayaquil) y conversión a ISO 8601
 │   └── validation/ # Validadores genéricos de formularios
 ├── pages/          # Pantallas generales (inicio, 404)
 ├── types/          # Tipos de dominio compartidos
@@ -89,6 +92,8 @@ src/
 
 - Cada funcionalidad vive en `src/features/<nombre>/` (servicio, componentes, validación y pruebas).
 - Las páginas administrativas usan `ResourcePage`; los formularios, `useForm`; y las listas, `useFetch` + `AsyncContent` + `DataTable`.
+- Las fechas de entrega se capturan y muestran en **hora de Guayaquil (UTC-5)** y se envían al backend como ISO 8601 con desfase explícito (`lib/time/guayaquil.ts`).
+- El mapa usa Leaflet con teselas de OpenStreetMap (requiere internet); en las pruebas de componentes se simula, porque Leaflet no se dibuja en jsdom.
 - Para agregar un módulo: crear su carpeta en `features/`, su ruta en `paths.ts` y `App.tsx`, y su entrada en `navigation.ts`.
 - Las pruebas viven junto al archivo que prueban (`Componente.test.tsx`) y usan `renderWithProviders`.
 - Toda petición al backend usa `apiClient` (`src/lib/http/apiClient.ts`), que agrega el token automáticamente.
