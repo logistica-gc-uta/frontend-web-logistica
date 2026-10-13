@@ -2,7 +2,8 @@ import { screen } from '@testing-library/react'
 import { Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { paths } from '../../app/paths'
-import { adminSession } from '../../test/fixtures'
+import { adminSession, clientSession, driverSession } from '../../test/fixtures'
+import { authStorage } from '../../lib/auth/authStorage'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { authService } from './authService'
 import { LoginPage } from './LoginPage'
@@ -27,6 +28,20 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByRole('heading', { name: 'Página privada' })).toBeInTheDocument()
   })
+
+  it.each([
+    { role: 'DRIVER', session: driverSession },
+    { role: 'CLIENT', session: clientSession },
+  ])(
+    'una sesión guardada con rol $role no se restaura: redirige al login y la borra',
+    ({ session }) => {
+      renderRoutes(session)
+
+      expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Página privada' })).not.toBeInTheDocument()
+      expect(authStorage.getSession()).toBeNull()
+    },
+  )
 
   it('redirige al login y, tras autenticarse, vuelve a la página solicitada', async () => {
     vi.spyOn(authService, 'login').mockResolvedValue(adminSession)

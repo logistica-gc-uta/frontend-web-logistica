@@ -54,8 +54,10 @@ const buildInput = (patch: Partial<CreateAdminOrderInput> = {}): CreateAdminOrde
 })
 
 /** El listado de productos solo incluye los que tienen stock; sin stock se considera 0. */
-const stockOfTestProduct = async (): Promise<number> =>
-  (await productsService.list()).find((candidate) => candidate.id === product.id)?.stock ?? 0
+const stockOf = async (productId: string): Promise<number> =>
+  (await productsService.list()).find((candidate) => candidate.id === productId)?.stock ?? 0
+
+const stockOfTestProduct = (): Promise<number> => stockOf(product.id)
 
 describe('Integración real · pedidos (/orders)', () => {
   beforeAll(async () => {
@@ -126,6 +128,42 @@ describe('Integración real · pedidos (/orders)', () => {
       expect.objectContaining({ productId: product.id, quantity: 2, price: 10 }),
     ])
     expect(await stockOfTestProduct()).toBe(stockBefore - 2)
+  })
+
+  it('CP-PED-006 · registra un pedido con dos productos distintos: líneas, total y stock de ambos', async () => {
+    // Segundo producto propio de la prueba, con otro precio, para distinguir las líneas.
+    const second = await productsService.create({
+      name: `IT Producto pedidos B ${uniqueSuffix()}`,
+      price: 25.5,
+      stock: 5,
+    })
+    const firstStockBefore = await stockOfTestProduct()
+    const secondStockBefore = await stockOf(second.id)
+    const input = buildInput({
+      items: [
+        { productId: product.id, quantity: 3 },
+        { productId: second.id, quantity: 2 },
+      ],
+    })
+
+    const created = await ordersService.createAsAdmin(input)
+    const listed = await ordersService.list({ page: 1, pageSize: 100, date: FUTURE_DAY })
+
+    // 3 × 10 + 2 × 25,50 = 81
+    expect(created).toEqual(
+      expect.objectContaining({ status: 'PENDING', recipientType: 'GUEST', total: 81 }),
+    )
+    const listedOrder = listed.items.find((order) => order.id === created.id)
+    expect(listedOrder?.total).toBe(81)
+    expect(listedOrder?.items).toHaveLength(2)
+    expect(listedOrder?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ productId: product.id, quantity: 3, price: 10 }),
+        expect.objectContaining({ productId: second.id, quantity: 2, price: 25.5 }),
+      ]),
+    )
+    expect(await stockOfTestProduct()).toBe(firstStockBefore - 3)
+    expect(await stockOf(second.id)).toBe(secondStockBefore - 2)
   })
 
   it('registra un pedido de hoy cuando la hora de entrega todavía no pasó', async () => {

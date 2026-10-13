@@ -2,12 +2,24 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { authStorage } from '../../lib/auth/authStorage'
 import { setUnauthorizedHandler } from '../../lib/http/apiClient'
 import { AuthContext, type AuthContextValue } from './AuthContext'
-import { authService } from './authService'
+import { authService, canAccessPanel } from './authService'
 import type { AuthUser } from '../../types/auth'
 import type { LoginCredentials } from './types'
 
+/**
+ * Restaura la sesión guardada solo si su rol puede usar el panel. Una sesión con otro rol (por
+ * ejemplo, editada a mano en localStorage) se descarta y se borra. La autorización real la sigue
+ * haciendo el backend; esto evita mostrar el panel a quien no corresponde.
+ */
+function restoreUser(): AuthUser | null {
+  const user = authStorage.getSession()?.user ?? null
+  if (user && canAccessPanel(user.role)) return user
+  authStorage.clear()
+  return null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => authStorage.getSession()?.user ?? null)
+  const [user, setUser] = useState<AuthUser | null>(restoreUser)
 
   const logout = useCallback(() => {
     authStorage.clear()

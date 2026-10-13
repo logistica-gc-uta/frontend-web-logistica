@@ -6,6 +6,9 @@ import type { LoginCredentials, LoginResponse } from './types'
 /** Roles que pueden ingresar al panel web administrativo. */
 export const ALLOWED_ROLES: readonly Role[] = ['ADMIN']
 
+/** Regla única de acceso al panel: la usan el login y la restauración de la sesión guardada. */
+export const canAccessPanel = (role: Role): boolean => ALLOWED_ROLES.includes(role)
+
 export const FORBIDDEN_ROLE_MESSAGE =
   'Tu usuario no tiene permisos para acceder al panel administrativo'
 
@@ -14,7 +17,7 @@ export const authService = {
   async login(credentials: LoginCredentials): Promise<Session> {
     const { data } = await apiClient.post<LoginResponse>('/auth/login', credentials)
 
-    if (!ALLOWED_ROLES.includes(data.user.role)) {
+    if (!canAccessPanel(data.user.role)) {
       throw new AppError(FORBIDDEN_ROLE_MESSAGE)
     }
 
