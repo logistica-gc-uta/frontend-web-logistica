@@ -5,9 +5,18 @@ import { paths } from '../../app/paths'
 import { adminSession, zones } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
 import { renderWithProviders } from '../../test/renderWithProviders'
+import type { Zone } from './types'
 import { zonesService } from './zonesService'
 
-const newZone = { id: 'zone-3', name: 'Centro', code: 'CEN-01', createdAt: '2026-10-09T12:00:00Z' }
+const newZone: Zone = {
+  id: 'zone-3',
+  name: 'Centro',
+  code: 'CEN-01',
+  createdAt: '2026-10-09T12:00:00Z',
+  depotLat: null,
+  depotLng: null,
+  depotLocation: null,
+}
 
 const renderZonesPage = () =>
   renderWithProviders(<App />, { route: paths.zones, session: adminSession })

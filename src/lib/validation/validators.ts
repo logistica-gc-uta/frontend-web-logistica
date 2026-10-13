@@ -13,3 +13,6 @@ export const isNonNegativeInteger = (value: string): boolean => {
   const number = toNumber(value)
   return Number.isInteger(number) && number >= 0
 }
+
+export const isPositiveInteger = (value: string): boolean =>
+  isNonNegativeInteger(value) && toNumber(value) > 0
