@@ -4,21 +4,10 @@ import { useEffect, useId } from 'react'
 import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import type { GeoPoint } from '../../types/geo'
 import { Button } from '../ui/Button'
+import { depotIcon, orderIcon } from './icons'
 
 const INITIAL_ZOOM = 15
 const COORDINATE_DECIMALS = 6 // ≈ 0,1 m: más precisión que la de cualquier dirección postal.
-
-/** Marcadores dibujados con CSS (ver `.map-pin` en index.css): no dependen de imágenes del paquete. */
-const orderIcon = L.divIcon({
-  className: 'map-pin map-pin--order',
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-})
-const depotIcon = L.divIcon({
-  className: 'map-pin map-pin--depot',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-})
 
 const roundCoordinate = (value: number): number => {
   const factor = 10 ** COORDINATE_DECIMALS

@@ -29,6 +29,12 @@ describe('getErrorMessage', () => {
     )
   })
 
+  it('distingue el tiempo de espera agotado de la falta de conexión', () => {
+    expect(getErrorMessage(new AxiosError('timeout of 30000ms exceeded', 'ECONNABORTED'))).toBe(
+      'El servidor tardó demasiado en responder',
+    )
+  })
+
   it('devuelve el mensaje de un AppError tal cual', () => {
     expect(getErrorMessage(new AppError('Sin permisos'))).toBe('Sin permisos')
   })

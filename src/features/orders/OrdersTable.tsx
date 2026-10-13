@@ -1,7 +1,8 @@
 import { DataTable, type Column } from '../../components/ui/DataTable'
 import { formatCurrency } from '../../lib/format/formatCurrency'
 import { formatDateTime } from '../../lib/format/formatDateTime'
-import { describePlanningReason, ORDER_STATUS_LABELS } from './orderLabels'
+import { describePlanningReason } from '../../lib/planning/planningReasons'
+import { ORDER_STATUS_LABELS } from './orderLabels'
 import type { Order } from './types'
 
 const COLUMNS: Column<Order>[] = [
