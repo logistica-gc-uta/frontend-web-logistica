@@ -113,7 +113,10 @@ export function OrderForm({ zones, products, onCreated }: OrderFormProps) {
           label="Zona"
           name="zoneId"
           value={values.zoneId}
-          onChange={handleChange}
+          // El punto confirmado pertenece a la zona anterior: hay que ubicarlo y confirmarlo de nuevo.
+          onChange={(event) =>
+            setFields({ zoneId: event.target.value, location: null, locationConfirmed: false })
+          }
           error={fieldErrors.zoneId}
         >
           <option value="">Selecciona una zona</option>
