@@ -131,6 +131,55 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
     await expectHttpError(planningService.confirmRoute(input), 409)
   })
 
+  it('corrige rutas DRAFT con auditoría: reordena paradas y mueve un pedido a otra ruta del día', async () => {
+    // Se confirman las propuestas pendientes para tener dos rutas DRAFT del mismo día y zona.
+    for (const proposal of (await previewDay()).proposals) {
+      await planningService.confirmRoute({
+        zoneId: proposal.zoneId,
+        routeDate: proposal.routeDate,
+        orderIds: proposal.orderIds,
+      })
+    }
+    const draftsOfDay = async () =>
+      (await planningService.listRoutes())
+        .filter((route) => route.zoneId === zoneId && dayInGuayaquil(new Date(route.date)) === DAY)
+        .sort((a, b) => b.orders.length - a.orders.length)
+    const [large, small] = await draftsOfDay()
+    expect([large.orders.length, small.orders.length]).toEqual([4, 1])
+
+    const reversed = large.orders.map((order) => order.id).reverse()
+    const reorder = await planningService.reorderStops({
+      routeId: large.id,
+      orderIds: reversed,
+      reason: 'IT: calle cerrada',
+    })
+    expect(reorder).toEqual(expect.objectContaining({ action: 'REORDER', outcome: 'APPLIED' }))
+    const [afterReorder] = await draftsOfDay()
+    expect(afterReorder.orders.map((order) => order.id)).toEqual(reversed)
+
+    // Si las paradas enviadas no son exactamente las de la ruta, no se aplica nada.
+    await expectHttpError(
+      planningService.reorderStops({
+        routeId: large.id,
+        orderIds: reversed.slice(1),
+        reason: 'IT: incompleto',
+      }),
+      409,
+    )
+
+    const moved = reversed[0]
+    await planningService.moveOrder({
+      routeId: large.id,
+      orderId: moved,
+      targetRouteId: small.id,
+      reason: 'IT: equilibrar carga',
+    })
+    const [source, target] = await draftsOfDay()
+    expect(source.orders.map((order) => order.id)).toEqual(reversed.slice(1))
+    expect(target.id).toBe(small.id)
+    expect(target.orders.map((order) => order.id)).toEqual([small.orders[0].id, moved])
+  })
+
   it('las rutas y los choferes no exponen el hash de contraseña dentro de la aplicación', async () => {
     const routes = JSON.stringify(await planningService.listRoutes())
     const drivers = await driversService.list()
@@ -145,12 +194,16 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
     })
   })
 
-  it('un CLIENT no puede ver propuestas ni confirmar rutas (403)', async () => {
+  it('un CLIENT no puede ver propuestas, confirmar ni corregir rutas (403)', async () => {
     await loginAsClient()
 
     await expectHttpError(previewDay(), 403)
     await expectHttpError(
       planningService.confirmRoute({ zoneId, routeDate: `${DAY}T15:00:00Z`, orderIds }),
+      403,
+    )
+    await expectHttpError(
+      planningService.reorderStops({ routeId: crypto.randomUUID(), orderIds, reason: 'IT' }),
       403,
     )
   })
