@@ -21,9 +21,9 @@ describe('DistanceNotice', () => {
     render(<DistanceNotice />)
 
     const notice = screen.getByRole('note')
-    expect(notice).toHaveTextContent('Distancias estimadas')
-    expect(notice).toHaveTextContent('línea recta')
-    expect(notice).toHaveTextContent('no consideran calles, tráfico ni tiempos de viaje')
+    expect(notice).toHaveTextContent('Km geodésicos estimados')
+    expect(notice).toHaveTextContent('no son distancia por carretera')
+    expect(notice).toHaveTextContent('ni consideran calles, tráfico ni tiempos de llegada')
     expect(notice).toHaveTextContent('no es un ahorro real de combustible')
   })
 })

@@ -128,8 +128,8 @@ describe('PlanningPage · previsualizar', () => {
     await preview(user)
 
     expect(screen.getByText(/Estas rutas todavía no están guardadas/)).toBeInTheDocument()
-    expect(screen.getByRole('note')).toHaveTextContent('Distancias estimadas')
-    expect(screen.getByRole('note')).toHaveTextContent('línea recta')
+    expect(screen.getByRole('note')).toHaveTextContent('Km geodésicos estimados')
+    expect(screen.getByRole('note')).toHaveTextContent('no son distancia por carretera')
   })
 
   it('muestra el resumen del día con el ahorro frente a no optimizar', async () => {
