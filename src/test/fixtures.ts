@@ -18,7 +18,16 @@ export const driverUser: AuthUser = {
   role: 'DRIVER',
 }
 
+export const clientUser: AuthUser = {
+  id: 'client-1',
+  name: 'Ana Cliente',
+  email: 'cliente@delivery.com',
+  role: 'CLIENT',
+}
+
 export const adminSession: Session = { token: 'token-admin', user: adminUser }
+export const driverSession: Session = { token: 'token-driver', user: driverUser }
+export const clientSession: Session = { token: 'token-client', user: clientUser }
 
 export const ficoaDepot: GeoPoint = { lat: -1.249, lng: -78.632 }
 
