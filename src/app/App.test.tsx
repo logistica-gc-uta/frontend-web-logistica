@@ -52,6 +52,7 @@ describe('App', () => {
 
   it.each([
     { link: 'Pedidos', heading: 'Pedidos' },
+    { link: 'Planificación', heading: 'Planificación de rutas' },
     { link: 'Zonas', heading: 'Zonas de entrega' },
     { link: 'Productos', heading: 'Productos' },
   ])(

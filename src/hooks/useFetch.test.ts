@@ -64,6 +64,22 @@ describe('useFetch', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
+  it('una respuesta lenta de una consulta anterior no reemplaza a la más reciente', async () => {
+    let resolveSlow: (value: string) => void = () => {}
+    const slow = vi.fn(() => new Promise<string>((r) => (resolveSlow = r)))
+    const fast = vi.fn().mockResolvedValue('filtro nuevo')
+    const { result, rerender } = renderHook(({ fetcher }) => useFetch(fetcher), {
+      initialProps: { fetcher: slow },
+    })
+
+    rerender({ fetcher: fast })
+    await waitFor(() => expect(result.current.data).toBe('filtro nuevo'))
+    await act(async () => resolveSlow('filtro viejo'))
+
+    expect(result.current.data).toBe('filtro nuevo')
+    expect(result.current.isLoading).toBe(false)
+  })
+
   it('oculta el error anterior mientras se vuelve a consultar', async () => {
     const fetcher = vi.fn().mockRejectedValueOnce(createHttpError(500)).mockResolvedValueOnce('ok')
     const { result } = renderHook(() => useFetch(fetcher, 'Falló'))
