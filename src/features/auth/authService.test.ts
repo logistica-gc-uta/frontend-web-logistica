@@ -4,7 +4,7 @@ import { apiClient } from '../../lib/http/apiClient'
 import { adminUser, driverUser } from '../../test/fixtures'
 import { createHttpResponse } from '../../test/http'
 import type { AuthUser } from '../../types/auth'
-import { authService, FORBIDDEN_ROLE_MESSAGE } from './authService'
+import { authService, canAccessPanel, FORBIDDEN_ROLE_MESSAGE } from './authService'
 import type { LoginResponse } from './types'
 
 const credentials = { email: 'admin@delivery.com', password: 'admin123' }
@@ -38,5 +38,15 @@ describe('authService.login', () => {
     vi.spyOn(apiClient, 'post').mockRejectedValue(backendError)
 
     await expect(authService.login(credentials)).rejects.toBe(backendError)
+  })
+})
+
+describe('canAccessPanel', () => {
+  it.each([
+    ['ADMIN', true],
+    ['DRIVER', false],
+    ['CLIENT', false],
+  ] as const)('el rol %s puede usar el panel: %s', (role, expected) => {
+    expect(canAccessPanel(role)).toBe(expected)
   })
 })

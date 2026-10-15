@@ -116,6 +116,8 @@ Stock: Mouse Inalámbrico Logitech 50 → 48 · Teclado Mecánico RGB 30 → 29
 | Algunos mensajes de error del backend están en inglés (p. ej. _"Confirmed delivery coordinates and configured zone depot are required"_) y se muestran tal cual.                                                                                 | Observación para el backend            | El formulario evita llegar a esos casos (zona con depósito y ubicación confirmada).                          |
 | El mapa se maneja solo con mouse (clic y arrastre).                                                                                                                                                                                              | Limitación de accesibilidad            | Posible mejora: campos de latitud y longitud sincronizados con el marcador.                                  |
 | Las teselas del mapa vienen de OpenStreetMap: se necesita internet.                                                                                                                                                                              | Limitación conocida                    | Documentado en el README.                                                                                    |
+| Al cambiar de zona se conservaba la ubicación confirmada de la zona anterior y se podía enviar (revisión del PR).                                                                                                                                | Defecto del frontend                   | Corregido: el cambio de zona borra el punto y su confirmación (con prueba de regresión, §8).                 |
+| Una sesión guardada en `localStorage` con rol CLIENT o DRIVER se restauraba y mostraba el panel (revisión del PR, RF-TEC-01).                                                                                                                    | Defecto del frontend (seguridad)       | Corregido: solo se restaura una sesión ADMIN; las demás se borran (con prueba de regresión, §8).             |
 | Las pruebas de integración dejan zonas, productos y pedidos con prefijo `IT` en la base local (los filtros de zona de la pantalla los muestran).                                                                                                 | Datos de prueba                        | Se eliminan recreando la base (`docker compose down -v`).                                                    |
 
 No se encontraron defectos del backend para el registro y el listado de pedidos.
@@ -124,3 +126,37 @@ No se encontraron defectos del backend para el registro y el listado de pedidos.
 
 Ventana de entrega opcional (`deliveryWindowStart` y `End`), cliente registrado como destinatario, edición o cancelación de pedidos
 y el panel de planificación de rutas (issue #7).
+
+## 8. Ajustes de la revisión del PR (13/10/2026)
+
+Cambios hechos sobre la misma rama a pedido de los revisores. La sección 3 refleja la ejecución original (12/10/2026);
+la de esta ronda está en la tabla siguiente.
+
+| Ajuste                                       | Cambio                                                                                                                                           | Prueba                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cambio de zona con ubicación confirmada      | `OrderForm`: al elegir otra zona se reinician `location` y `locationConfirmed`.                                                                  | `OrdersPage.test.tsx` · _"al cambiar de zona descarta la ubicación confirmada y exige ubicarla de nuevo"_ (falla sin la corrección).                          |
+| RF-TEC-01 · rol ADMIN al restaurar la sesión | `canAccessPanel` (en `authService`) es la única regla de acceso: la usan el login y `AuthProvider` al restaurar la sesión. Otra sesión se borra. | `ProtectedRoute.test.tsx` · sesiones DRIVER y CLIENT guardadas → login y sesión borrada (fallan sin la corrección); `authService.test.ts` · `canAccessPanel`. |
+| CP-PED-006 · pedido con varios productos     | Nueva prueba de integración en `orders.int.test.ts` con dos productos propios de la prueba.                                                      | Ver registro de ejecución.                                                                                                                                    |
+
+La autorización principal sigue en el backend (responde 403 a CLIENT y DRIVER); el control del frontend evita mostrar el panel a quien no corresponde.
+
+### Registro de ejecución
+
+| Caso                                                       | Fecha      | Versión (frontend · backend)              | Resultado | Evidencia                                                                                                                                                               |
+| ---------------------------------------------------------- | ---------- | ----------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cambio de zona descarta la ubicación (unitaria)            | 13/10/2026 | `aae1193` · —                             | PASS      | `pnpm test:coverage`: 226/226                                                                                                                                           |
+| Cambio de zona descarta la ubicación (navegador)           | 13/10/2026 | `aae1193` · `main` @ `09d4621`            | PASS      | CEN-01 → punto confirmado → FIC-02: desaparecen marcador y confirmación y se pide _"Haz clic en el mapa…"_. No se registró pedido.                                      |
+| RF-TEC-01 · sesión CLIENT/DRIVER no se restaura (unitaria) | 13/10/2026 | commit de esta ronda · —                  | PASS      | `ProtectedRoute.test.tsx`                                                                                                                                               |
+| RF-TEC-01 · sesión CLIENT guardada a mano (navegador)      | 13/10/2026 | commit de esta ronda · —                  | PASS      | Con una sesión CLIENT en `localStorage`, `/pedidos` redirige a `/login`, la sesión se borra y no aparece el menú.                                                       |
+| CP-PED-006 · pedido GUEST con dos productos (integración)  | 13/10/2026 | commit de esta ronda · `main` @ `09d4621` | PASS      | `pnpm test:integration`: **22/22** (21 previas + CP-PED-006). Total $81 (3 × $10 + 2 × $25,50), dos líneas con cantidad y precio y stock de ambos productos descontado. |
+
+### Consistencia entre zona y punto geográfico
+
+El SRS pide tratar posibles inconsistencias entre la zona elegida y el punto de entrega. Regla adoptada en este PR:
+
+- El mapa se centra en el **depósito de la zona** elegida, de modo que el operador ubica el punto partiendo de esa zona.
+- **Cambiar de zona invalida el punto**: hay que colocarlo y confirmarlo de nuevo.
+- El operador **confirma visualmente** que el punto pertenece a la zona antes de registrar el pedido (botón _Confirmar ubicación_).
+
+No hay comprobación automática de que el punto caiga dentro de la zona, porque las zonas no tienen límites geográficos
+(polígonos) en el backend. Queda **diferida como seguimiento**: requiere que el backend modele los límites de cada zona.

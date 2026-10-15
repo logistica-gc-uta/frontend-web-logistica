@@ -249,6 +249,25 @@ describe('OrdersPage · formulario', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
+  it('al cambiar de zona descarta la ubicación confirmada y exige ubicarla de nuevo', async () => {
+    mockApi()
+    const otherZone = { ...zones[0], id: 'zone-3', name: 'Centro', code: 'CEN-01' }
+    vi.spyOn(zonesService, 'list').mockResolvedValue([...zones, otherZone])
+    const create = vi.spyOn(ordersService, 'createAsAdmin')
+    const { user } = renderOrdersPage()
+    await findTable()
+    await fillValidForm(user)
+    expect(getForm().getByText('Ubicación confirmada')).toBeInTheDocument()
+
+    await user.selectOptions(getForm().getByLabelText('Zona'), 'zone-3')
+
+    expect(getForm().queryByText('Ubicación confirmada')).not.toBeInTheDocument()
+    expect(getForm().queryByRole('button', { name: 'Confirmar ubicación' })).not.toBeInTheDocument()
+    await submit(user)
+    expect(screen.getByText('Coloca el marcador en el mapa')).toBeInTheDocument()
+    expect(create).not.toHaveBeenCalled()
+  })
+
   it('muestra el total estimado según los productos elegidos', async () => {
     mockApi()
     const { user } = renderOrdersPage()
