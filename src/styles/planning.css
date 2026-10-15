@@ -218,3 +218,45 @@
   align-items: flex-end;
   gap: 12px;
 }
+
+/* Corrección de paradas de una ruta guardada */
+.route-correction {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.route-correction__stops {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.route-correction__stops li::marker {
+  font-weight: 600;
+}
+
+.route-correction__stops li > span:first-child {
+  margin-right: 8px;
+}
+
+.route-correction__arrows {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.route-correction__arrows .btn {
+  min-width: 36px;
+  padding: 4px 8px;
+}
+
+.route-correction__actions,
+.route-correction__move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}

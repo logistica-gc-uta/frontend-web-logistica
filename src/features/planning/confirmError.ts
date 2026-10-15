@@ -30,6 +30,14 @@ export const describeConfirmError = (error: unknown): string =>
     conflictHint: 'Vuelve a previsualizar para ver el estado actual de los pedidos.',
   })
 
+export const describeCorrectionError = (error: unknown): string =>
+  describeRouteActionError(error, {
+    fallback: 'No se pudo corregir la ruta',
+    forbidden: 'No tienes permisos para corregir rutas.',
+    conflictHint:
+      'La ruta cambió o ya no se puede modificar (por ejemplo, se inició): revisa la lista actualizada.',
+  })
+
 export const describeAssignError = (error: unknown): string =>
   describeRouteActionError(error, {
     fallback: 'No se pudo asignar el chofer',

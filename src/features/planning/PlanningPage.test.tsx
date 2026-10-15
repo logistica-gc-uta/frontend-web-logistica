@@ -434,4 +434,100 @@ describe('PlanningPage · rutas guardadas', () => {
       expect(within(item).queryByRole('combobox')).not.toBeInTheDocument()
     }
   })
+
+  it('corrige el orden de una ruta guardada y muestra la lista actualizada', async () => {
+    mockApi()
+    const listRoutes = vi
+      .spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([savedRouteDetail('route-1')])
+      .mockResolvedValue([
+        savedRouteDetail('route-1', {
+          orders: [
+            { id: 'route-1-o2', deliveryAddress: 'Parada 2 de route-1', stopOrder: 1 },
+            { id: 'route-1-o1', deliveryAddress: 'Parada 1 de route-1', stopOrder: 2 },
+          ],
+        }),
+      ])
+    const reorderStops = vi
+      .spyOn(planningService, 'reorderStops')
+      .mockResolvedValue({ id: 'audit-1', action: 'REORDER', outcome: 'APPLIED' })
+    const { user } = renderPlanningPage()
+    await preview(user)
+
+    await user.click(await screen.findByRole('button', { name: 'Corregir paradas' }))
+    const panel = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
+    await user.click(panel.getByRole('button', { name: 'Bajar Parada 1 de route-1' }))
+    await user.type(panel.getByLabelText(`Motivo de la corrección de ${FIRST}`), 'Calle cerrada')
+    await user.click(panel.getByRole('button', { name: 'Guardar nuevo orden' }))
+
+    await waitFor(() =>
+      expect(
+        within(savedItem(FIRST).getByRole('list'))
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Parada 2 de route-1', 'Parada 1 de route-1']),
+    )
+    expect(reorderStops).toHaveBeenCalledWith({
+      routeId: 'route-1',
+      orderIds: ['route-1-o2', 'route-1-o1'],
+      reason: 'Calle cerrada',
+    })
+    expect(listRoutes).toHaveBeenCalledTimes(2)
+  })
+
+  it('mueve un pedido a otra ruta guardada del mismo día y zona', async () => {
+    mockApi()
+    vi.spyOn(planningService, 'listRoutes').mockResolvedValue([
+      savedRouteDetail('route-1'),
+      savedRouteDetail('route-2', {
+        orders: [{ id: 'route-2-o1', deliveryAddress: 'Parada 1 de route-2', stopOrder: 1 }],
+      }),
+    ])
+    const moveOrder = vi
+      .spyOn(planningService, 'moveOrder')
+      .mockResolvedValue({ id: 'audit-2', action: 'MOVE', outcome: 'APPLIED' })
+    const { user } = renderPlanningPage()
+    await preview(user)
+
+    await user.click((await screen.findAllByRole('button', { name: 'Corregir paradas' }))[0])
+    const panel = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
+    await user.selectOptions(panel.getByLabelText(`Pedido a mover de ${FIRST}`), 'route-1-o2')
+    await user.selectOptions(
+      panel.getByLabelText(`Ruta destino para ${FIRST}`),
+      'Ruta guardada 2 · FIC-02',
+    )
+    await user.type(panel.getByLabelText(`Motivo de la corrección de ${FIRST}`), 'Equilibrar')
+    await user.click(panel.getByRole('button', { name: 'Mover pedido' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: `Corregir ${FIRST}` })).not.toBeInTheDocument(),
+    )
+    expect(moveOrder).toHaveBeenCalledWith({
+      routeId: 'route-1',
+      orderId: 'route-1-o2',
+      targetRouteId: 'route-2',
+      reason: 'Equilibrar',
+    })
+  })
+
+  it('si la ruta ya se inició, la corrección se rechaza, se explica y no se da por hecha', async () => {
+    mockApi()
+    vi.spyOn(planningService, 'listRoutes').mockResolvedValue([savedRouteDetail('route-1')])
+    vi.spyOn(planningService, 'reorderStops').mockRejectedValue(
+      createHttpError(409, { data: { message: 'Route structure is frozen' } }),
+    )
+    const { user } = renderPlanningPage()
+    await preview(user)
+
+    await user.click(await screen.findByRole('button', { name: 'Corregir paradas' }))
+    const panel = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
+    await user.click(panel.getByRole('button', { name: 'Bajar Parada 1 de route-1' }))
+    await user.type(panel.getByLabelText(`Motivo de la corrección de ${FIRST}`), 'x')
+    await user.click(panel.getByRole('button', { name: 'Guardar nuevo orden' }))
+
+    expect(await panel.findByRole('alert')).toHaveTextContent(
+      'Conflicto: Route structure is frozen. La ruta cambió o ya no se puede modificar',
+    )
+    expect(screen.getByRole('group', { name: `Corregir ${FIRST}` })).toBeInTheDocument()
+  })
 })

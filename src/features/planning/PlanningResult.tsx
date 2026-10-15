@@ -4,6 +4,7 @@ import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
 import { useFetch } from '../../hooks/useFetch'
 import { formatDateTime } from '../../lib/format/formatDateTime'
+import { describeAssignError, describeCorrectionError } from './confirmError'
 import { DistanceNotice } from './DistanceNotice'
 import { driversService } from './driversService'
 import { ExcludedOrders } from './ExcludedOrders'
@@ -13,7 +14,7 @@ import { ProposalCard } from './ProposalCard'
 import { proposalKey, routeColor, routeLabel } from './routeStyle'
 import { SavedRoutes } from './SavedRoutes'
 import type { RouteProposalsResponse } from './types'
-import { useDriverAssignment } from './useDriverAssignment'
+import { useRouteActions } from './useRouteActions'
 import { useRouteConfirmations } from './useRouteConfirmations'
 
 interface PlanningResultProps {
@@ -34,11 +35,31 @@ export function PlanningResult({ data }: PlanningResultProps) {
   const { reload: reloadDrivers } = drivers
 
   const { states, confirm, confirmAll } = useRouteConfirmations(reloadSavedRoutes)
-  const refreshAfterAssignment = useCallback(() => {
+  // Asignar o corregir cambia rutas y la disponibilidad de los choferes: se consultan de nuevo.
+  const refreshSavedState = useCallback(() => {
     reloadSavedRoutes()
     reloadDrivers()
   }, [reloadSavedRoutes, reloadDrivers])
-  const assignment = useDriverAssignment(refreshAfterAssignment)
+  const routeActions = useRouteActions(refreshSavedState)
+
+  const assignDriver = (routeId: string, driverId: string) =>
+    void routeActions.run(
+      routeId,
+      () => planningService.assignDriver(routeId, driverId),
+      describeAssignError,
+    )
+  const reorderStops = (routeId: string, orderIds: string[], reason: string) =>
+    routeActions.run(
+      routeId,
+      () => planningService.reorderStops({ routeId, orderIds, reason }),
+      describeCorrectionError,
+    )
+  const moveOrder = (routeId: string, orderId: string, targetRouteId: string, reason: string) =>
+    routeActions.run(
+      routeId,
+      () => planningService.moveOrder({ routeId, orderId, targetRouteId, reason }),
+      describeCorrectionError,
+    )
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const routes = useMemo(
@@ -150,8 +171,10 @@ export function PlanningResult({ data }: PlanningResultProps) {
                 day={data.date}
                 routes={routes}
                 drivers={drivers.data ?? []}
-                assignments={assignment.states}
-                onAssign={assignment.assign}
+                actions={routeActions.states}
+                onAssign={assignDriver}
+                onReorder={reorderStops}
+                onMove={moveOrder}
               />
             </>
           )}

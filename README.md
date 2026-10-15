@@ -67,7 +67,7 @@ src/
 ├── features/
 │   ├── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
 │   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
-│   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación y asignación de chofer
+│   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación, corrección de paradas y asignación de chofer
 │   ├── products/   # Listado y creación de productos
 │   └── zones/      # Listado y creación de zonas de entrega
 ├── hooks/          # useForm (formularios), useFetch (carga de datos) y useAsyncAction (acciones bajo demanda)
@@ -90,7 +90,9 @@ src/
 
 - **Previsualizar** (`GET /route-proposals`) solo calcula: se puede repetir sin guardar nada.
 - **Confirmar** (`POST /routes`) guarda una propuesta como ruta `DRAFT` (sin chofer); **Confirmar todas** lo hace una por una y, si una falla, las demás se guardan igual.
-- En **Rutas guardadas** del día, una ruta `DRAFT` puede recibir un chofer disponible (`POST /routes/{id}/assign`) y pasa a `ASSIGNED`. Las rutas `IN_PROGRESS` y `COMPLETED` se muestran sin acciones.
+- En **Rutas guardadas** del día, una ruta `DRAFT` puede recibir un chofer disponible (`POST /routes/{id}/assign`) y pasa a `ASSIGNED`.
+- Antes de iniciarse (`DRAFT` o `ASSIGNED`), **Corregir paradas** permite reordenarlas o mover un pedido a otra ruta del mismo día y zona con lugar (`POST /dispatch/interventions`, acciones `REORDER` y `MOVE`). Cada corrección pide un motivo, que el backend audita.
+- Las rutas `IN_PROGRESS` y `COMPLETED` se muestran sin acciones.
 - Las distancias son en **línea recta** (Haversine), no por calles; el ahorro se compara con visitar cada pedido en un viaje aparte.
 
 ### Autenticación
