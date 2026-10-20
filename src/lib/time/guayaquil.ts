@@ -16,3 +16,16 @@ export function localDateTimeToIso(local: string): string | null {
   const iso = `${local}:00${BUSINESS_UTC_OFFSET}`
   return Number.isNaN(Date.parse(iso)) ? null : iso
 }
+
+const dayFormatter = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: BUSINESS_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/** Día calendario de un instante en horario de Guayaquil (aaaa-mm-dd), sin importar el huso del equipo. */
+export const dayInGuayaquil = (instant: Date): string => dayFormatter.format(instant)
+
+/** Día de hoy en horario de Guayaquil (aaaa-mm-dd). */
+export const todayInGuayaquil = (now: Date = new Date()): string => dayInGuayaquil(now)

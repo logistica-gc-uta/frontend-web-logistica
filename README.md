@@ -50,7 +50,9 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos) y [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos) , [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos) y [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación).
+
+Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
 ## Estructura
 
@@ -59,27 +61,39 @@ src/
 ├── app/            # Componente raíz, rutas, constantes de paths y menú de navegación
 ├── components/
 │   ├── layout/     # AppLayout (encabezado y menú) y ResourcePage (formulario + listado)
-│   ├── map/        # LocationPicker: mapa Leaflet para elegir y confirmar una ubicación
+│   ├── map/        # LocationPicker (elegir y confirmar una ubicación), RoutesMap (dibujar rutas) e iconos
 │   └── ui/         # Button, Field, TextField, SelectField, Alert, DataTable, AsyncContent, Pagination
 ├── config/         # Lectura centralizada de variables de entorno
 ├── features/
 │   ├── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
 │   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
+│   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación, corrección de paradas y asignación de chofer
 │   ├── products/   # Listado y creación de productos
 │   └── zones/      # Listado y creación de zonas de entrega
-├── hooks/          # useForm (formularios) y useFetch (carga de datos)
+├── hooks/          # useForm (formularios), useFetch (carga de datos) y useAsyncAction (acciones bajo demanda)
 ├── integration/    # Pruebas de integración contra el backend real (pnpm test:integration)
 ├── lib/
 │   ├── auth/       # Persistencia de la sesión (token JWT + usuario)
 │   ├── errors/     # AppError: errores con mensaje para el usuario
-│   ├── format/     # Formato de fechas, fecha y hora (Guayaquil) y moneda
+│   ├── format/     # Formato de fechas, fecha y hora (Guayaquil), moneda, distancias y porcentajes
 │   ├── http/       # Cliente axios compartido y manejo de errores de la API
+│   ├── planning/   # Motivos por los que un pedido no se puede planificar (compartidos por pedidos y planificación)
 │   ├── time/       # Huso horario operativo (Guayaquil) y conversión a ISO 8601
 │   └── validation/ # Validadores genéricos de formularios
 ├── pages/          # Pantallas generales (inicio, 404)
+├── styles/         # Estilos de pantallas específicas (planning.css)
 ├── types/          # Tipos de dominio compartidos
 └── test/           # Configuración, fixtures y utilidades compartidas de pruebas
 ```
+
+### Planificación de rutas (`/planificacion`)
+
+- **Previsualizar** (`GET /route-proposals`) solo calcula: se puede repetir sin guardar nada.
+- **Confirmar** (`POST /routes`) guarda una propuesta como ruta `DRAFT` (sin chofer); **Confirmar todas** lo hace una por una y, si una falla, las demás se guardan igual.
+- En **Rutas guardadas** del día, una ruta `DRAFT` puede recibir un chofer disponible (`POST /routes/{id}/assign`) y pasa a `ASSIGNED`.
+- Antes de iniciarse (`DRAFT` o `ASSIGNED`), **Corregir paradas** permite reordenarlas o mover un pedido a otra ruta del mismo día y zona con lugar (`POST /dispatch/interventions`, acciones `REORDER` y `MOVE`). Cada corrección pide un motivo, que el backend audita.
+- Las rutas `IN_PROGRESS` y `COMPLETED` se muestran sin acciones.
+- Las distancias son en **línea recta** (Haversine), no por calles; el ahorro se compara con visitar cada pedido en un viaje aparte.
 
 ### Autenticación
 
@@ -99,4 +113,5 @@ src/
 - Toda petición al backend usa `apiClient` (`src/lib/http/apiClient.ts`), que agrega el token automáticamente.
 - Los mensajes de error de la API se obtienen con `getErrorMessage` (`src/lib/http/apiError.ts`).
 - Las rutas se referencian con las constantes de `src/app/paths.ts`.
+- Los servicios copian solo los campos que usa la interfaz: así no entran al estado datos sensibles que el backend envía de más (por ejemplo, el hash de contraseña en `GET /routes` y `GET /drivers`).
 - Trabajo en ramas `feat/*` desde `main`, integradas mediante Pull Request.
