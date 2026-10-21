@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isBlank,
   isNonNegativeInteger,
+  isPositiveInteger,
   isPositiveNumber,
   isValidEmail,
   toNumber,
@@ -57,5 +58,15 @@ describe('isNonNegativeInteger', () => {
 
   it.each(['-1', '1.5', '', 'abc'])('rechaza %j', (value) => {
     expect(isNonNegativeInteger(value)).toBe(false)
+  })
+})
+
+describe('isPositiveInteger', () => {
+  it.each(['1', '15'])('acepta %j', (value) => {
+    expect(isPositiveInteger(value)).toBe(true)
+  })
+
+  it.each(['0', '-1', '1.5', '', 'abc'])('rechaza %j', (value) => {
+    expect(isPositiveInteger(value)).toBe(false)
   })
 })

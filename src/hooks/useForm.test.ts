@@ -100,4 +100,15 @@ describe('useForm', () => {
 
     expect(result.current.submitError).toBe('No se pudo guardar')
   })
+
+  it('setFields actualiza campos sin pasar por un evento y limpia sus errores', async () => {
+    const { result, submit } = setup()
+    await submit()
+    expect(result.current.fieldErrors.name).toBe('El nombre es obligatorio')
+
+    act(() => result.current.setFields({ name: 'Ficoa' }))
+
+    expect(result.current.values).toEqual({ name: 'Ficoa' })
+    expect(result.current.fieldErrors.name).toBeUndefined()
+  })
 })

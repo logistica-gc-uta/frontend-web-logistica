@@ -3,6 +3,7 @@ import { AppError } from '../errors/AppError'
 
 const DEFAULT_MESSAGE = 'Ocurrió un error inesperado'
 const NETWORK_MESSAGE = 'No se pudo conectar con el servidor'
+const TIMEOUT_MESSAGE = 'El servidor tardó demasiado en responder'
 
 interface NestErrorBody {
   message?: string | string[]
@@ -15,7 +16,7 @@ interface NestErrorBody {
 export function getErrorMessage(error: unknown, fallback = DEFAULT_MESSAGE): string {
   if (error instanceof AppError) return error.message
   if (!axios.isAxiosError<NestErrorBody>(error)) return fallback
-  if (!error.response) return NETWORK_MESSAGE
+  if (!error.response) return error.code === 'ECONNABORTED' ? TIMEOUT_MESSAGE : NETWORK_MESSAGE
 
   const { message } = error.response.data ?? {}
   if (Array.isArray(message)) return message.join('. ')
