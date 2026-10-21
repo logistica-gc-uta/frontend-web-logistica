@@ -4,13 +4,10 @@ import type { CreateAdminOrderInput } from '../features/orders/types'
 import { productsService } from '../features/products/productsService'
 import type { Product } from '../features/products/types'
 import { zonesService } from '../features/zones/zonesService'
-import { authStorage } from '../lib/auth/authStorage'
-import { apiClient } from '../lib/http/apiClient'
 import { localDateTimeToIso, BUSINESS_TIME_ZONE } from '../lib/time/guayaquil'
 import type { GeoPoint } from '../types/geo'
 import { expectHttpError } from './support/assertions'
-import { credentialsFor } from './support/env'
-import { loginAsAdmin, uniqueSuffix } from './support/session'
+import { loginAsAdmin, loginAsClient, uniqueSuffix } from './support/session'
 
 /** Día lejano y fijo para los pedidos "futuros": no se mezcla con los pedidos de demo. */
 const FUTURE_DAY = '2031-03-15'
@@ -228,11 +225,7 @@ describe('Integración real · pedidos (/orders)', () => {
   })
 
   it('un CLIENT no puede usar el registro administrativo de pedidos (403)', async () => {
-    const { data } = await apiClient.post<{
-      access_token: string
-      user: { id: string; name: string; email: string; role: 'CLIENT' }
-    }>('/auth/login', credentialsFor('CLIENT'))
-    authStorage.save({ token: data.access_token, user: data.user })
+    await loginAsClient()
 
     await expectHttpError(ordersService.createAsAdmin(buildInput()), 403)
   })

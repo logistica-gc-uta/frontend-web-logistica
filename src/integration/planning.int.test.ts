@@ -1,17 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ordersService } from '../features/orders/ordersService'
 import { driversService } from '../features/planning/driversService'
+import { dispatchService } from '../features/dispatch/dispatchService'
 import { planningService } from '../features/planning/planningService'
 import type { RouteProposalsResponse } from '../features/planning/types'
 import { productsService } from '../features/products/productsService'
 import { zonesService } from '../features/zones/zonesService'
-import { authStorage } from '../lib/auth/authStorage'
-import { apiClient } from '../lib/http/apiClient'
 import { dayInGuayaquil } from '../lib/time/guayaquil'
 import type { GeoPoint } from '../types/geo'
 import { expectHttpError } from './support/assertions'
-import { credentialsFor } from './support/env'
-import { loginAsAdmin, uniqueSuffix } from './support/session'
+import { loginAsAdmin, loginAsClient, uniqueSuffix } from './support/session'
 
 /**
  * Día propio de cada ejecución: un miércoles al azar entre 2050 y 2079. Las rutas confirmadas
@@ -33,14 +31,6 @@ let orderIds: string[]
 
 const previewDay = (): Promise<RouteProposalsResponse> =>
   planningService.getProposals({ date: DAY, zoneId })
-
-const loginAsClient = async (): Promise<void> => {
-  const { data } = await apiClient.post<{
-    access_token: string
-    user: { id: string; name: string; email: string; role: 'CLIENT' }
-  }>('/auth/login', credentialsFor('CLIENT'))
-  authStorage.save({ token: data.access_token, user: data.user })
-}
 
 describe(`Integración real · planificación (/route-proposals, /routes) · día ${DAY}`, () => {
   beforeAll(async () => {
@@ -148,7 +138,7 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
     expect([large.orders.length, small.orders.length]).toEqual([4, 1])
 
     const reversed = large.orders.map((order) => order.id).reverse()
-    const reorder = await planningService.reorderStops({
+    const reorder = await dispatchService.reorderStops({
       routeId: large.id,
       orderIds: reversed,
       reason: 'IT: calle cerrada',
@@ -159,7 +149,7 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
 
     // Si las paradas enviadas no son exactamente las de la ruta, no se aplica nada.
     await expectHttpError(
-      planningService.reorderStops({
+      dispatchService.reorderStops({
         routeId: large.id,
         orderIds: reversed.slice(1),
         reason: 'IT: incompleto',
@@ -168,7 +158,7 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
     )
 
     const moved = reversed[0]
-    await planningService.moveOrder({
+    await dispatchService.moveOrder({
       routeId: large.id,
       orderId: moved,
       targetRouteId: small.id,
@@ -191,6 +181,9 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
       name: expect.any(String),
       vehicle: expect.any(String),
       isAvailable: expect.any(Boolean),
+      unavailableReason: drivers[0].isAvailable
+        ? null
+        : expect.stringMatching(/ROUTE_HOLD|MARKED_UNAVAILABLE/),
     })
   })
 
@@ -203,7 +196,7 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
       403,
     )
     await expectHttpError(
-      planningService.reorderStops({ routeId: crypto.randomUUID(), orderIds, reason: 'IT' }),
+      dispatchService.reorderStops({ routeId: crypto.randomUUID(), orderIds, reason: 'IT' }),
       403,
     )
   })
