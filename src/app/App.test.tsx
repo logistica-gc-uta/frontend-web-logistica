@@ -1,5 +1,8 @@
 import { act, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { dispatchService } from '../features/dispatch/dispatchService'
+import { planningService } from '../features/planning/planningService'
+import { driversService } from '../features/planning/driversService'
 import { ordersService } from '../features/orders/ordersService'
 import { productsService } from '../features/products/productsService'
 import { zonesService } from '../features/zones/zonesService'
@@ -53,6 +56,7 @@ describe('App', () => {
   it.each([
     { link: 'Pedidos', heading: 'Pedidos' },
     { link: 'Planificación', heading: 'Planificación de rutas' },
+    { link: 'Urgencias', heading: 'Urgencias' },
     { link: 'Zonas', heading: 'Zonas de entrega' },
     { link: 'Productos', heading: 'Productos' },
   ])(
@@ -60,6 +64,14 @@ describe('App', () => {
     async ({ link, heading }) => {
       vi.spyOn(zonesService, 'list').mockResolvedValue([])
       vi.spyOn(productsService, 'list').mockResolvedValue([])
+      vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
+        date: '2030-02-14',
+        urgencies: [],
+        failedDeliveries: 0,
+      })
+      vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
+      vi.spyOn(planningService, 'listRoutes').mockResolvedValue([])
+      vi.spyOn(driversService, 'list').mockResolvedValue([])
       vi.spyOn(ordersService, 'list').mockResolvedValue({
         items: [],
         total: 0,

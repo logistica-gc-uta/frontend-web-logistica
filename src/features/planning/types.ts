@@ -99,34 +99,10 @@ export interface SavedRouteDetail {
   zoneId: string
   zoneCode: string
   zoneName: string
+  driverId: string | null
   driverName: string | null
   /** Paradas en orden de visita. */
   orders: RouteOrderSummary[]
-}
-
-/** Reordenar las paradas de una ruta todavía no iniciada: `orderIds` son las mismas paradas en el nuevo orden. */
-export interface ReorderStopsInput {
-  routeId: string
-  orderIds: string[]
-  /** Motivo de la corrección (queda auditado por el backend). */
-  reason: string
-}
-
-/** Pasar un pedido a otra ruta no iniciada del mismo día y zona. */
-export interface MoveOrderInput {
-  routeId: string
-  orderId: string
-  targetRouteId: string
-  /** Motivo de la corrección (queda auditado por el backend). */
-  reason: string
-}
-
-/** Registro de auditoría que devuelve `POST /dispatch/interventions`. */
-export interface DispatchAudit {
-  id: string
-  action: string
-  /** Solo `APPLIED` significa que el cambio se aplicó. */
-  outcome: 'APPLIED' | 'REJECTED' | 'FAILED'
 }
 
 /** Chofer que puede recibir una ruta. */
@@ -136,7 +112,14 @@ export interface Driver {
   vehicle: string
   /** Disponibilidad efectiva: sin rutas que lo retengan. */
   isAvailable: boolean
+  /**
+   * Por qué no está disponible: `ROUTE_HOLD` si tiene una ruta (queda libre cuando confirma su
+   * regreso al depósito) o `MARKED_UNAVAILABLE` si está marcado como no disponible.
+   */
+  unavailableReason: DriverUnavailableReason | null
 }
+
+export type DriverUnavailableReason = 'ROUTE_HOLD' | 'MARKED_UNAVAILABLE'
 
 /** Ruta persistida tal como la devuelven `POST /routes` y `POST /routes/{id}/assign`. */
 export interface SavedRoute {

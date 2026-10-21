@@ -4,7 +4,6 @@ import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
 import { useFetch } from '../../hooks/useFetch'
 import { formatDateTime } from '../../lib/format/formatDateTime'
-import { describeAssignError, describeCorrectionError } from './confirmError'
 import { DistanceNotice } from './DistanceNotice'
 import { driversService } from './driversService'
 import { ExcludedOrders } from './ExcludedOrders'
@@ -14,8 +13,8 @@ import { ProposalCard } from './ProposalCard'
 import { proposalKey, routeColor, routeLabel } from './routeStyle'
 import { SavedRoutes } from './SavedRoutes'
 import type { RouteProposalsResponse } from './types'
-import { useRouteActions } from './useRouteActions'
 import { useRouteConfirmations } from './useRouteConfirmations'
+import { useSavedRouteActions } from './useSavedRouteActions'
 
 interface PlanningResultProps {
   data: RouteProposalsResponse
@@ -40,26 +39,7 @@ export function PlanningResult({ data }: PlanningResultProps) {
     reloadSavedRoutes()
     reloadDrivers()
   }, [reloadSavedRoutes, reloadDrivers])
-  const routeActions = useRouteActions(refreshSavedState)
-
-  const assignDriver = (routeId: string, driverId: string) =>
-    void routeActions.run(
-      routeId,
-      () => planningService.assignDriver(routeId, driverId),
-      describeAssignError,
-    )
-  const reorderStops = (routeId: string, orderIds: string[], reason: string) =>
-    routeActions.run(
-      routeId,
-      () => planningService.reorderStops({ routeId, orderIds, reason }),
-      describeCorrectionError,
-    )
-  const moveOrder = (routeId: string, orderId: string, targetRouteId: string, reason: string) =>
-    routeActions.run(
-      routeId,
-      () => planningService.moveOrder({ routeId, orderId, targetRouteId, reason }),
-      describeCorrectionError,
-    )
+  const routeActions = useSavedRouteActions(refreshSavedState)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const routes = useMemo(
@@ -172,9 +152,10 @@ export function PlanningResult({ data }: PlanningResultProps) {
                 routes={routes}
                 drivers={drivers.data ?? []}
                 actions={routeActions.states}
-                onAssign={assignDriver}
-                onReorder={reorderStops}
-                onMove={moveOrder}
+                onAssign={routeActions.assign}
+                onReassign={routeActions.reassign}
+                onReorder={routeActions.reorder}
+                onMove={routeActions.move}
               />
             </>
           )}
