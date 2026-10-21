@@ -13,9 +13,11 @@ import {
   savedDraft,
   savedRouteDetail,
 } from '../../test/planningFixtures'
+import { auditRecord } from '../../test/dispatchFixtures'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { zonesService } from '../zones/zonesService'
 import { driversService } from './driversService'
+import { dispatchService } from '../dispatch/dispatchService'
 import { planningService } from './planningService'
 import type { RouteProposalsResponse } from './types'
 
@@ -448,9 +450,7 @@ describe('PlanningPage · rutas guardadas', () => {
           ],
         }),
       ])
-    const reorderStops = vi
-      .spyOn(planningService, 'reorderStops')
-      .mockResolvedValue({ id: 'audit-1', action: 'REORDER', outcome: 'APPLIED' })
+    const reorderStops = vi.spyOn(dispatchService, 'reorderStops').mockResolvedValue(auditRecord())
     const { user } = renderPlanningPage()
     await preview(user)
 
@@ -484,8 +484,8 @@ describe('PlanningPage · rutas guardadas', () => {
       }),
     ])
     const moveOrder = vi
-      .spyOn(planningService, 'moveOrder')
-      .mockResolvedValue({ id: 'audit-2', action: 'MOVE', outcome: 'APPLIED' })
+      .spyOn(dispatchService, 'moveOrder')
+      .mockResolvedValue(auditRecord({ id: 'audit-2', action: 'MOVE' }))
     const { user } = renderPlanningPage()
     await preview(user)
 
@@ -513,7 +513,7 @@ describe('PlanningPage · rutas guardadas', () => {
   it('si la ruta ya se inició, la corrección se rechaza, se explica y no se da por hecha', async () => {
     mockApi()
     vi.spyOn(planningService, 'listRoutes').mockResolvedValue([savedRouteDetail('route-1')])
-    vi.spyOn(planningService, 'reorderStops').mockRejectedValue(
+    vi.spyOn(dispatchService, 'reorderStops').mockRejectedValue(
       createHttpError(409, { data: { message: 'Route structure is frozen' } }),
     )
     const { user } = renderPlanningPage()

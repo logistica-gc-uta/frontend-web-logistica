@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { availableDriver, busyDriver, savedRouteDetail } from '../../test/planningFixtures'
 import { SavedRoutes } from './SavedRoutes'
 import type { Driver, SavedRouteDetail } from './types'
-import type { RouteActionState } from './useRouteActions'
+import type { KeyedActionState } from '../../hooks/useKeyedActions'
 
 const renderSaved = (
   routes: SavedRouteDetail[],
@@ -12,9 +12,10 @@ const renderSaved = (
     drivers = [availableDriver, busyDriver],
     actions = {},
     applied = true,
-  }: { drivers?: Driver[]; actions?: Record<string, RouteActionState>; applied?: boolean } = {},
+  }: { drivers?: Driver[]; actions?: Record<string, KeyedActionState>; applied?: boolean } = {},
 ) => {
   const onAssign = vi.fn()
+  const onReassign = vi.fn()
   const onReorder = vi.fn().mockResolvedValue(applied)
   const onMove = vi.fn().mockResolvedValue(applied)
   render(
@@ -24,11 +25,12 @@ const renderSaved = (
       drivers={drivers}
       actions={actions}
       onAssign={onAssign}
+      onReassign={onReassign}
       onReorder={onReorder}
       onMove={onMove}
     />,
   )
-  return { onAssign, onReorder, onMove }
+  return { onAssign, onReassign, onReorder, onMove }
 }
 
 const routeItem = (name: string) => within(screen.getByRole('listitem', { name }))
@@ -74,18 +76,21 @@ describe('SavedRoutes', () => {
     ).toEqual(['Parada 1 de a', 'Parada 2 de a'])
   })
 
-  it('una ruta DRAFT se muestra como borrador y solo ofrece los choferes disponibles', () => {
+  it('una ruta DRAFT se muestra como borrador y solo deja elegir choferes disponibles', () => {
     renderSaved([savedRouteDetail('a')])
 
     expect(routeItem(FIRST).getByText('Borrador (DRAFT)')).toBeInTheDocument()
     expect(
       routeItem(FIRST).getByText('Guardada, sin chofer. Aún se puede asignar y corregir.'),
     ).toBeInTheDocument()
-    expect(
-      routeItem(FIRST)
-        .getAllByRole('option')
-        .map((option) => option.textContent),
-    ).toEqual(['Selecciona un chofer disponible', 'Carlos Chofer · Camión Isuzu ABC-123'])
+    const options = routeItem(FIRST).getAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Selecciona un chofer disponible',
+      'Carlos Chofer · Camión Isuzu ABC-123',
+      'Luis Transportista · ocupado hasta que regrese al depósito',
+    ])
+    expect(options[1]).toBeEnabled()
+    expect(options[2]).toBeDisabled()
   })
 
   it('no deja asignar hasta elegir un chofer y luego envía la ruta y el chofer elegidos', async () => {
@@ -127,8 +132,14 @@ describe('SavedRoutes', () => {
     )
   })
 
-  it('una ruta ASSIGNED muestra su chofer, se diferencia de DRAFT y solo ofrece corregir paradas', () => {
-    renderSaved([savedRouteDetail('a', { status: 'ASSIGNED', driverName: 'Carlos Chofer' })])
+  it('una ruta ASSIGNED muestra su chofer, se diferencia de DRAFT y ofrece corregir paradas o cambiar el chofer', () => {
+    renderSaved([
+      savedRouteDetail('a', {
+        status: 'ASSIGNED',
+        driverId: 'driver-3',
+        driverName: 'Carlos Chofer',
+      }),
+    ])
 
     expect(routeItem(FIRST).getByText('Asignada (ASSIGNED)')).toHaveClass('badge--success')
     expect(
@@ -141,7 +152,48 @@ describe('SavedRoutes', () => {
       routeItem(FIRST)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Corregir paradas'])
+    ).toEqual(['Corregir paradas', 'Cambiar chofer'])
+  })
+
+  it('cambiar el chofer de una ruta ASSIGNED pide el motivo y no ofrece al chofer actual', async () => {
+    const other = { ...availableDriver, id: 'driver-3', name: 'Ana Actual' }
+    const { onReassign } = renderSaved(
+      [
+        savedRouteDetail('a', {
+          status: 'ASSIGNED',
+          driverId: 'driver-3',
+          driverName: 'Ana Actual',
+        }),
+      ],
+      { drivers: [availableDriver, other, busyDriver] },
+    )
+    const select = routeItem(FIRST).getByLabelText(`Nuevo chofer para ${FIRST}`)
+    expect(within(select).queryByText(/Ana Actual/)).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(select, 'driver-1')
+    await userEvent.click(routeItem(FIRST).getByRole('button', { name: 'Cambiar chofer' }))
+    expect(routeItem(FIRST).getByText('Escribe el motivo')).toBeInTheDocument()
+    expect(onReassign).not.toHaveBeenCalled()
+
+    await userEvent.type(
+      routeItem(FIRST).getByLabelText(`Motivo del cambio de chofer de ${FIRST}`),
+      ' El chofer se enfermó ',
+    )
+    await userEvent.click(routeItem(FIRST).getByRole('button', { name: 'Cambiar chofer' }))
+
+    expect(onReassign).toHaveBeenCalledWith('a', 'driver-1', 'El chofer se enfermó')
+  })
+
+  it('un chofer marcado como no disponible se muestra deshabilitado con su motivo', () => {
+    renderSaved([savedRouteDetail('a')], {
+      drivers: [availableDriver, { ...busyDriver, unavailableReason: 'MARKED_UNAVAILABLE' }],
+    })
+
+    expect(
+      routeItem(FIRST).getByRole('option', {
+        name: 'Luis Transportista · marcado como no disponible',
+      }),
+    ).toBeDisabled()
   })
 
   it.each([

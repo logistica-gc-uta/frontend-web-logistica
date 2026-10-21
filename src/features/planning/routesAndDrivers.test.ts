@@ -10,8 +10,9 @@ import {
 } from '../../test/planningFixtures'
 import { describeAssignError, describeCorrectionError } from './confirmError'
 import { driversService } from './driversService'
+import { dispatchService } from '../dispatch/dispatchService'
 import { planningService } from './planningService'
-import { useRouteActions } from './useRouteActions'
+import { useKeyedActions } from '../../hooks/useKeyedActions'
 
 describe('planningService.listRoutes', () => {
   it('consulta GET /routes y conserva solo lo que usa la interfaz, con las paradas en orden', async () => {
@@ -28,6 +29,7 @@ describe('planningService.listRoutes', () => {
       zoneId: 'zone-1',
       zoneCode: 'FIC-02',
       zoneName: 'Ficoa',
+      driverId: 'driver-1',
       driverName: 'Carlos Chofer',
       orders: [
         { id: 'o1', deliveryAddress: 'Primera parada', stopOrder: 1 },
@@ -98,9 +100,26 @@ describe('driversService.list', () => {
         name: 'Carlos Chofer',
         vehicle: 'Camión Isuzu ABC-123',
         isAvailable: false,
+        unavailableReason: 'ROUTE_HOLD',
       },
     ])
     expect(JSON.stringify(drivers)).not.toContain(LEAKED_HASH)
+  })
+})
+
+describe('driversService.list · motivo de no disponibilidad', () => {
+  it.each([
+    [{ isAvailable: true, hasPersistedHolds: false }, null],
+    [{ isAvailable: false, hasPersistedHolds: true }, 'ROUTE_HOLD'],
+    [{ isAvailable: false, hasPersistedHolds: false }, 'MARKED_UNAVAILABLE'],
+  ])('%o → %s', async (effectiveAvailability, expected) => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue(
+      createHttpResponse([{ ...rawDriverFromApi, effectiveAvailability }]),
+    )
+
+    const [driver] = await driversService.list()
+
+    expect(driver.unavailableReason).toBe(expected)
   })
 })
 
@@ -125,8 +144,8 @@ describe('planningService · correcciones (POST /dispatch/interventions)', () =>
     const post = vi.spyOn(apiClient, 'post').mockResolvedValue(createHttpResponse(applied))
     const input = { routeId: 'route-1', orderIds: ['o2', 'o1'], reason: 'Calle cerrada' }
 
-    await planningService.reorderStops(input)
-    await planningService.reorderStops(input)
+    await dispatchService.reorderStops(input)
+    await dispatchService.reorderStops(input)
 
     const [first, second] = post.mock.calls
     expect(first[0]).toBe('/dispatch/interventions')
@@ -148,7 +167,7 @@ describe('planningService · correcciones (POST /dispatch/interventions)', () =>
       .spyOn(apiClient, 'post')
       .mockResolvedValue(createHttpResponse({ ...applied, action: 'MOVE' }))
 
-    await planningService.moveOrder({
+    await dispatchService.moveOrder({
       routeId: 'route-1',
       orderId: 'o1',
       targetRouteId: 'route-2',
@@ -171,8 +190,8 @@ describe('planningService · correcciones (POST /dispatch/interventions)', () =>
     )
 
     await expect(
-      planningService.reorderStops({ routeId: 'r', orderIds: ['o'], reason: 'x' }),
-    ).rejects.toThrow('El servidor no aplicó la corrección. Revisa la lista actualizada.')
+      dispatchService.reorderStops({ routeId: 'r', orderIds: ['o'], reason: 'x' }),
+    ).rejects.toThrow('El servidor no aplicó la decisión. Revisa la lista actualizada.')
   })
 })
 
@@ -192,11 +211,11 @@ describe('describeCorrectionError', () => {
   })
 })
 
-describe('useRouteActions', () => {
+describe('useKeyedActions', () => {
   it('ejecuta la acción, limpia su estado, avisa para volver a consultar e informa el éxito', async () => {
     const perform = vi.fn().mockResolvedValue(undefined)
     const onDone = vi.fn()
-    const { result } = renderHook(() => useRouteActions(onDone))
+    const { result } = renderHook(() => useKeyedActions(onDone))
 
     let applied = false
     await act(async () => {
@@ -213,7 +232,7 @@ describe('useRouteActions', () => {
     let resolve!: () => void
     const perform = vi.fn(() => new Promise<void>((res) => (resolve = res)))
     const other = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useRouteActions(vi.fn()))
+    const { result } = renderHook(() => useKeyedActions(vi.fn()))
 
     act(() => {
       void result.current.run('route-1', perform, describeAssignError)
@@ -232,7 +251,7 @@ describe('useRouteActions', () => {
       .fn()
       .mockRejectedValueOnce(createHttpError(409, { data: { message: 'ocupado' } }))
       .mockResolvedValueOnce(undefined)
-    const { result } = renderHook(() => useRouteActions(onDone))
+    const { result } = renderHook(() => useKeyedActions(onDone))
 
     let applied = true
     await act(async () => {

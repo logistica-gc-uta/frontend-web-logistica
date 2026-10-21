@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
 import type { RouteOrderSummary, SavedRouteDetail } from './types'
-import type { RouteActionState } from './useRouteActions'
+import type { KeyedActionState } from '../../hooks/useKeyedActions'
 
 /** Otra ruta del mismo día y zona, sin iniciar y con lugar, que puede recibir un pedido. */
 export interface MoveTarget {
@@ -20,7 +20,7 @@ interface RouteCorrectionProps {
   /** Nombre visible de la ruta, para que los controles se distingan de los de otras rutas. */
   name: string
   targets: MoveTarget[]
-  state: RouteActionState | undefined
+  state: KeyedActionState | undefined
   onReorder: (orderIds: string[], reason: string) => Promise<boolean>
   onMove: (orderId: string, targetRouteId: string, reason: string) => Promise<boolean>
   onClose: () => void

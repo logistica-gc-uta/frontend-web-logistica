@@ -1,5 +1,7 @@
 import { authService } from '../../features/auth/authService'
 import { authStorage } from '../../lib/auth/authStorage'
+import { apiClient } from '../../lib/http/apiClient'
+import type { AuthUser } from '../../types/auth'
 import { credentialsFor } from './env'
 
 /**
@@ -9,6 +11,18 @@ import { credentialsFor } from './env'
 export async function loginAsAdmin(): Promise<void> {
   const session = await authService.login(credentialsFor('ADMIN'))
   authStorage.save(session)
+}
+
+/**
+ * Inicia sesión como CLIENT directamente contra la API (el panel no admite ese rol) para comprobar
+ * que el backend le niega las operaciones administrativas.
+ */
+export async function loginAsClient(): Promise<void> {
+  const { data } = await apiClient.post<{ access_token: string; user: AuthUser }>(
+    '/auth/login',
+    credentialsFor('CLIENT'),
+  )
+  authStorage.save({ token: data.access_token, user: data.user })
 }
 
 /** Simula una sesión con un token que el backend no reconoce (vencido o manipulado). */

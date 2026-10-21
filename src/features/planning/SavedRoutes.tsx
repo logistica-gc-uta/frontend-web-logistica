@@ -1,58 +1,12 @@
 import { useState } from 'react'
-import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
-import { SelectField } from '../../components/ui/SelectField'
 import { formatDateTime } from '../../lib/format/formatDateTime'
-import { dayInGuayaquil } from '../../lib/time/guayaquil'
 import { ROUTE_STATUS_HELP, ROUTE_STATUS_LABELS } from './routeLabels'
 import type { Driver, SavedRouteDetail } from './types'
+import { DriverPicker } from './DriverPicker'
 import { RouteCorrection, type MoveTarget } from './RouteCorrection'
-import type { RouteActionState } from './useRouteActions'
-
-interface AssignDriverProps {
-  route: SavedRouteDetail
-  /** Nombre visible de la ruta, para distinguir su selector del de otras rutas de la misma zona. */
-  name: string
-  drivers: Driver[]
-  assignment: RouteActionState | undefined
-  onAssign: (routeId: string, driverId: string) => void
-}
-
-/** Asignación de chofer: solo para rutas DRAFT y solo con choferes disponibles. */
-function AssignDriver({ route, name, drivers, assignment, onAssign }: AssignDriverProps) {
-  const [driverId, setDriverId] = useState('')
-  const available = drivers.filter((driver) => driver.isAvailable)
-
-  if (available.length === 0) {
-    return <p className="text-muted">No hay choferes disponibles en este momento.</p>
-  }
-
-  return (
-    <div className="saved-route__assign">
-      <SelectField
-        label={`Chofer para ${name}`}
-        value={driverId}
-        onChange={(event) => setDriverId(event.target.value)}
-      >
-        <option value="">Selecciona un chofer disponible</option>
-        {available.map((driver) => (
-          <option key={driver.id} value={driver.id}>
-            {`${driver.name} · ${driver.vehicle}`}
-          </option>
-        ))}
-      </SelectField>
-      <Button
-        disabled={driverId === ''}
-        isLoading={assignment?.status === 'saving'}
-        loadingText="Asignando..."
-        onClick={() => onAssign(route.id, driverId)}
-      >
-        Asignar chofer
-      </Button>
-      {assignment?.status === 'failed' && <Alert>{assignment.error}</Alert>}
-    </div>
-  )
-}
+import { namedRoutesOfDay } from './savedRouteNames'
+import type { KeyedActionState } from '../../hooks/useKeyedActions'
 
 /** Solo antes de iniciar se puede cambiar la estructura de una ruta (igual que en el backend). */
 const isEditable = (route: SavedRouteDetail): boolean =>
@@ -67,8 +21,10 @@ interface SavedRoutesProps {
   routes: SavedRouteDetail[]
   drivers: Driver[]
   /** Acciones en curso o fallidas por ruta (asignación o corrección). */
-  actions: Record<string, RouteActionState>
+  actions: Record<string, KeyedActionState>
   onAssign: (routeId: string, driverId: string) => void
+  /** Cambia el chofer de una ruta ASSIGNED todavía no iniciada (con motivo). */
+  onReassign: (routeId: string, driverId: string, reason: string) => void
   onReorder: (routeId: string, orderIds: string[], reason: string) => Promise<boolean>
   onMove: (
     routeId: string,
@@ -78,15 +34,11 @@ interface SavedRoutesProps {
   ) => Promise<boolean>
 }
 
-/** Nombre único dentro del día: varias rutas pueden compartir zona y hora de entrega. */
-const savedRouteName = (index: number, zoneCode: string): string =>
-  `Ruta guardada ${index + 1} · ${zoneCode}`
-
 interface SavedRouteItemProps extends Omit<SavedRoutesProps, 'day' | 'routes' | 'actions'> {
   route: SavedRouteDetail
   name: string
   targets: MoveTarget[]
-  action: RouteActionState | undefined
+  action: KeyedActionState | undefined
 }
 
 function SavedRouteItem({
@@ -96,6 +48,7 @@ function SavedRouteItem({
   drivers,
   action,
   onAssign,
+  onReassign,
   onReorder,
   onMove,
 }: SavedRouteItemProps) {
@@ -140,12 +93,25 @@ function SavedRouteItem({
             </Button>
           )}
           {route.status === 'DRAFT' && (
-            <AssignDriver
-              route={route}
-              name={name}
+            <DriverPicker
+              label={`Chofer para ${name}`}
+              submitLabel="Asignar chofer"
+              loadingText="Asignando..."
               drivers={drivers}
-              assignment={action}
-              onAssign={onAssign}
+              state={action}
+              onSubmit={(driverId) => onAssign(route.id, driverId)}
+            />
+          )}
+          {route.status === 'ASSIGNED' && (
+            <DriverPicker
+              label={`Nuevo chofer para ${name}`}
+              submitLabel="Cambiar chofer"
+              loadingText="Cambiando..."
+              drivers={drivers}
+              currentDriverId={route.driverId}
+              reasonLabel={`Motivo del cambio de chofer de ${name}`}
+              state={action}
+              onSubmit={(driverId, reason) => onReassign(route.id, driverId, reason)}
             />
           )}
         </>
@@ -160,16 +126,11 @@ function SavedRouteItem({
  * no ofrecen ninguna acción.
  */
 export function SavedRoutes({ day, routes, actions, ...handlers }: SavedRoutesProps) {
-  const ofDay = routes.filter((route) => dayInGuayaquil(new Date(route.date)) === day)
+  const named = namedRoutesOfDay(routes, day)
 
-  if (ofDay.length === 0) {
+  if (named.length === 0) {
     return <p className="empty-state">Aún no hay rutas guardadas para este día.</p>
   }
-
-  const named = ofDay.map((route, index) => ({
-    route,
-    name: savedRouteName(index, route.zoneCode),
-  }))
 
   /** Rutas que pueden recibir un pedido de `source`: mismo día y zona, sin iniciar y con lugar. */
   const targetsFor = (source: SavedRouteDetail): MoveTarget[] =>

@@ -110,6 +110,7 @@ export const savedRouteDetail = (
   zoneId: 'zone-1',
   zoneCode: 'FIC-02',
   zoneName: 'Ficoa',
+  driverId: null,
   driverName: null,
   orders: [
     { id: `${id}-o1`, deliveryAddress: `Parada 1 de ${id}`, stopOrder: 1 },
@@ -123,6 +124,7 @@ export const availableDriver: Driver = {
   name: 'Carlos Chofer',
   vehicle: 'Camión Isuzu ABC-123',
   isAvailable: true,
+  unavailableReason: null,
 }
 
 export const busyDriver: Driver = {
@@ -130,6 +132,7 @@ export const busyDriver: Driver = {
   name: 'Luis Transportista',
   vehicle: 'Furgoneta Renault XYZ-789',
   isAvailable: false,
+  unavailableReason: 'ROUTE_HOLD',
 }
 
 /** Hash de prueba: si aparece en el estado de la interfaz, se filtró información sensible. */

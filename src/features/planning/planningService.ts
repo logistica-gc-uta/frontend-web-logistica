@@ -1,10 +1,6 @@
 import { apiClient } from '../../lib/http/apiClient'
-import { AppError } from '../../lib/errors/AppError'
 import type {
   ConfirmRouteInput,
-  DispatchAudit,
-  MoveOrderInput,
-  ReorderStopsInput,
   ProposalsQuery,
   RouteOrderSummary,
   RouteProposalsResponse,
@@ -24,6 +20,7 @@ interface RawRoute {
   createdAt: string
   zoneId: string
   zone: { code: string; name: string }
+  driverId: string | null
   driver: { user: { name: string } } | null
   orders: RouteOrderSummary[]
 }
@@ -41,27 +38,12 @@ const toRouteDetail = (raw: RawRoute): SavedRouteDetail => ({
   zoneId: raw.zoneId,
   zoneCode: raw.zone.code,
   zoneName: raw.zone.name,
+  driverId: raw.driverId,
   driverName: raw.driver?.user.name ?? null,
   orders: raw.orders
     .map(({ id, deliveryAddress, stopOrder }) => ({ id, deliveryAddress, stopOrder }))
     .sort(byStopOrder),
 })
-
-/**
- * Corrección administrativa auditada. Cada intento lleva un `requestId` nuevo: el backend lo usa
- * para no aplicar dos veces la misma petición. Un resultado distinto de `APPLIED` no es un éxito.
- */
-async function intervene(body: Record<string, unknown>): Promise<DispatchAudit> {
-  const { data } = await apiClient.post<DispatchAudit>(
-    '/dispatch/interventions',
-    { requestId: crypto.randomUUID(), ...body },
-    { timeout: REQUEST_TIMEOUT_MS },
-  )
-  if (data.outcome !== 'APPLIED') {
-    throw new AppError('El servidor no aplicó la corrección. Revisa la lista actualizada.')
-  }
-  return data
-}
 
 export const planningService = {
   /** Calcula las propuestas del día. No escribe nada: se puede repetir sin duplicar registros. */
@@ -101,17 +83,4 @@ export const planningService = {
     )
     return data
   },
-
-  /** Cambia el orden de visita de una ruta DRAFT o ASSIGNED (`REORDER`). */
-  reorderStops: ({ routeId, orderIds, reason }: ReorderStopsInput): Promise<DispatchAudit> =>
-    intervene({ action: 'REORDER', routeId, orderIds, reason }),
-
-  /** Pasa un pedido a otra ruta no iniciada del mismo día y zona (`MOVE`). */
-  moveOrder: ({
-    routeId,
-    orderId,
-    targetRouteId,
-    reason,
-  }: MoveOrderInput): Promise<DispatchAudit> =>
-    intervene({ action: 'MOVE', routeId, orderId, targetRouteId, reason }),
 }
