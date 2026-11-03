@@ -65,6 +65,7 @@ describe('App', () => {
     { link: 'Pedidos', heading: 'Pedidos' },
     { link: 'Planificación', heading: 'Planificación de rutas' },
     { link: 'Urgencias', heading: 'Urgencias' },
+    { link: 'Entregas fallidas', heading: 'Entregas fallidas' },
     { link: 'Seguimiento', heading: 'Seguimiento de rutas' },
     { link: 'Zonas', heading: 'Zonas de entrega' },
     { link: 'Productos', heading: 'Productos' },
@@ -76,7 +77,7 @@ describe('App', () => {
       vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
         date: '2030-02-14',
         urgencies: [],
-        failedDeliveries: 0,
+        failedDeliveries: [],
       })
       vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
       vi.spyOn(planningService, 'listRoutes').mockResolvedValue([])

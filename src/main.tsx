@@ -7,6 +7,7 @@ import './index.css'
 import './styles/planning.css'
 import './styles/dispatch.css'
 import './styles/monitor.css'
+import './styles/incidents.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

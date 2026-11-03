@@ -201,8 +201,19 @@ a {
 /* Menú principal */
 .app-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   flex: 1;
+  /* Sin ancho mínimo el menú se reparte en varias líneas en lugar de salirse de la pantalla. */
+  min-width: 0;
+}
+
+/* En pantallas angostas el menú ocupa su propia fila debajo de la marca y el usuario. */
+@media (max-width: 900px) {
+  .app-nav {
+    order: 3;
+    flex-basis: 100%;
+  }
 }
 
 .app-nav__link {
