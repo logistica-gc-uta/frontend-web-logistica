@@ -68,13 +68,49 @@ export interface UrgencyProposal {
   fingerprint: string
 }
 
-/** Bandeja del día (`GET /dispatch/inbox`). Las entregas fallidas se cuentan, pero se gestionan aparte. */
+/** Intento de entrega fallido tal como lo lista la bandeja (sin el texto libre del chofer). */
+export interface FailedAttempt {
+  id: string
+  stopId: string
+  /** Motivo tipificado (`RECIPIENT_ABSENT`, `RECIPIENT_REFUSED`, …). */
+  failureReason: string | null
+  recordedAt: string
+}
+
+/**
+ * Pedido con una entrega fallida que espera gestión del ADMIN. No está cancelado ni entregado:
+ * conserva su estado comercial y queda en revisión hasta reprogramarse.
+ */
+export interface FailedDelivery {
+  orderId: string
+  /** Ruta a la que apunta el pedido ahora (puede ser `null` tras cerrarse la ruta). */
+  routeId: string | null
+  /** Intentos fallidos, el más reciente primero. */
+  attempts: FailedAttempt[]
+}
+
+/** Bandeja del día (`GET /dispatch/inbox`): urgencias por despachar y entregas fallidas por gestionar. */
 export interface UrgencyInbox {
   /** Día operativo (aaaa-mm-dd, Guayaquil). */
   date: string
   urgencies: UrgencyProposal[]
-  /** Pedidos con una entrega fallida pendiente de revisión (bandeja de fallos, fuera de esta pantalla). */
-  failedDeliveries: number
+  failedDeliveries: FailedDelivery[]
+}
+
+/** Fecha y franja acordadas con el destinatario (instantes ISO 8601 con desfase). */
+export interface DeliveryAgreement {
+  scheduledDeliveryDate: string
+  deliveryWindowStart: string
+  deliveryWindowEnd: string
+}
+
+/** Gestión de contacto con el destinatario; sin acuerdo solo queda registrada. */
+export interface ContactInput {
+  orderId: string
+  /** Último intento fallido; se omite para un pedido urgente sin fallos. */
+  attemptId?: string
+  agreement: DeliveryAgreement | null
+  reason: string
 }
 
 /** Acuerdo de nueva entrega para reprogramar un pedido urgente. Instantes ISO 8601 con desfase. */

@@ -13,7 +13,7 @@ export const DISPATCH_ACTION_LABELS: Record<DispatchAction, string> = {
   MOVE: 'Mover pedido de ruta',
   REASSIGN_DRIVER: 'Cambiar chofer',
   PRIORITIZE: 'Priorizar',
-  CONTACT: 'Acuerdo de nueva entrega',
+  CONTACT: 'Contacto con el destinatario',
   RESCHEDULE: 'Reprogramar',
 }
 

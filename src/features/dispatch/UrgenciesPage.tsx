@@ -1,4 +1,6 @@
 import { useCallback } from 'react'
+import { Link } from 'react-router'
+import { paths } from '../../app/paths'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
 import { useFetch } from '../../hooks/useFetch'
@@ -93,7 +95,8 @@ export function UrgenciesPage() {
                     {failedDeliveries === 1
                       ? 'Hay 1 pedido con una entrega fallida esperando revisión.'
                       : `Hay ${failedDeliveries} pedidos con una entrega fallida esperando revisión.`}{' '}
-                    Se gestionan en la bandeja de entregas fallidas, no aquí.
+                    Se gestionan en <Link to={paths.failedDeliveries}>Entregas fallidas</Link>, no
+                    aquí.
                   </p>
                 )}
                 {alreadyRouted > 0 && (

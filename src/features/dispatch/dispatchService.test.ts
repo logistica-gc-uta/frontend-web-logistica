@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../../lib/http/apiClient'
-import { auditRecord, urgencyProposal } from '../../test/dispatchFixtures'
+import { auditRecord, failedDelivery, urgencyProposal } from '../../test/dispatchFixtures'
 import { orders } from '../../test/fixtures'
 import { createHttpError, createHttpResponse } from '../../test/http'
 import { ordersService } from '../orders/ordersService'
@@ -15,13 +15,36 @@ const lastBody = (post: ReturnType<typeof vi.spyOn>) =>
   post.mock.calls.at(-1)?.[1] as Record<string, unknown>
 
 describe('dispatchService.inbox', () => {
-  it('trae las urgencias con su propuesta y solo cuenta las entregas fallidas', async () => {
+  it('trae las urgencias y las entregas fallidas, sin el texto libre de los intentos', async () => {
     const get = vi.spyOn(apiClient, 'get').mockResolvedValue(
       createHttpResponse({
         date: '2026-10-21',
         timeZone: 'America/Guayaquil',
         urgencies: [{ ...urgencyProposal('o1'), date: '2026-10-21', stops: [], extra: 'x' }],
-        incidents: [{ orderId: 'f1', attempts: [{ failureReason: 'No estaba' }] }],
+        incidents: [
+          {
+            orderId: 'f1',
+            routeId: 'route-1',
+            attempts: [
+              {
+                id: 'viejo',
+                stopId: 's1',
+                outcome: 'FAILED',
+                failureReason: 'RECIPIENT_REFUSED',
+                context: 'No estaba',
+                recordedAt: '2026-10-20T15:00:00Z',
+              },
+              {
+                id: 'nuevo',
+                stopId: 's2',
+                outcome: 'FAILED',
+                failureReason: 'RECIPIENT_ABSENT',
+                context: 'No estaba',
+                recordedAt: '2026-10-21T15:00:00Z',
+              },
+            ],
+          },
+        ],
       }),
     )
 
@@ -31,7 +54,26 @@ describe('dispatchService.inbox', () => {
     expect(inbox).toEqual({
       date: '2026-10-21',
       urgencies: [urgencyProposal('o1')],
-      failedDeliveries: 1,
+      failedDeliveries: [
+        {
+          orderId: 'f1',
+          routeId: 'route-1',
+          attempts: [
+            {
+              id: 'nuevo',
+              stopId: 's2',
+              failureReason: 'RECIPIENT_ABSENT',
+              recordedAt: '2026-10-21T15:00:00Z',
+            },
+            {
+              id: 'viejo',
+              stopId: 's1',
+              failureReason: 'RECIPIENT_REFUSED',
+              recordedAt: '2026-10-20T15:00:00Z',
+            },
+          ],
+        },
+      ],
     })
     expect(JSON.stringify(inbox)).not.toContain('No estaba')
   })
@@ -198,7 +240,7 @@ describe('loadUrgencyBoard', () => {
     vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
       date: '2026-10-21',
       urgencies: [urgencyProposal(orders[0].id)],
-      failedDeliveries: 0,
+      failedDeliveries: [],
     })
     const listAll = vi.spyOn(ordersService, 'listAll').mockResolvedValue([orders[0]])
 
@@ -218,7 +260,7 @@ describe('loadUrgencyBoard', () => {
           reasons: ['MISSING_ZONE_DEPOT_COORDINATES'],
         }),
       ],
-      failedDeliveries: 3,
+      failedDeliveries: [failedDelivery('f1'), failedDelivery('f2'), failedDelivery('f3')],
     })
     vi.spyOn(ordersService, 'listAll').mockResolvedValue([])
 

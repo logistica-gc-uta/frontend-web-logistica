@@ -33,7 +33,7 @@ export async function loadUrgencyBoard(): Promise<UrgencyBoard> {
     date: inbox.date,
     urgencies,
     alreadyRouted: inbox.urgencies.length - urgencies.length,
-    failedDeliveries: inbox.failedDeliveries,
+    failedDeliveries: inbox.failedDeliveries.length,
     orders: Object.fromEntries(orders.map((order) => [order.id, order])),
   }
 }

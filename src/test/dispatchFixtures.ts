@@ -1,4 +1,4 @@
-import type { DispatchAudit, UrgencyProposal } from '../features/dispatch/types'
+import type { DispatchAudit, FailedDelivery, UrgencyProposal } from '../features/dispatch/types'
 
 /** Registro de auditoría aplicado por el ADMIN del seed. */
 export const auditRecord = (overrides: Partial<DispatchAudit> = {}): DispatchAudit => ({
@@ -27,5 +27,23 @@ export const urgencyProposal = (
   reasons: [],
   totalDistanceKm: 2.4,
   fingerprint: 'a'.repeat(64),
+  ...overrides,
+})
+
+/** Pedido con un intento fallido (destinatario ausente) en la parada `stop-<orderId>` de `route-1`. */
+export const failedDelivery = (
+  orderId: string,
+  overrides: Partial<FailedDelivery> = {},
+): FailedDelivery => ({
+  orderId,
+  routeId: 'route-1',
+  attempts: [
+    {
+      id: `attempt-${orderId}`,
+      stopId: `stop-${orderId}`,
+      failureReason: 'RECIPIENT_ABSENT',
+      recordedAt: '2026-11-03T15:30:00Z',
+    },
+  ],
   ...overrides,
 })
