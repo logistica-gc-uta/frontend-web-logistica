@@ -27,19 +27,20 @@ La aplicación queda disponible en `http://localhost:5173`.
 
 ## Scripts
 
-| Script                  | Descripción                                               |
-| :---------------------- | :-------------------------------------------------------- |
-| `pnpm dev`              | Servidor de desarrollo                                    |
-| `pnpm build`            | Verificación de tipos y build de producción               |
-| `pnpm preview`          | Sirve el build de producción                              |
-| `pnpm lint`             | Análisis estático con oxlint                              |
-| `pnpm format`           | Formatea el código con Prettier                           |
-| `pnpm format:check`     | Verifica el formato sin modificar archivos                |
-| `pnpm typecheck`        | Verificación de tipos de TypeScript                       |
-| `pnpm test`             | Pruebas de componentes (Vitest + Testing Library)         |
-| `pnpm test:watch`       | Pruebas en modo observación                               |
-| `pnpm test:coverage`    | Pruebas con reporte de cobertura (`coverage/index.html`)  |
-| `pnpm test:integration` | Pruebas de integración contra el backend real (ver abajo) |
+| Script                  | Descripción                                                                 |
+| :---------------------- | :-------------------------------------------------------------------------- |
+| `pnpm dev`              | Servidor de desarrollo                                                      |
+| `pnpm build`            | Verificación de tipos y build de producción                                 |
+| `pnpm preview`          | Sirve el build de producción                                                |
+| `pnpm lint`             | Análisis estático con oxlint                                                |
+| `pnpm format`           | Formatea el código con Prettier                                             |
+| `pnpm format:check`     | Verifica el formato sin modificar archivos                                  |
+| `pnpm typecheck`        | Verificación de tipos de TypeScript                                         |
+| `pnpm test`             | Pruebas de componentes (Vitest + Testing Library)                           |
+| `pnpm test:watch`       | Pruebas en modo observación                                                 |
+| `pnpm test:coverage`    | Pruebas con reporte de cobertura (`coverage/index.html`)                    |
+| `pnpm test:integration` | Pruebas de integración contra el backend real (ver abajo)                   |
+| `pnpm test:e2e`         | Pruebas E2E en el navegador (Playwright) contra el backend real (ver abajo) |
 
 ## Pruebas de integración
 
@@ -50,7 +51,7 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias) , [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) y [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) y [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas).
 
 Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
@@ -58,7 +59,29 @@ Las pruebas de urgencias crean pedidos de **hoy** (la bandeja solo muestra el d�
 
 Las pruebas de tiempo real se conectan al Socket.IO del backend (`/realtime`): comprueban la autenticación del handshake, los permisos de suscripción y que un cambio real en una ruta llegue como evento.
 
-Las pruebas de entregas fallidas son las **únicas que asignan al chofer del seed**: con sus credenciales (`src/integration/support/driver.ts`, los mismos endpoints que la app Flutter) inicia la ruta de hoy, registra una entrega y una visita fallida, la completa y confirma el regreso al depósito. Al terminar siempre cierra lo que quedó abierto, así el chofer vuelve a estar disponible. Necesitan que el chofer esté disponible al empezar y unas 3 horas libres en el día; si no, se omiten.
+Entre las de integración, las de entregas fallidas son las **únicas que asignan al chofer del seed**: con sus credenciales (`src/integration/support/driver.ts`, los mismos endpoints que la app Flutter) inicia la ruta de hoy, registra una entrega y una visita fallida, la completa y confirma el regreso al depósito. Al terminar siempre cierra lo que quedó abierto, así el chofer vuelve a estar disponible. Necesitan que el chofer esté disponible al empezar y unas 3 horas libres en el día; si no, se omiten.
+
+## Pruebas E2E (Playwright)
+
+`pnpm test:e2e` abre el panel en **Chromium** y lo recorre como un ADMIN contra el backend real y PostgreSQL, **sin mocks de la API**. Usa el mismo `.env.integration.local` que las pruebas de integración y levanta `pnpm dev` si no está corriendo. No forma parte de `pnpm test` ni del CI porque necesita el backend.
+
+1. Levantar el backend como para las pruebas de integración, con el chofer del seed disponible.
+2. Instalar el navegador una sola vez: `pnpm exec playwright install chromium`.
+3. Ejecutar `pnpm test:e2e` (o un archivo: `pnpm test:e2e e2e/02-pedido-a-ruta.spec.ts`).
+
+| Archivo                  | Qué recorre                                                                                                                                                                                                                                 |
+| :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `01-login`               | Redirección sin sesión, login ADMIN, contraseña incorrecta y rol CLIENT rechazado                                                                                                                                                           |
+| `02-pedido-a-ruta`       | **Flujo completo:** alta con ubicación confirmada en el mapa → previsualizar dos veces sin guardar → ruta DRAFT confirmada una sola vez (doble clic) → corrección de paradas                                                                |
+| `03-validaciones-pedido` | Errores del formulario sin enviar nada y rechazo real del backend cuando otro pedido se lleva el stock                                                                                                                                      |
+| `04-operacion-del-dia`   | Con el chofer del seed: ruta en curso sin acciones (y 409 en la API), urgencia sin cupo, seguimiento en vivo hasta el regreso del chofer, entrega fallida → contacto → reprogramación → segunda ruta entregada sin perder la visita fallida |
+| `05-fallas-simuladas`    | **Simuladas** (la falla se inyecta en la red del navegador): 409, 403, tiempo de espera agotado, sin conexión y pérdida del tiempo real, siempre sin éxito falso y con reintento                                                            |
+
+Cada ejecución crea su propia zona, producto y pedidos con prefijo `E2E`. Las rutas de planificación usan un día al azar entre 2050 y 2079. `04-operacion-del-dia` asigna al chofer del seed y siempre lo deja disponible al terminar; necesita unas 3 horas libres en el día y, si no, se omite.
+
+Si una prueba falla, en `test-results/` quedan la captura, el video, la traza (`pnpm exec playwright show-trace <ruta>/trace.zip`) y el contexto del error; el reporte HTML queda en `playwright-report/`. Para reportarla se usa la plantilla de issue **Fallo de prueba E2E**. Con `E2E_CAPTURAS=1` las pruebas guardan además las capturas de evidencia en `docs/evidencias/capturas/10-e2e-playwright/`.
+
+Estas pruebas cubren solo el **panel web**: la app Flutter no se prueba con Playwright. Las acciones del chofer se hacen con la API, con los mismos endpoints que la app. Evidencia: [`docs/evidencias/10-e2e-playwright.md`](docs/evidencias/10-e2e-playwright.md).
 
 ## Estructura
 
@@ -95,6 +118,8 @@ src/
 ├── types/          # Tipos de dominio compartidos
 └── test/           # Configuración, fixtures y utilidades compartidas de pruebas
 ```
+
+Fuera de `src/`, `e2e/` contiene las pruebas de Playwright: un archivo por flujo y `support/` (cliente de la API real, datos de prueba, acciones del chofer y capturas de evidencia).
 
 ### Planificación de rutas (`/planificacion`)
 
