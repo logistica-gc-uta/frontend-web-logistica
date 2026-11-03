@@ -4,6 +4,8 @@ import type {
   DispatchAction,
   DispatchAudit,
   DispatchOutcome,
+  ContactInput,
+  FailedDelivery,
   MoveOrderInput,
   RescheduleInput,
   ReorderStopsInput,
@@ -14,12 +16,28 @@ import type {
 /** Las decisiones se validan con bloqueos en el servidor; más de esto se considera una falla. */
 const REQUEST_TIMEOUT_MS = 30_000
 
-/** Lo que usamos de `GET /dispatch/inbox` (las entregas fallidas traen datos que aquí no se muestran). */
+/** Lo que usamos de `GET /dispatch/inbox` (la respuesta trae algunos campos más). */
 interface RawInbox {
   date: string
   urgencies: UrgencyProposal[]
-  incidents: unknown[]
+  incidents: {
+    orderId: string
+    routeId: string | null
+    attempts: { id: string; stopId: string; failureReason: string | null; recordedAt: string }[]
+  }[]
 }
+
+const toFailedDelivery = ({
+  orderId,
+  routeId,
+  attempts,
+}: RawInbox['incidents'][number]): FailedDelivery => ({
+  orderId,
+  routeId,
+  attempts: attempts
+    .map(({ id, stopId, failureReason, recordedAt }) => ({ id, stopId, failureReason, recordedAt }))
+    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
+})
 
 const toProposal = ({
   orderId,
@@ -73,7 +91,7 @@ export const dispatchService = {
     return {
       date: data.date,
       urgencies: data.urgencies.map(toProposal),
-      failedDeliveries: data.incidents.length,
+      failedDeliveries: data.incidents.map(toFailedDelivery),
     }
   },
 
@@ -109,17 +127,29 @@ export const dispatchService = {
   prioritize: (orderId: string, reason: string) => intervene('PRIORITIZE', { orderId, reason }),
 
   /**
+   * Registra la gestión de contacto con el destinatario (`CONTACT`). Con acuerdo exige fecha y franja
+   * futuras; sin acuerdo solo deja constancia. El id del registro es el acuerdo para reprogramar.
+   */
+  recordContact: ({ orderId, attemptId, agreement, reason }: ContactInput) =>
+    intervene('CONTACT', {
+      orderId,
+      ...(attemptId ? { attemptId } : {}),
+      agreementConfirmed: agreement !== null,
+      reason,
+      ...(agreement ?? {}),
+    }),
+
+  /** Reprograma el pedido con un acuerdo ya registrado (`RESCHEDULE`); vuelve a quedar PENDING. */
+  rescheduleWithAgreement: (orderId: string, agreementId: string, reason: string) =>
+    intervene('RESCHEDULE', { orderId, agreementId, reason }),
+
+  /**
    * Reprograma un pedido urgente: primero registra el acuerdo de fecha y franja (`CONTACT`) y
    * luego reprograma con ese acuerdo (`RESCHEDULE`). Ambos pasos quedan auditados.
    */
-  async reschedule({ orderId, reason, ...timing }: RescheduleInput): Promise<DispatchAudit> {
-    const agreement = await intervene('CONTACT', {
-      orderId,
-      agreementConfirmed: true,
-      reason,
-      ...timing,
-    })
-    return intervene('RESCHEDULE', { orderId, agreementId: agreement.id, reason })
+  async reschedule({ orderId, reason, ...agreement }: RescheduleInput): Promise<DispatchAudit> {
+    const contact = await dispatchService.recordContact({ orderId, agreement, reason })
+    return dispatchService.rescheduleWithAgreement(orderId, contact.id, reason)
   },
 
   /** Cambia el chofer de una ruta ASSIGNED todavía no iniciada (`REASSIGN_DRIVER`). */
