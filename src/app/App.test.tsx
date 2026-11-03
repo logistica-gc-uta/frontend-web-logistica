@@ -1,6 +1,8 @@
 import { act, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { dispatchService } from '../features/dispatch/dispatchService'
+import { monitorService } from '../features/monitor/monitorService'
+import { createFakeSocket } from '../test/fakeSocket'
 import { planningService } from '../features/planning/planningService'
 import { driversService } from '../features/planning/driversService'
 import { ordersService } from '../features/orders/ordersService'
@@ -13,6 +15,12 @@ import { createHttpError } from '../test/http'
 import { renderWithProviders } from '../test/renderWithProviders'
 import { App } from './App'
 import { paths } from './paths'
+
+// La pantalla de seguimiento abre una conexión en tiempo real: aquí se simula.
+vi.mock('../lib/realtime/realtimeClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/realtime/realtimeClient')>()),
+  createRealtimeSocket: () => createFakeSocket(),
+}))
 
 const homeHeading = () => screen.queryByRole('heading', { name: 'Sistema de Logística' })
 const loginHeading = () => screen.queryByRole('heading', { name: 'Iniciar sesión' })
@@ -57,6 +65,7 @@ describe('App', () => {
     { link: 'Pedidos', heading: 'Pedidos' },
     { link: 'Planificación', heading: 'Planificación de rutas' },
     { link: 'Urgencias', heading: 'Urgencias' },
+    { link: 'Seguimiento', heading: 'Seguimiento de rutas' },
     { link: 'Zonas', heading: 'Zonas de entrega' },
     { link: 'Productos', heading: 'Productos' },
   ])(
@@ -71,6 +80,7 @@ describe('App', () => {
       })
       vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
       vi.spyOn(planningService, 'listRoutes').mockResolvedValue([])
+      vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([])
       vi.spyOn(driversService, 'list').mockResolvedValue([])
       vi.spyOn(ordersService, 'list').mockResolvedValue({
         items: [],
