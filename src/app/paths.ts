@@ -5,6 +5,7 @@ export const paths = {
   orders: '/pedidos',
   planning: '/planificacion',
   urgencies: '/urgencias',
+  monitor: '/seguimiento',
   zones: '/zonas',
   products: '/productos',
 } as const
