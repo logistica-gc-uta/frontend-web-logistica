@@ -50,13 +50,15 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias) y [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias) , [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) y [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas).
 
 Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
 Las pruebas de urgencias crean pedidos de **hoy** (la bandeja solo muestra el día actual) en una zona propia de la ejecución; cerca de la medianoche se omiten. Tampoco asignan choferes.
 
 Las pruebas de tiempo real se conectan al Socket.IO del backend (`/realtime`): comprueban la autenticación del handshake, los permisos de suscripción y que un cambio real en una ruta llegue como evento.
+
+Las pruebas de entregas fallidas son las **únicas que asignan al chofer del seed**: con sus credenciales (`src/integration/support/driver.ts`, los mismos endpoints que la app Flutter) inicia la ruta de hoy, registra una entrega y una visita fallida, la completa y confirma el regreso al depósito. Al terminar siempre cierra lo que quedó abierto, así el chofer vuelve a estar disponible. Necesitan que el chofer esté disponible al empezar y unas 3 horas libres en el día; si no, se omiten.
 
 ## Estructura
 
@@ -71,6 +73,7 @@ src/
 ├── features/
 │   ├── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
 │   ├── dispatch/   # Urgencias: bandeja del día, decisiones auditadas e historial
+│   ├── incidents/  # Entregas fallidas: intento, historial de visitas, contacto y reprogramación acordada
 │   ├── monitor/    # Seguimiento en tiempo real: progreso de rutas, incidencias y estado del chofer
 │   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
 │   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación, corrección de paradas y asignación de chofer
@@ -88,7 +91,7 @@ src/
 │   ├── time/       # Huso horario operativo (Guayaquil) y conversión a ISO 8601
 │   └── validation/ # Validadores genéricos de formularios
 ├── pages/          # Pantallas generales (inicio, 404)
-├── styles/         # Estilos de pantallas específicas (planificación, urgencias y seguimiento)
+├── styles/         # Estilos de pantallas específicas (planificación, urgencias, entregas fallidas y seguimiento)
 ├── types/          # Tipos de dominio compartidos
 └── test/           # Configuración, fixtures y utilidades compartidas de pruebas
 ```
@@ -107,7 +110,14 @@ src/
 
 - La bandeja (`GET /dispatch/inbox`) muestra los pedidos de **hoy** por despachar con la propuesta del backend: insertar en una ruta sin iniciar con lugar, salida nueva o bloqueado con motivo.
 - Decisiones auditadas (`POST /dispatch/interventions`): insertar o crear salida nueva (`CONFIRM`), rechazar (`REJECT`, el pedido sigue pendiente), priorizar (`PRIORITIZE`) y reprogramar (`CONTACT` + `RESCHEDULE`). Todas piden un motivo y solo se dan por hechas si el backend devuelve el resultado esperado.
-- Las entregas fallidas se cuentan, pero se gestionan en otra bandeja. El historial del día (`GET /dispatch/audit`) muestra quién decidió qué, cuándo y por qué.
+- Las entregas fallidas se cuentan, pero se gestionan en [Entregas fallidas](#entregas-fallidas-entregas-fallidas). El historial del día (`GET /dispatch/audit`) muestra quién decidió qué, cuándo y por qué.
+
+### Entregas fallidas (`/entregas-fallidas`)
+
+- Muestra los pedidos cuyo último intento falló (`GET /dispatch/inbox`): motivo tipificado, fecha y hora, ruta original, chofer, historial de visitas (`GET /routes`) y gestiones registradas (`GET /dispatch/audit`). Un intento fallido **no** cancela ni entrega el pedido: queda en revisión con su estado actual.
+- **Registrar contacto** (`CONTACT`): _se acordó una nueva entrega_ (con día y franja futura en hora de Guayaquil) o _no se logró acordar_, siempre con un motivo.
+- **Reprogramar con este acuerdo** (`RESCHEDULE`) solo se habilita con un acuerdo registrado y la ruta original completada. El pedido vuelve a `PENDING` para planificarse ese día; sus visitas anteriores se conservan.
+- El backend no permite consultar después el día y la franja de un contacto: el acuerdo se recuerda mientras la pantalla está abierta. Si se recarga antes de reprogramar, hay que registrar el contacto de nuevo.
 
 ### Seguimiento en tiempo real (`/seguimiento`)
 
