@@ -50,11 +50,13 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación) y [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias) y [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real).
 
 Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
 Las pruebas de urgencias crean pedidos de **hoy** (la bandeja solo muestra el día actual) en una zona propia de la ejecución; cerca de la medianoche se omiten. Tampoco asignan choferes.
+
+Las pruebas de tiempo real se conectan al Socket.IO del backend (`/realtime`): comprueban la autenticación del handshake, los permisos de suscripción y que un cambio real en una ruta llegue como evento.
 
 ## Estructura
 
@@ -69,11 +71,12 @@ src/
 ├── features/
 │   ├── auth/       # Login, sesión (AuthProvider / useAuth) y rutas protegidas
 │   ├── dispatch/   # Urgencias: bandeja del día, decisiones auditadas e historial
+│   ├── monitor/    # Seguimiento en tiempo real: progreso de rutas, incidencias y estado del chofer
 │   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
 │   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación, corrección de paradas y asignación de chofer
 │   ├── products/   # Listado y creación de productos
 │   └── zones/      # Listado y creación de zonas de entrega
-├── hooks/          # useForm, useFetch (carga de datos), useAsyncAction y useKeyedActions (acciones por recurso)
+├── hooks/          # useForm, useFetch, useAsyncAction, useKeyedActions y useRealtimeUpdates (tiempo real)
 ├── integration/    # Pruebas de integración contra el backend real (pnpm test:integration)
 ├── lib/
 │   ├── auth/       # Persistencia de la sesión (token JWT + usuario)
@@ -81,10 +84,11 @@ src/
 │   ├── format/     # Formato de fechas, fecha y hora (Guayaquil), moneda, distancias y porcentajes
 │   ├── http/       # Cliente axios compartido, manejo de errores de la API y de acciones administrativas
 │   ├── planning/   # Motivos por los que un pedido no se puede planificar o despachar (compartidos)
+│   ├── realtime/   # Cliente Socket.IO (token en el handshake, suscripciones y eventos)
 │   ├── time/       # Huso horario operativo (Guayaquil) y conversión a ISO 8601
 │   └── validation/ # Validadores genéricos de formularios
 ├── pages/          # Pantallas generales (inicio, 404)
-├── styles/         # Estilos de pantallas específicas (planning.css)
+├── styles/         # Estilos de pantallas específicas (planificación, urgencias y seguimiento)
 ├── types/          # Tipos de dominio compartidos
 └── test/           # Configuración, fixtures y utilidades compartidas de pruebas
 ```
@@ -97,13 +101,20 @@ src/
 - Antes de iniciarse (`DRAFT` o `ASSIGNED`), **Corregir paradas** permite reordenarlas o mover un pedido a otra ruta del mismo día y zona con lugar (`POST /dispatch/interventions`, acciones `REORDER` y `MOVE`). Cada corrección pide un motivo, que el backend audita.
 - Una ruta `ASSIGNED` todavía no iniciada puede **cambiar de chofer** (con motivo). Los choferes ocupados se muestran deshabilitados hasta que regresen al depósito.
 - Las rutas `IN_PROGRESS` y `COMPLETED` se muestran sin acciones.
+- Las distancias son en **línea recta** (Haversine), no por calles; el ahorro se compara con visitar cada pedido en un viaje aparte.
 
 ### Urgencias (`/urgencias`)
 
 - La bandeja (`GET /dispatch/inbox`) muestra los pedidos de **hoy** por despachar con la propuesta del backend: insertar en una ruta sin iniciar con lugar, salida nueva o bloqueado con motivo.
 - Decisiones auditadas (`POST /dispatch/interventions`): insertar o crear salida nueva (`CONFIRM`), rechazar (`REJECT`, el pedido sigue pendiente), priorizar (`PRIORITIZE`) y reprogramar (`CONTACT` + `RESCHEDULE`). Todas piden un motivo y solo se dan por hechas si el backend devuelve el resultado esperado.
 - Las entregas fallidas se cuentan, pero se gestionan en otra bandeja. El historial del día (`GET /dispatch/audit`) muestra quién decidió qué, cuándo y por qué.
-- Las distancias son en **línea recta** (Haversine), no por calles; el ahorro se compara con visitar cada pedido en un viaje aparte.
+
+### Seguimiento en tiempo real (`/seguimiento`)
+
+- Muestra las rutas de hoy con chofer: estado de la ruta, **entregas exitosas** (por ejemplo, 3 de 4 = 75 %) separadas de las **visitas resueltas** (4 de 4 con 1 fallida), el resultado de cada parada con su motivo tipificado y el estado del chofer (ocupado, retornando al depósito o disponible tras el regreso confirmado).
+- Se conecta al Socket.IO del backend (`/realtime`) con el token solo en el handshake y se suscribe a cada ruta, sus pedidos, su chofer y las incidencias (`src/lib/realtime/realtimeClient.ts`).
+- Los eventos solo **avisan** que algo cambió: la pantalla vuelve a consultar `GET /routes` y `GET /drivers`, así que un evento repetido o fuera de orden no deshace un estado más reciente. Al reconectar se suscribe de nuevo y vuelve a consultar (`src/hooks/useRealtimeUpdates.ts`).
+- Muestra si está _En vivo_, si se perdió o recuperó la conexión y la hora de la última actualización. No incluye GPS ni tiempos estimados de llegada.
 
 ### Autenticación
 
