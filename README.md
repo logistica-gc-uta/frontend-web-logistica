@@ -51,7 +51,7 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) , [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas) y [`docs/evidencias/19-shop-catalogo.md`](docs/evidencias/19-shop-catalogo.md) (Shop).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) , [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas) , [`docs/evidencias/19-shop-catalogo.md`](docs/evidencias/19-shop-catalogo.md) (Shop) y [`docs/evidencias/20-shop-checkout.md`](docs/evidencias/20-shop-checkout.md) (compra en el Shop).
 
 Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
@@ -63,6 +63,8 @@ Entre las de integración, las de entregas fallidas son las **únicas que asigna
 
 Las pruebas del Shop crean, como ADMIN, su propia categoría y regalos con una imagen PNG que el backend sube a **Cloudinary**: necesitan las claves de prueba (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`) en el `.env` del backend, nunca en este repositorio. Consultan la tienda sin sesión, como un visitante, y restauran el límite por SKU que cambian.
 
+Las pruebas de compra (`shopCheckout.int.test.ts`) registran clientes nuevos y pagan con las **tarjetas de demostración** del backend. Requieren el simulador de pagos habilitado (`NODE_ENV=demo` y `SIMULATED_PAYMENTS_ENABLED=true` en el `.env` del backend) y las 3 tarjetas en la tabla `simulatedCard`. Fijan el IVA simulado en 15 % y al terminar restauran el valor anterior; los pagos son de $1, así que casi no consumen el saldo ficticio.
+
 ## Pruebas E2E (Playwright)
 
 `pnpm test:e2e` abre el panel en **Chromium** y lo recorre como un ADMIN contra el backend real y PostgreSQL, **sin mocks de la API**. Usa el mismo `.env.integration.local` que las pruebas de integración y levanta `pnpm dev` si no está corriendo. No forma parte de `pnpm test` ni del CI porque necesita el backend.
@@ -71,13 +73,14 @@ Las pruebas del Shop crean, como ADMIN, su propia categoría y regalos con una i
 2. Instalar el navegador una sola vez: `pnpm exec playwright install chromium`.
 3. Ejecutar `pnpm test:e2e` (o un archivo: `pnpm test:e2e e2e/02-pedido-a-ruta.spec.ts`).
 
-| Archivo                  | Qué recorre                                                                                                                                                                                                                                 |
-| :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `01-login`               | Redirección sin sesión, login ADMIN, contraseña incorrecta y rol CLIENT rechazado                                                                                                                                                           |
-| `02-pedido-a-ruta`       | **Flujo completo:** alta con ubicación confirmada en el mapa → previsualizar dos veces sin guardar → ruta DRAFT confirmada una sola vez (doble clic) → corrección de paradas                                                                |
-| `03-validaciones-pedido` | Errores del formulario sin enviar nada y rechazo real del backend cuando otro pedido se lleva el stock                                                                                                                                      |
-| `04-operacion-del-dia`   | Con el chofer del seed: ruta en curso sin acciones (y 409 en la API), urgencia sin cupo, seguimiento en vivo hasta el regreso del chofer, entrega fallida → contacto → reprogramación → segunda ruta entregada sin perder la visita fallida |
-| `05-fallas-simuladas`    | **Simuladas** (la falla se inyecta en la red del navegador): 409, 403, tiempo de espera agotado, sin conexión y pérdida del tiempo real, siempre sin éxito falso y con reintento                                                            |
+| Archivo                  | Qué recorre                                                                                                                                                                                                                                           |
+| :----------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `01-login`               | Redirección sin sesión, login ADMIN, contraseña incorrecta y rol CLIENT rechazado                                                                                                                                                                     |
+| `02-pedido-a-ruta`       | **Flujo completo:** alta con ubicación confirmada en el mapa → previsualizar dos veces sin guardar → ruta DRAFT confirmada una sola vez (doble clic) → corrección de paradas                                                                          |
+| `03-validaciones-pedido` | Errores del formulario sin enviar nada y rechazo real del backend cuando otro pedido se lleva el stock                                                                                                                                                |
+| `04-operacion-del-dia`   | Con el chofer del seed: ruta en curso sin acciones (y 409 en la API), urgencia sin cupo, seguimiento en vivo hasta el regreso del chofer, entrega fallida → contacto → reprogramación → segunda ruta entregada sin perder la visita fallida           |
+| `05-fallas-simuladas`    | **Simuladas** (la falla se inyecta en la red del navegador): 409, 403, tiempo de espera agotado, sin conexión y pérdida del tiempo real, siempre sin éxito falso y con reintento                                                                      |
+| `06-compra-shop`         | Compra CLIENT en el Shop: carrito de visitante → registro → checkout con mapa y horario → pago rechazado y aprobado → comprobante e historial; [simulada] respuesta del pago perdida que se verifica sin cobrar dos veces; CLIENT sin acceso al panel |
 
 Cada ejecución crea su propia zona, producto y pedidos con prefijo `E2E`. Las rutas de planificación usan un día al azar entre 2050 y 2079. `04-operacion-del-dia` asigna al chofer del seed y siempre lo deja disponible al terminar; necesita unas 3 horas libres en el día y, si no, se omite.
 
@@ -155,6 +158,14 @@ Fuera de `src/`, `e2e/` contiene las pruebas de Playwright: un archivo por flujo
 - **Detalle** (`/shop/productos/:id`): galería, stock y cantidad hasta min(stock, límite por SKU de `GET /shop/settings`) menos lo que ya está en el carrito.
 - **Carrito compartido** (`features/shop/cart`): `useCart()` con `addItem(productId, quantity)` y el contador; guarda solo productos y cantidades en el navegador. El checkout (#20) parte de él.
 - Un regalo solo aparece si el backend lo publica con una imagen principal de Cloudinary.
+
+### Compra en el Shop (cliente CLIENT)
+
+- **Cuenta** (`/shop/registro`, `/shop/login`): sesión CLIENT propia del Shop (`regalia.session`), separada de la del panel. El registro envía solo nombre, correo y contraseña; el backend asigna el rol. Las rutas de compra y pedidos (`RequireCustomer`) llevan al login y vuelven al paso exacto.
+- **Carrito** (`/shop/carrito`): guarda solo productos y cantidades, por cuenta. Al abrirlo revalida precio, stock y límite por SKU con la API; marca las líneas agotadas o inválidas y bloquea el checkout. El resumen es una **estimación** rotulada.
+- **Checkout** (`/shop/checkout`): entrega con mapa y horario de Ecuador (ventana de `/shop/settings`), cotización del servidor (`POST /shop/checkout/quote`) y aceptación explícita si el total cambia.
+- **Pago** (`/shop/pago`): tarjetas ficticias con `Idempotency-Key` por intento. Un rechazo conserva el carrito; un resultado incierto se verifica con `GET /shop/checkout-attempts/{clave}` sin volver a cobrar. La tarjeta nunca se guarda.
+- **Pedidos** (`/shop/mis-pedidos`): confirmación (vacía el carrito cuando el servidor confirma), historial, detalle con la línea de tiempo del backend y comprobante simulado imprimible, sin validez tributaria.
 
 ### Seguimiento en tiempo real (`/seguimiento`)
 
