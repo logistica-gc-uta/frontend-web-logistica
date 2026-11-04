@@ -15,4 +15,6 @@ export const navItems: readonly NavItem[] = [
   { label: 'Seguimiento', to: paths.monitor },
   { label: 'Zonas', to: paths.zones },
   { label: 'Productos', to: paths.products },
+  { label: 'Categorías', to: paths.categories },
+  { label: 'Configuración Shop', to: paths.shopSettings },
 ]

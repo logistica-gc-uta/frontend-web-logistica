@@ -9,6 +9,10 @@ export const paths = {
   monitor: '/seguimiento',
   zones: '/zonas',
   products: '/productos',
+  productNew: '/productos/nuevo',
+  productEdit: '/productos/:id',
+  categories: '/categorias',
+  shopSettings: '/configuracion-shop',
   shop: '/shop',
   shopCatalog: '/shop/catalogo',
   shopProduct: '/shop/productos/:id',
@@ -37,3 +41,6 @@ export const shopOrderPath = (orderId: string): string => withId(paths.shopOrder
 
 /** Comprobante simulado de un pedido del cliente. */
 export const shopReceiptPath = (orderId: string): string => withId(paths.shopReceipt, orderId)
+
+/** Edición de un producto del catálogo (panel ADMIN). */
+export const productEditPath = (productId: string): string => withId(paths.productEdit, productId)

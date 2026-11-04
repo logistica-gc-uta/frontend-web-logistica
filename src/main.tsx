@@ -9,6 +9,7 @@ import './styles/dispatch.css'
 import './styles/monitor.css'
 import './styles/incidents.css'
 import './styles/shop.css'
+import './styles/catalog.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

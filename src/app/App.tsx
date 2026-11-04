@@ -7,7 +7,10 @@ import { PlanningPage } from '../features/planning/PlanningPage'
 import { UrgenciesPage } from '../features/dispatch/UrgenciesPage'
 import { FailedDeliveriesPage } from '../features/incidents/FailedDeliveriesPage'
 import { MonitorPage } from '../features/monitor/MonitorPage'
-import { ProductsPage } from '../features/products/ProductsPage'
+import { CatalogProductsPage } from '../features/catalog/CatalogProductsPage'
+import { CategoriesPage } from '../features/catalog/CategoriesPage'
+import { ProductEditorPage } from '../features/catalog/ProductEditorPage'
+import { ShopSettingsPage } from '../features/catalog/ShopSettingsPage'
 import { RequireCustomer } from '../features/shop/account/RequireCustomer'
 import { ShopLoginPage } from '../features/shop/account/ShopLoginPage'
 import { ShopRegisterPage } from '../features/shop/account/ShopRegisterPage'
@@ -60,7 +63,11 @@ export function App() {
           <Route path={paths.failedDeliveries} element={<FailedDeliveriesPage />} />
           <Route path={paths.monitor} element={<MonitorPage />} />
           <Route path={paths.zones} element={<ZonesPage />} />
-          <Route path={paths.products} element={<ProductsPage />} />
+          <Route path={paths.products} element={<CatalogProductsPage />} />
+          <Route path={paths.productNew} element={<ProductEditorPage />} />
+          <Route path={paths.productEdit} element={<ProductEditorPage />} />
+          <Route path={paths.categories} element={<CategoriesPage />} />
+          <Route path={paths.shopSettings} element={<ShopSettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />
