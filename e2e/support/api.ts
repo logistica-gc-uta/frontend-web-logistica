@@ -21,6 +21,8 @@ export interface Api {
   get<T>(path: string): Promise<T>
   post<T>(path: string, data?: unknown): Promise<T>
   patch<T>(path: string, data?: unknown): Promise<T>
+  /** Envía un archivo como `multipart/form-data` en el campo `file`. */
+  upload<T>(path: string, file: { name: string; mimeType: string; buffer: Buffer }): Promise<T>
   dispose(): Promise<void>
 }
 
@@ -55,6 +57,15 @@ export async function apiAs(role: Role): Promise<Api> {
     get: (path) => call(context, token, 'GET', path),
     post: (path, data = {}) => call(context, token, 'POST', path, data),
     patch: (path, data = {}) => call(context, token, 'PATCH', path, data),
+    upload: async (path, file) => {
+      const response = await context.post(`${API_URL}${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        multipart: { file },
+      })
+      const text = await response.text()
+      if (!response.ok()) throw new ApiError(response.status(), text)
+      return JSON.parse(text)
+    },
     dispose: () => context.dispose(),
   }
 }

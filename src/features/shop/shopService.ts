@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { AppError } from '../../lib/errors/AppError'
 import { apiClient } from '../../lib/http/apiClient'
+import { shopErrorCode } from './shopError'
 import type {
   CatalogApiQuery,
   ProductPage,
@@ -10,9 +11,11 @@ import type {
   ShopSettings,
 } from './types'
 
-/** Respuesta de error de los módulos del Shop: `{ error: { code, message } }`. */
-interface ShopErrorBody {
-  error?: { code?: string }
+/** El regalo no existe, se despublicó o su categoría está inactiva. */
+export class ProductNotFoundError extends AppError {
+  constructor() {
+    super('Este regalo no existe o ya no está disponible.')
+  }
 }
 
 const SHOP_ERROR_MESSAGES: Record<string, string> = {
@@ -20,12 +23,9 @@ const SHOP_ERROR_MESSAGES: Record<string, string> = {
   CATEGORY_NOT_FOUND: 'Esta categoría no existe o ya no está disponible.',
 }
 
-/** Código de error del Shop, si la respuesta lo trae. */
-export const shopErrorCode = (error: unknown): string | undefined =>
-  axios.isAxiosError<ShopErrorBody>(error) ? error.response?.data?.error?.code : undefined
-
 /** Traduce los errores conocidos del Shop; los demás siguen su curso (red, servidor…). */
 function translate(error: unknown): never {
+  if (shopErrorCode(error) === 'PRODUCT_NOT_FOUND') throw new ProductNotFoundError()
   const message = SHOP_ERROR_MESSAGES[shopErrorCode(error) ?? '']
   throw message ? new AppError(message) : error
 }
@@ -71,8 +71,11 @@ const toParams = ({ inStock, ...query }: CatalogApiQuery) => ({
 })
 
 interface RawSettings {
+  version: number
   shipping: { status: string }
+  tax: { enabled: boolean; rateBps: number; ratePercent: number }
   limits: { maxUnitsPerSkuPerOrder: number }
+  deliverySchedule: { timeZone: string; startTime: string; endTime: string }
 }
 
 export const shopService = {
@@ -94,19 +97,33 @@ export const shopService = {
       .catch((error: unknown) => {
         // Un ID mal formado (400) es, para el visitante, un regalo que no existe.
         if (axios.isAxiosError(error) && error.response?.status === 400) {
-          throw new AppError(SHOP_ERROR_MESSAGES.PRODUCT_NOT_FOUND)
+          throw new ProductNotFoundError()
         }
         return translate(error)
       })
     return toProduct(data)
   },
 
-  /** Límite vigente por SKU y envío: el ADMIN puede cambiarlos, así que no se fijan en el código. */
+  /**
+   * Límite por SKU, IVA simulado y horario de reparto vigentes: el ADMIN puede cambiarlos, así
+   * que no se fijan en el código.
+   */
   async settings(): Promise<ShopSettings> {
     const { data } = await apiClient.get<RawSettings>('/shop/settings')
     return {
+      version: data.version,
       maxUnitsPerSkuPerOrder: data.limits.maxUnitsPerSkuPerOrder,
       shippingFreeIncluded: data.shipping.status === 'FREE_INCLUDED',
+      tax: {
+        enabled: data.tax.enabled,
+        rateBps: data.tax.rateBps,
+        ratePercent: data.tax.ratePercent,
+      },
+      deliverySchedule: {
+        timeZone: data.deliverySchedule.timeZone,
+        startTime: data.deliverySchedule.startTime,
+        endTime: data.deliverySchedule.endTime,
+      },
     }
   },
 }

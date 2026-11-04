@@ -218,8 +218,16 @@ describe('shopService', () => {
       url === '/shop/categories'
         ? createHttpResponse({ items: [{ id: 'c1', name: 'Tazas', productCount: 2 }] })
         : createHttpResponse({
+            version: 3,
             shipping: { status: 'FREE_INCLUDED', amountCents: 0 },
+            tax: { mode: 'SIMULATED', enabled: false, rateBps: 1200, ratePercent: 12 },
             limits: { maxUnitsPerSkuPerOrder: 4 },
+            deliverySchedule: {
+              timeZone: 'America/Guayaquil',
+              startTime: '08:00',
+              endTime: '16:30',
+              boundariesInclusive: true,
+            },
           }),
     )
 
@@ -227,8 +235,11 @@ describe('shopService', () => {
       expect.objectContaining({ id: 'c1', name: 'Tazas' }),
     ])
     expect(await shopService.settings()).toEqual({
+      version: 3,
       maxUnitsPerSkuPerOrder: 4,
       shippingFreeIncluded: true,
+      tax: { enabled: false, rateBps: 1200, ratePercent: 12 },
+      deliverySchedule: { timeZone: 'America/Guayaquil', startTime: '08:00', endTime: '16:30' },
     })
   })
 })

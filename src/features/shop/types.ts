@@ -54,8 +54,25 @@ export interface ProductPage {
   sortApplied: string
 }
 
+/** IVA ficticio configurable por el ADMIN (no es un impuesto oficial). */
+export interface SimulatedTax {
+  enabled: boolean
+  rateBps: number
+  ratePercent: number
+}
+
+/** Ventana de reparto en la zona horaria del negocio (inicialmente 07:00–17:00, Guayaquil). */
+export interface DeliverySchedule {
+  timeZone: string
+  startTime: string
+  endTime: string
+}
+
 /** Lo que el Shop usa de `GET /shop/settings`. */
 export interface ShopSettings {
+  version: number
   maxUnitsPerSkuPerOrder: number
   shippingFreeIncluded: boolean
+  tax: SimulatedTax
+  deliverySchedule: DeliverySchedule
 }

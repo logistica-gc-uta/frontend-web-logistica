@@ -72,6 +72,7 @@ export async function createShopProduct({
 
 interface AdminSettings {
   version: number
+  tax: { enabled: boolean; rateBps: number }
   limits: { maxUnitsPerSkuPerOrder: number }
 }
 
@@ -84,3 +85,21 @@ export async function setMaxUnitsPerSku(maxUnitsPerSkuPerOrder: number): Promise
   })
   return data.limits.maxUnitsPerSkuPerOrder
 }
+
+/** Cambia el IVA simulado como ADMIN y devuelve el valor anterior (para restaurarlo). */
+export async function setSimulatedTax(tax: {
+  enabled: boolean
+  rateBps: number
+}): Promise<{ enabled: boolean; rateBps: number }> {
+  const { data } = await apiClient.get<AdminSettings>('/admin/shop-settings')
+  const previous = { enabled: data.tax.enabled, rateBps: data.tax.rateBps }
+  // El backend rechaza un cambio que no cambia nada.
+  if (previous.enabled !== tax.enabled || previous.rateBps !== tax.rateBps) {
+    await apiClient.patch('/admin/shop-settings', { expectedVersion: data.version, tax })
+  }
+  return previous
+}
+
+/** Cambia el precio de un regalo como ADMIN (para provocar `PRICE_CHANGED`). */
+export const setProductPrice = (productId: string, priceCents: number) =>
+  apiClient.patch(`/admin/catalog/products/${productId}`, { priceCents })
