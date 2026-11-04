@@ -9,4 +9,11 @@ export const paths = {
   monitor: '/seguimiento',
   zones: '/zonas',
   products: '/productos',
+  shop: '/shop',
+  shopCatalog: '/shop/catalogo',
+  shopProduct: '/shop/productos/:id',
 } as const
+
+/** Detalle de un regalo del Shop. */
+export const shopProductPath = (id: string): string =>
+  paths.shopProduct.replace(':id', encodeURIComponent(id))
