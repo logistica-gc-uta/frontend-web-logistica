@@ -51,7 +51,7 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) y [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) , [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas) y [`docs/evidencias/19-shop-catalogo.md`](docs/evidencias/19-shop-catalogo.md) (Shop).
 
 Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
@@ -60,6 +60,8 @@ Las pruebas de urgencias crean pedidos de **hoy** (la bandeja solo muestra el d�
 Las pruebas de tiempo real se conectan al Socket.IO del backend (`/realtime`): comprueban la autenticación del handshake, los permisos de suscripción y que un cambio real en una ruta llegue como evento.
 
 Entre las de integración, las de entregas fallidas son las **únicas que asignan al chofer del seed**: con sus credenciales (`src/integration/support/driver.ts`, los mismos endpoints que la app Flutter) inicia la ruta de hoy, registra una entrega y una visita fallida, la completa y confirma el regreso al depósito. Al terminar siempre cierra lo que quedó abierto, así el chofer vuelve a estar disponible. Necesitan que el chofer esté disponible al empezar y unas 3 horas libres en el día; si no, se omiten.
+
+Las pruebas del Shop crean, como ADMIN, su propia categoría y regalos con una imagen PNG que el backend sube a **Cloudinary**: necesitan las claves de prueba (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`) en el `.env` del backend, nunca en este repositorio. Consultan la tienda sin sesión, como un visitante, y restauran el límite por SKU que cambian.
 
 ## Pruebas E2E (Playwright)
 
@@ -100,6 +102,7 @@ src/
 │   ├── monitor/    # Seguimiento en tiempo real: progreso de rutas, incidencias y estado del chofer
 │   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
 │   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación, corrección de paradas y asignación de chofer
+│   ├── shop/       # Tienda pública REGALÍA: inicio, catálogo con filtros en la URL, detalle y carrito compartido
 │   ├── products/   # Listado y creación de productos
 │   └── zones/      # Listado y creación de zonas de entrega
 ├── hooks/          # useForm, useFetch, useAsyncAction, useKeyedActions y useRealtimeUpdates (tiempo real)
@@ -114,7 +117,7 @@ src/
 │   ├── time/       # Huso horario operativo (Guayaquil) y conversión a ISO 8601
 │   └── validation/ # Validadores genéricos de formularios
 ├── pages/          # Pantallas generales (inicio, 404)
-├── styles/         # Estilos de pantallas específicas (planificación, urgencias, entregas fallidas y seguimiento)
+├── styles/         # Estilos de pantallas específicas (planificación, urgencias, entregas fallidas, seguimiento y Shop)
 ├── types/          # Tipos de dominio compartidos
 └── test/           # Configuración, fixtures y utilidades compartidas de pruebas
 ```
@@ -143,6 +146,15 @@ Fuera de `src/`, `e2e/` contiene las pruebas de Playwright: un archivo por flujo
 - **Registrar contacto** (`CONTACT`): _se acordó una nueva entrega_ (con día y franja futura en hora de Guayaquil) o _no se logró acordar_, siempre con un motivo.
 - **Reprogramar con este acuerdo** (`RESCHEDULE`) solo se habilita con un acuerdo registrado y la ruta original completada. El pedido vuelve a `PENDING` para planificarse ese día; sus visitas anteriores se conservan.
 - El backend no permite consultar después el día y la franja de un contacto: el acuerdo se recuerda mientras la pantalla está abierta. Si se recarga antes de reprogramar, hay que registrar el contacto de nuevo.
+
+### Shop público REGALÍA (`/shop`)
+
+- Zona pública, **sin sesión** y separada del panel: `ShopLayout` con su propia cabecera (marca, Inicio, Catálogo, buscador y contador del carrito), sin accesos ADMIN.
+- **Inicio** (`/shop`): categorías con regalos publicados (`GET /shop/categories`) y destacados (`GET /shop/products`).
+- **Catálogo** (`/shop/catalogo`): paginado en el servidor, con búsqueda, categoría, precio mínimo/máximo, «Solo disponibles» y orden. Todo queda en la URL (`?q=…&categoria=…&min=…&max=…&disponibles=1&orden=…&pagina=…`), así que volver desde el detalle conserva la vista. Los precios en dólares se convierten a centavos con enteros.
+- **Detalle** (`/shop/productos/:id`): galería, stock y cantidad hasta min(stock, límite por SKU de `GET /shop/settings`) menos lo que ya está en el carrito.
+- **Carrito compartido** (`features/shop/cart`): `useCart()` con `addItem(productId, quantity)` y el contador; guarda solo productos y cantidades en el navegador. El checkout (#20) parte de él.
+- Un regalo solo aparece si el backend lo publica con una imagen principal de Cloudinary.
 
 ### Seguimiento en tiempo real (`/seguimiento`)
 
