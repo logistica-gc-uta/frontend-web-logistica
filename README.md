@@ -51,7 +51,7 @@ No forma parte de `pnpm test` ni del CI porque necesita el backend levantado.
 2. Copiar `.env.integration.example` a `.env.integration.local` y completar las contraseñas del seed (README del backend).
 3. Ejecutar `pnpm test:integration`.
 
-Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real) , [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas) , [`docs/evidencias/19-shop-catalogo.md`](docs/evidencias/19-shop-catalogo.md) (Shop) y [`docs/evidencias/20-shop-checkout.md`](docs/evidencias/20-shop-checkout.md) (compra en el Shop).
+Cada ejecución crea zonas, productos y pedidos con prefijo `IT` y un sufijo único; los pedidos usan un producto propio de la ejecución, así que no consumen el stock del seed. Evidencia: [`docs/evidencias/4-integracion-real.md`](docs/evidencias/4-integracion-real.md) (login, zonas y productos), [`docs/evidencias/6-pedidos-leaflet.md`](docs/evidencias/6-pedidos-leaflet.md) (pedidos), [`docs/evidencias/7-panel-planificacion.md`](docs/evidencias/7-panel-planificacion.md) (planificación), [`docs/evidencias/8-bandeja-urgencias.md`](docs/evidencias/8-bandeja-urgencias.md) (urgencias), [`docs/evidencias/9-seguimiento-tiempo-real.md`](docs/evidencias/9-seguimiento-tiempo-real.md) (tiempo real), [`docs/evidencias/13-entregas-fallidas.md`](docs/evidencias/13-entregas-fallidas.md) (entregas fallidas), [`docs/evidencias/19-shop-catalogo.md`](docs/evidencias/19-shop-catalogo.md) (Shop) , [`docs/evidencias/20-shop-checkout.md`](docs/evidencias/20-shop-checkout.md) (compra en el Shop) y [`docs/evidencias/21-admin-catalogo.md`](docs/evidencias/21-admin-catalogo.md) (administración del catálogo).
 
 Las pruebas de planificación usan un día propio al azar (entre 2050 y 2079), porque las rutas confirmadas quedan guardadas y reservan sus pedidos. **Nunca asignan choferes**: una asignación real deja al chofer ocupado hasta recrear la base (`seed:reset-drivers` no lo libera).
 
@@ -64,6 +64,8 @@ Entre las de integración, las de entregas fallidas son las **únicas que asigna
 Las pruebas del Shop crean, como ADMIN, su propia categoría y regalos con una imagen PNG que el backend sube a **Cloudinary**: necesitan las claves de prueba (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`) en el `.env` del backend, nunca en este repositorio. Consultan la tienda sin sesión, como un visitante, y restauran el límite por SKU que cambian.
 
 Las pruebas de compra (`shopCheckout.int.test.ts`) registran clientes nuevos y pagan con las **tarjetas de demostración** del backend. Requieren el simulador de pagos habilitado (`NODE_ENV=demo` y `SIMULATED_PAYMENTS_ENABLED=true` en el `.env` del backend) y las 3 tarjetas en la tabla `simulatedCard`. Fijan el IVA simulado en 15 % y al terminar restauran el valor anterior; los pagos son de $1, así que casi no consumen el saldo ficticio.
+
+Las pruebas de administración (`adminCatalog.int.test.ts`) usan el mismo `catalogService` del panel: crean categorías y productos `IT`, suben un PNG real a Cloudinary por el backend, publican y comprueban el Shop, y verifican el conflicto de versión de la configuración. Restauran el límite por SKU que cambian.
 
 ## Pruebas E2E (Playwright)
 
@@ -81,6 +83,7 @@ Las pruebas de compra (`shopCheckout.int.test.ts`) registran clientes nuevos y p
 | `04-operacion-del-dia`   | Con el chofer del seed: ruta en curso sin acciones (y 409 en la API), urgencia sin cupo, seguimiento en vivo hasta el regreso del chofer, entrega fallida → contacto → reprogramación → segunda ruta entregada sin perder la visita fallida           |
 | `05-fallas-simuladas`    | **Simuladas** (la falla se inyecta en la red del navegador): 409, 403, tiempo de espera agotado, sin conexión y pérdida del tiempo real, siempre sin éxito falso y con reintento                                                                      |
 | `06-compra-shop`         | Compra CLIENT en el Shop: carrito de visitante → registro → checkout con mapa y horario → pago rechazado y aprobado → comprobante e historial; [simulada] respuesta del pago perdida que se verifica sin cobrar dos veces; CLIENT sin acceso al panel |
+| `07-admin-catalogo`      | Panel ADMIN: categoría → producto despublicado → imagen subida por el backend a Cloudinary → publicación visible en el Shop; cambio del límite por SKU en Configuración Shop; CLIENT sin acceso a la administración                                   |
 
 Cada ejecución crea su propia zona, producto y pedidos con prefijo `E2E`. Las rutas de planificación usan un día al azar entre 2050 y 2079. `04-operacion-del-dia` asigna al chofer del seed y siempre lo deja disponible al terminar; necesita unas 3 horas libres en el día y, si no, se omite.
 
@@ -106,7 +109,8 @@ src/
 │   ├── orders/     # Registro de pedidos con mapa y listado paginado con filtros
 │   ├── planning/   # Planificación: propuestas Clarke & Wright, mapa, confirmación, corrección de paradas y asignación de chofer
 │   ├── shop/       # Tienda pública REGALÍA: inicio, catálogo con filtros en la URL, detalle y carrito compartido
-│   ├── products/   # Listado y creación de productos
+│   ├── catalog/    # Panel ADMIN del Shop: productos, editor con imágenes Cloudinary, categorías y Configuración Shop
+│   ├── products/   # Servicio de productos de la API anterior (`/products`), usado por el alta de pedidos
 │   └── zones/      # Listado y creación de zonas de entrega
 ├── hooks/          # useForm, useFetch, useAsyncAction, useKeyedActions y useRealtimeUpdates (tiempo real)
 ├── integration/    # Pruebas de integración contra el backend real (pnpm test:integration)
@@ -126,6 +130,14 @@ src/
 ```
 
 Fuera de `src/`, `e2e/` contiene las pruebas de Playwright: un archivo por flujo y `support/` (cliente de la API real, datos de prueba, acciones del chofer y capturas de evidencia).
+
+### Administración del Shop (panel ADMIN)
+
+- **Productos** (`/productos`): catálogo completo (`GET /admin/catalog/products`), incluidos agotados, despublicados y productos antiguos sin categoría, con búsqueda, filtros por categoría y estado, y paginación del servidor. Publicar o despublicar pide confirmación.
+- **Alta y edición** (`/productos/nuevo`, `/productos/:id`): los productos se crean despublicados; el precio se escribe en dólares y se guarda en centavos exactos; al editar, el SKU es de solo lectura y se envía solo lo que cambió. El panel indica qué falta para publicar.
+- **Imágenes**: JPEG, PNG o WebP de hasta 5 MiB, subidas en `multipart` al backend (`POST /admin/catalog/uploads`), que las envía a Cloudinary. El navegador solo recibe el `uploadId`: nunca credenciales. Si la asociación falla, se reintenta con el mismo `uploadId`.
+- **Categorías** (`/categorias`): crear, editar y activar/desactivar (sin borrado). Una categoría inactiva oculta sus productos del Shop sin tocar los pedidos.
+- **Configuración Shop** (`/configuracion-shop`): IVA simulado (no oficial), máximo por SKU y horario de entregas en Ecuador, guardados con `expectedVersion`. Un conflicto entre dos ADMIN se informa sin sobrescribir. El envío gratis y la zona horaria son fijos.
 
 ### Planificación de rutas (`/planificacion`)
 
