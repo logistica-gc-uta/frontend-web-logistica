@@ -1,0 +1,451 @@
+/* Tienda pública REGALÍA */
+.shop {
+  --shop-accent: #be185d;
+  --shop-accent-soft: #fdf2f8;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+@media (prefers-color-scheme: dark) {
+  .shop {
+    --shop-accent: #f472b6;
+    --shop-accent-soft: #3b1d2e;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+.shop a:focus-visible,
+.shop button:focus-visible,
+.shop input:focus-visible,
+.shop select:focus-visible {
+  outline: 2px solid var(--shop-accent);
+  outline-offset: 2px;
+}
+
+/* Cabecera */
+.shop-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.shop-header__brand {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--shop-accent);
+  text-decoration: none;
+}
+
+.shop-header__nav {
+  display: flex;
+  gap: 4px;
+}
+
+.shop-header__link {
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.shop-header__link.active {
+  color: var(--shop-accent);
+  font-weight: 600;
+  background: var(--shop-accent-soft);
+}
+
+.shop-search {
+  display: flex;
+  flex: 1 1 260px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shop-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.shop-header__cart {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.shop-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.shop-footer {
+  padding: 16px;
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.shop-footer p {
+  margin: 0;
+}
+
+.shop-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.shop-page h1,
+.shop-page h2 {
+  margin: 0 0 12px;
+}
+
+/* Portada */
+.shop-hero {
+  padding: 32px 24px;
+  border-radius: 16px;
+  background: var(--shop-accent-soft);
+}
+
+.shop-hero p {
+  max-width: 560px;
+}
+
+.shop .btn--primary {
+  background: var(--shop-accent);
+}
+
+.shop a.btn {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.category-grid,
+.product-grid {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.product-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  text-decoration: none;
+  text-align: center;
+}
+
+.category-card__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--shop-accent-soft);
+  color: var(--shop-accent);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.category-card__name {
+  font-weight: 600;
+}
+
+/* Tarjeta de regalo */
+.product-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.product-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--color-bg);
+}
+
+.product-image--placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 2rem;
+}
+
+.product-image--placeholder small {
+  font-size: 0.8125rem;
+}
+
+.product-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 16px 16px;
+}
+
+.product-card__body p,
+.product-card__name {
+  margin: 0;
+}
+
+.product-card__name {
+  font-size: 1rem;
+}
+
+.product-card__category {
+  font-size: 0.8125rem;
+  color: var(--shop-accent);
+}
+
+.product-card__price,
+.product-detail__price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.product-card__shipping {
+  font-size: 0.8125rem;
+}
+
+.product-card__cta {
+  margin-top: auto;
+  align-self: stretch;
+  text-align: center;
+  text-decoration: none;
+}
+
+/* Catálogo */
+.catalog__layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.catalog-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.catalog__layout > * {
+  min-width: 0;
+}
+
+.catalog-filters__prices {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+/* Sin esto, el ancho propio de los campos empuja el formulario fuera de la pantalla en móvil. */
+.catalog-filters .field__input {
+  width: 100%;
+  min-width: 0;
+}
+
+.catalog-filters__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalog-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.catalog__toolbar h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+@media (max-width: 768px) {
+  .catalog__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+/* Detalle */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumb li + li::before {
+  content: '/';
+  margin-right: 4px;
+  opacity: 0.6;
+}
+
+.product-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.product-detail__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.product-detail__info p {
+  margin: 0;
+}
+
+.product-detail__category {
+  color: var(--shop-accent);
+}
+
+.product-detail__description {
+  white-space: pre-line;
+}
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gallery__main {
+  border-radius: 12px;
+}
+
+.gallery__thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery__thumb {
+  width: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.gallery__thumb[aria-pressed='true'] {
+  border-color: var(--shop-accent);
+}
+
+.add-to-cart {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.quantity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quantity__input {
+  width: 72px;
+  text-align: center;
+}
+
+.add-to-cart__blocked {
+  color: var(--color-danger);
+}
+
+.add-to-cart__added {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .product-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .add-to-cart .btn {
+    align-self: stretch;
+  }
+}

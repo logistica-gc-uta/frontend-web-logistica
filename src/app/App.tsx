@@ -8,6 +8,10 @@ import { UrgenciesPage } from '../features/dispatch/UrgenciesPage'
 import { FailedDeliveriesPage } from '../features/incidents/FailedDeliveriesPage'
 import { MonitorPage } from '../features/monitor/MonitorPage'
 import { ProductsPage } from '../features/products/ProductsPage'
+import { ShopLayout } from '../features/shop/components/ShopLayout'
+import { CatalogPage } from '../features/shop/pages/CatalogPage'
+import { ProductDetailPage } from '../features/shop/pages/ProductDetailPage'
+import { ShopHomePage } from '../features/shop/pages/ShopHomePage'
 import { ZonesPage } from '../features/zones/ZonesPage'
 import { HomePage } from '../pages/HomePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -17,6 +21,12 @@ export function App() {
   return (
     <Routes>
       <Route path={paths.login} element={<LoginPage />} />
+      {/* Tienda pública: sin sesión y separada del panel administrativo. */}
+      <Route element={<ShopLayout />}>
+        <Route path={paths.shop} element={<ShopHomePage />} />
+        <Route path={paths.shopCatalog} element={<CatalogPage />} />
+        <Route path={paths.shopProduct} element={<ProductDetailPage />} />
+      </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path={paths.home} element={<HomePage />} />
