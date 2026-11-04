@@ -1,0 +1,183 @@
+/* Administración del catálogo y configuración del Shop (panel ADMIN) */
+.catalog-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.catalog-header h1 {
+  margin: 0 0 4px;
+}
+
+a.btn {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+.catalog-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  font-size: 1.25rem;
+}
+
+.catalog-thumb small {
+  display: none;
+}
+
+.catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--color-danger);
+  border-radius: 8px;
+}
+
+.catalog-editor {
+  display: grid;
+  gap: 24px;
+}
+
+.catalog-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.catalog-form__row .field__input,
+.settings-form .field__input {
+  width: 100%;
+  min-width: 0;
+}
+
+.catalog-form__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+textarea.field__input {
+  resize: vertical;
+}
+
+.catalog-images {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-image {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.catalog-image__preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--color-bg);
+}
+
+.catalog-image__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.catalog-image__alt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.catalog-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-item p {
+  margin: 4px 0 8px;
+}
+
+.category-item__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-form {
+  max-width: 640px;
+}
+
+.settings-fixed {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.settings-fixed div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-fixed dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .catalog-image {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* En pantallas angostas la tabla se desplaza dentro de su tarjeta, sin estirar la página. */
+.catalog-page > *,
+.catalog-editor > * {
+  min-width: 0;
+}
+
+/* Los textos ocultos de los botones (position: absolute) quedan dentro de la tabla desplazable. */
+.catalog-page .table-wrapper {
+  position: relative;
+}
