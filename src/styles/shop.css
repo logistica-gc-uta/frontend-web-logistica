@@ -1,18 +1,41 @@
-/* Tienda pública REGALÍA */
+/*
+ * Tienda pública REGALÍA. Usa la misma paleta "vino y arena" del panel (tokens de :root);
+ * aquí solo cambian la tipografía, las esquinas y algunos detalles propios de la tienda.
+ * Vino para la acción y el precio, arena para los detalles, verde solo para lo que confirma.
+ */
 .shop {
-  --shop-accent: #be185d;
-  --shop-accent-soft: #fdf2f8;
+  --font-sans: 'Figtree Variable', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-brand);
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --shop-stem: var(--sidebar-bg);
+  --shop-stem-text: var(--sidebar-text);
+
+  /* Compatibilidad con estilos que aún usan los nombres anteriores. */
+  --shop-accent: var(--color-accent);
+  --shop-accent-soft: var(--color-accent-soft);
 
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--color-text);
+  background: var(--color-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  .shop {
-    --shop-accent: #f472b6;
-    --shop-accent-soft: #3b1d2e;
-  }
+.shop h1,
+.shop h2 {
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.shop h1 {
+  font-size: clamp(1.875rem, 4vw, 2.5rem);
+}
+
+.shop h2 {
+  font-size: 1.5rem;
 }
 
 .skip-link {
@@ -20,7 +43,7 @@
   left: 16px;
   top: -48px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-heading);
   z-index: 10;
@@ -30,31 +53,28 @@
   top: 8px;
 }
 
-.shop a:focus-visible,
-.shop button:focus-visible,
-.shop input:focus-visible,
-.shop select:focus-visible {
-  outline: 2px solid var(--shop-accent);
-  outline-offset: 2px;
-}
-
 /* Cabecera */
 .shop-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 24px;
-  padding: 12px 16px;
-  background: var(--color-surface);
+  padding: 14px max(16px, calc((100% - 1200px) / 2 + 16px));
+  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 }
 
 .shop-header__brand {
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--shop-accent);
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--color-accent);
   text-decoration: none;
+}
+
+.shop-header__brand:hover {
+  color: var(--color-accent-strong);
 }
 
 .shop-header__nav {
@@ -63,34 +83,51 @@
 }
 
 .shop-header__link {
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 6px 10px;
   color: var(--color-text);
   text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.shop-header__link:hover {
+  color: var(--color-heading);
 }
 
 .shop-header__link.active {
-  color: var(--shop-accent);
+  color: var(--color-heading);
   font-weight: 600;
-  background: var(--shop-accent-soft);
+  border-bottom-color: var(--color-accent);
 }
 
 .shop-search {
   display: flex;
   flex: 1 1 260px;
-  gap: 8px;
+  gap: 0;
   min-width: 0;
 }
 
 .shop-search input {
   flex: 1;
   min-width: 0;
+  border-radius: 999px 0 0 999px;
+  padding-left: 16px;
+}
+
+.shop-search .btn {
+  border-radius: 0 999px 999px 0;
+  padding-right: 18px;
 }
 
 .shop-header__cart {
   margin: 0;
   font-weight: 600;
   white-space: nowrap;
+  color: var(--color-heading);
+  text-decoration: none;
+}
+
+.shop-header__cart:hover {
+  color: var(--color-accent);
 }
 
 .shop-main {
@@ -98,14 +135,14 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 32px 16px 56px;
 }
 
 .shop-footer {
-  padding: 16px;
+  padding: 20px 16px;
   text-align: center;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--shop-stem);
+  color: var(--shop-stem-text);
 }
 
 .shop-footer p {
@@ -115,90 +152,336 @@
 .shop-page {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 40px;
 }
 
 .shop-page h1,
 .shop-page h2 {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
 }
 
-/* Portada */
+/* Portada: titular a la izquierda y, a la derecha, fotos reales de regalos como tarjetas. */
+.shop-home {
+  gap: 64px;
+}
+
 .shop-hero {
-  padding: 32px 24px;
-  border-radius: 16px;
-  background: var(--shop-accent-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 48px;
+  padding: 16px 0 0;
+}
+
+.shop-hero__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.shop-hero h1 {
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(2.5rem, 5.5vw, 4.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
 }
 
 .shop-hero p {
-  max-width: 560px;
+  max-width: 40ch;
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--color-muted);
 }
 
-.shop .btn--primary {
-  background: var(--shop-accent);
+.shop-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-top: 4px;
 }
 
 .shop a.btn {
-  display: inline-block;
   text-decoration: none;
+}
+
+.shop-hero .btn {
+  padding: 13px 30px;
+  border-radius: 999px;
+  font-size: 1rem;
+}
+
+.shop-hero__secondary {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.hero-collage {
+  position: relative;
+  height: 440px;
+}
+
+.hero-collage__item {
+  position: absolute;
+  width: 54%;
+  margin: 0;
+  padding: 10px 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow:
+    0 1px 2px rgb(42 30 34 / 8%),
+    0 12px 32px rgb(42 30 34 / 12%);
+}
+
+.hero-collage__item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: calc(var(--radius-lg) - 4px);
+  background: var(--color-surface-sunken);
+}
+
+.hero-collage__item figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px 0;
+  font-size: 0.875rem;
+}
+
+.hero-collage__name {
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--color-heading);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hero-collage__price {
+  flex: none;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* Composición según cuántas fotos hay. */
+.hero-collage--1 .hero-collage__item {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.hero-collage--2 .hero-collage__item:nth-child(1),
+.hero-collage--3 .hero-collage__item:nth-child(1) {
+  top: 30px;
+  left: 0;
+  transform: rotate(-5deg);
+}
+
+.hero-collage--2 .hero-collage__item:nth-child(2) {
+  top: 0;
+  right: 0;
+  transform: rotate(4deg);
+}
+
+.hero-collage--3 .hero-collage__item {
+  width: 44%;
+}
+
+.hero-collage--3 .hero-collage__item:nth-child(2) {
+  top: 0;
+  left: 28%;
+  z-index: 2;
+  transform: rotate(1deg);
+}
+
+.hero-collage--3 .hero-collage__item:nth-child(3) {
+  top: 50px;
+  right: 0;
+  transform: rotate(6deg);
+}
+
+@media (max-width: 860px) {
+  .shop-hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .hero-collage {
+    height: 300px;
+    max-width: 460px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-collage {
+    height: 240px;
+  }
+
+  .hero-collage__item figcaption {
+    display: none;
+  }
+}
+
+/* Encabezado de cada sección: título y, a la derecha, el enlace para ver más. */
+.shop-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+}
+
+.shop-section__head h2 {
+  margin: 0;
+}
+
+.shop-section__head a {
+  font-weight: 600;
+  color: var(--color-heading);
 }
 
 .category-grid,
 .product-grid {
-  display: grid;
-  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Ocasiones principales en mosaico; el resto se encuentra en el catálogo. */
 .category-grid {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
 }
 
 .product-grid {
+  display: grid;
+  gap: 32px 20px;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
 .category-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'icon name'
+    'icon count';
   align-items: center;
-  gap: 6px;
-  padding: 16px;
+  column-gap: 14px;
+  height: 100%;
+  padding: 16px 18px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
   color: var(--color-heading);
   text-decoration: none;
-  text-align: center;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.category-card:hover {
+  border-color: var(--color-sand);
+  color: var(--color-heading);
+  transform: translateY(-2px);
 }
 
 .category-card__icon {
+  grid-area: icon;
   display: grid;
   place-items: center;
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--shop-accent-soft);
-  color: var(--shop-accent);
-  font-size: 1.25rem;
-  font-weight: 700;
+  background: var(--color-sand-soft);
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: 1.375rem;
 }
 
 .category-card__name {
+  grid-area: name;
+  overflow: hidden;
   font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-/* Tarjeta de regalo */
+.category-card small {
+  grid-area: count;
+  color: var(--color-muted);
+}
+
+/* Cómo funciona: franja vino con los tres pasos de la compra. */
+.shop-steps {
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+}
+
+.shop-steps h2 {
+  margin: 0 0 24px;
+  color: #ffffff;
+}
+
+.shop-steps__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.shop-steps__list li {
+  counter-increment: step;
+}
+
+.shop-steps__list li::before {
+  content: counter(step);
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  line-height: 1;
+  color: var(--color-sand);
+}
+
+.shop-steps__list h3 {
+  margin: 0 0 4px;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  color: #ffffff;
+}
+
+.shop-steps__list p {
+  margin: 0;
+  max-width: 32ch;
+}
+
+@media (max-width: 760px) {
+  .shop-steps {
+    padding: 28px 20px;
+  }
+
+  .shop-steps__list {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* Tarjeta de regalo: la foto manda; el texto va debajo, sin caja. */
 .product-card {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
 }
 
 .product-image {
@@ -206,7 +489,8 @@
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
 }
 
 .product-image--placeholder {
@@ -216,6 +500,8 @@
   justify-content: center;
   gap: 4px;
   font-size: 2rem;
+  border: 1px dashed var(--color-border);
+  color: var(--color-muted);
 }
 
 .product-image--placeholder small {
@@ -228,7 +514,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 12px 16px 16px;
+  padding: 14px 2px 0;
 }
 
 .product-card__body p,
@@ -237,27 +523,71 @@
 }
 
 .product-card__name {
-  font-size: 1rem;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  font-weight: 600;
 }
 
 .product-card__category {
   font-size: 0.8125rem;
-  color: var(--shop-accent);
-}
-
-.product-card__price,
-.product-detail__price {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-heading);
+  color: var(--color-muted);
 }
 
 .product-card__shipping {
   font-size: 0.8125rem;
+  color: var(--color-success);
+}
+
+/*
+ * Precio como etiqueta de regalo: punta a la izquierda con su agujero para el cordón.
+ * Es el único elemento llamativo de la tienda.
+ */
+.product-card__price,
+.product-detail__price {
+  position: relative;
+  display: inline-block;
+  padding: 3px 14px 3px 26px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%);
+  border-radius: 0 4px 4px 0;
+}
+
+.product-card__price::before,
+.product-detail__price::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--color-bg);
+}
+
+.product-card__price {
+  font-size: 1.0625rem;
+}
+
+.product-detail__price {
+  padding: 6px 20px 6px 34px;
+  font-size: 1.625rem;
+  clip-path: polygon(20px 0, 100% 0, 100% 100%, 20px 100%, 0 50%);
+}
+
+.product-detail__price::before {
+  left: 15px;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
 }
 
 .product-card__cta {
   margin-top: auto;
+  border-radius: 999px;
   align-self: stretch;
   text-align: center;
   text-decoration: none;
@@ -277,7 +607,7 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
@@ -382,7 +712,7 @@
 }
 
 .gallery__main {
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .gallery__thumbs {
@@ -399,7 +729,7 @@
   padding: 0;
   overflow: hidden;
   border: 2px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: none;
   cursor: pointer;
 }
@@ -416,7 +746,7 @@
   width: 100%;
   padding: 16px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
@@ -504,7 +834,7 @@
   align-items: start;
   padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
@@ -513,7 +843,7 @@
 }
 
 .cart-line__image {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .cart-line__info {
@@ -561,7 +891,7 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
@@ -689,7 +1019,7 @@
 .payment__warning {
   padding: 12px 16px;
   border: 2px dashed var(--shop-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-weight: 700;
   color: var(--shop-accent);
 }
@@ -702,7 +1032,7 @@
   margin-bottom: 16px;
   padding: 12px 16px;
   border: 1px solid var(--color-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .payment__verifying p {
@@ -719,9 +1049,10 @@
 }
 
 .confirmation {
-  padding: 24px;
-  border-radius: 16px;
-  background: var(--shop-accent-soft);
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  background: var(--color-success-soft);
+  border-left: 6px solid var(--color-success);
 }
 
 .confirmation__total {
@@ -743,7 +1074,7 @@
 .order-facts dt,
 .order-amounts dt {
   font-size: 0.875rem;
-  opacity: 0.8;
+  color: var(--color-muted);
 }
 
 .order-facts dd,
@@ -823,7 +1154,7 @@
   gap: 16px;
   padding: 24px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
@@ -831,7 +1162,7 @@
   margin: 0;
   padding: 12px;
   border: 2px solid var(--color-danger);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--color-danger);
   font-weight: 800;
   text-align: center;
@@ -858,5 +1189,58 @@
 
   .receipt {
     border: 0;
+  }
+}
+
+/* Carrito de la cabecera como pastilla, para que se distinga de los enlaces de cuenta. */
+.shop .shop-header__cart {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 0.9375rem;
+}
+
+.shop .shop-header__cart:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Cabecera en móvil: marca y carrito arriba, luego secciones y cuenta, y el buscador al final. */
+@media (max-width: 640px) {
+  .shop-header {
+    gap: 10px 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .shop-header__brand {
+    order: 1;
+  }
+
+  .shop .shop-header__cart {
+    order: 2;
+    margin-left: auto;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+  }
+
+  .shop-header__nav {
+    order: 3;
+  }
+
+  .shop-header__account {
+    order: 4;
+    margin-left: auto;
+    font-size: 0.875rem;
+  }
+
+  .shop-header__customer {
+    display: none;
+  }
+
+  .shop-search {
+    order: 5;
+    flex-basis: 100%;
   }
 }
