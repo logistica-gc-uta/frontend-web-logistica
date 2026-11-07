@@ -1,10 +1,11 @@
 import { screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
 import { authStorage } from '../../lib/auth/authStorage'
 import { AppError } from '../../lib/errors/AppError'
 import { adminSession } from '../../test/fixtures'
+import { mockDashboardServices } from '../../test/dashboardMocks'
 import { createHttpError } from '../../test/http'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { authService } from './authService'
@@ -19,6 +20,8 @@ const invalidCredentialsError = () =>
   createHttpError(401, { data: { message: 'Credenciales inválidas', statusCode: 401 } })
 
 describe('LoginPage', () => {
+  beforeEach(mockDashboardServices)
+
   it('muestra el formulario de inicio de sesión', () => {
     renderLogin()
 

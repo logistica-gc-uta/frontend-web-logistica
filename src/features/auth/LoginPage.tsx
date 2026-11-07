@@ -1,9 +1,10 @@
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import { useForm } from '../../hooks/useForm'
+import { RouteIllustration } from './RouteIllustration'
 import { validateLogin } from './loginValidation'
 import type { LoginRedirectState } from './ProtectedRoute'
 import type { LoginCredentials } from './types'
@@ -33,7 +34,17 @@ export function LoginPage() {
 
   return (
     <main className="auth-page">
-      <section className="card auth-card">
+      <div className="auth-hero">
+        <p className="brand auth-hero__brand">
+          <span className="brand__name">REGALÍA</span>
+          <span className="brand__system">Logística</span>
+        </p>
+        <RouteIllustration />
+        <p className="auth-hero__lead">
+          Pedidos, rutas y entregas del día, desde el depósito hasta la puerta del cliente.
+        </p>
+      </div>
+      <section className="auth-card">
         <h1>Iniciar sesión</h1>
         <p className="text-muted">Panel administrativo de logística</p>
 
@@ -62,6 +73,10 @@ export function LoginPage() {
             Ingresar
           </Button>
         </form>
+
+        <p className="auth-card__switch">
+          ¿Compras en la tienda? <Link to={paths.shopLogin}>Ingresa en REGALÍA</Link>
+        </p>
       </section>
     </main>
   )
