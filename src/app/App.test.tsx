@@ -1,5 +1,5 @@
 import { act, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatchService } from '../features/dispatch/dispatchService'
 import { monitorService } from '../features/monitor/monitorService'
 import { createFakeSocket } from '../test/fakeSocket'
@@ -11,6 +11,7 @@ import { zonesService } from '../features/zones/zonesService'
 import { authStorage } from '../lib/auth/authStorage'
 import { handleResponseError } from '../lib/http/apiClient'
 import { adminSession } from '../test/fixtures'
+import { mockDashboardServices } from '../test/dashboardMocks'
 import { createHttpError } from '../test/http'
 import { renderWithProviders } from '../test/renderWithProviders'
 import { App } from './App'
@@ -26,6 +27,8 @@ const homeHeading = () => screen.queryByRole('heading', { name: 'Sistema de Log�
 const loginHeading = () => screen.queryByRole('heading', { name: 'Iniciar sesión' })
 
 describe('App', () => {
+  beforeEach(mockDashboardServices)
+
   it('redirige al login cuando no hay sesión', () => {
     renderWithProviders(<App />, { route: paths.home })
 
