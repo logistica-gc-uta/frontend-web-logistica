@@ -20,7 +20,7 @@ a.btn {
 .catalog-thumb {
   width: 56px;
   height: 56px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   object-fit: cover;
   font-size: 1.25rem;
 }
@@ -43,7 +43,7 @@ a.btn {
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--color-danger);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .catalog-editor {
@@ -88,13 +88,13 @@ textarea.field__input {
   gap: 16px;
   padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .catalog-image__preview {
   width: 120px;
   height: 120px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   object-fit: cover;
   background: var(--color-bg);
 }
