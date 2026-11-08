@@ -126,7 +126,6 @@ describe('Shop · checkout', () => {
     const original = await screen.findByRole('img', { name: 'Ramo de rosas' })
     expect(original).toHaveAttribute('src', shopProduct().primaryImageUrl)
     await fillDelivery(form, user)
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
 
     const summary = await screen.findByRole('region', { name: 'Total a pagar' })
     expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
@@ -150,20 +149,10 @@ describe('Shop · checkout', () => {
 
   it('pide los datos de entrega y no cotiza si faltan', async () => {
     const quoteCall = vi.spyOn(checkoutService, 'quote')
-    const { user, form } = await openCheckout()
+    await openCheckout()
 
-    expect(screen.getByText(/Horario de Ecuador \(Ambato\)/)).toBeInTheDocument()
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
-
-    for (const message of [
-      'Escribe el nombre de quien recibe',
-      'Elige la zona de entrega',
-      'Coloca el marcador en el mapa',
-      'Elige el día de entrega',
-      'Elige la hora de entrega',
-    ]) {
-      expect(form.getByText(message)).toBeInTheDocument()
-    }
+    expect(screen.getByText(/hora de Ecuador/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Calcular total' })).not.toBeInTheDocument()
     expect(quoteCall).not.toHaveBeenCalled()
   })
 
@@ -172,15 +161,15 @@ describe('Shop · checkout', () => {
     const { user, form } = await openCheckout()
     await fillDelivery(form, user)
 
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
-
-    expect(quoteCall).toHaveBeenCalledWith([{ productId: 'p-rosas', quantity: 2 }], {
-      recipient: { name: 'Ana Regalo', phone: '0991234567' },
-      zoneId: deliverableZone.id,
-      deliveryAddress: 'Av. Cevallos y Montalvo',
-      deliveryLocation: { lat: -1.25, lng: -78.63 },
-      scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
-    })
+    await waitFor(() =>
+      expect(quoteCall).toHaveBeenCalledWith([{ productId: 'p-rosas', quantity: 2 }], {
+        recipient: { name: 'Ana Regalo', phone: '0991234567' },
+        zoneId: deliverableZone.id,
+        deliveryAddress: 'Av. Cevallos y Montalvo',
+        deliveryLocation: { lat: -1.25, lng: -78.63 },
+        scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
+      }),
+    )
     const summary = await screen.findByRole('region', { name: 'Total a pagar' })
     // Línea y subtotal: $73,00 cada uno.
     expect(within(summary).getAllByText('$73,00')).toHaveLength(2)
@@ -206,7 +195,6 @@ describe('Shop · checkout', () => {
     vi.spyOn(checkoutService, 'quote').mockResolvedValue(quote())
     const { user, form } = await openCheckout()
     await fillDelivery(form, user)
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
     await screen.findByRole('region', { name: 'Total a pagar' })
 
     await user.type(form.getByLabelText('Dirección de entrega'), ' 2')
@@ -226,14 +214,12 @@ describe('Shop · checkout', () => {
       )
     const { user, form } = await openCheckout()
     await fillDelivery(form, user, '17:01')
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
     expect(
-      form.getByText('La entrega debe ser entre 07:00 y 17:00 (hora de Ecuador)'),
+      await form.findByText('La entrega debe ser entre 07:00 y 17:00 (hora de Ecuador)'),
     ).toBeInTheDocument()
     expect(quoteCall).not.toHaveBeenCalled()
 
     fireEvent.change(form.getByLabelText('Hora de entrega'), { target: { value: '17:00' } })
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
     expect(
       await screen.findByText('La hora elegida está fuera del horario de reparto.'),
     ).toBeInTheDocument()
@@ -246,10 +232,9 @@ describe('Shop · checkout', () => {
     vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
     const { user, form } = await openCheckout()
     await fillDelivery(form, user)
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
 
     expect(await screen.findByText(/no se hizo ningún cobro/)).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Tu carrito' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Tu bolsa de regalos' })).toBeInTheDocument()
   })
 
   it('una cotización con una línea sin stock no deja continuar', async () => {
@@ -258,7 +243,6 @@ describe('Shop · checkout', () => {
     vi.spyOn(checkoutService, 'quote').mockResolvedValue(short)
     const { user, form } = await openCheckout()
     await fillDelivery(form, user)
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
 
     expect(await screen.findByText(/Solo 1 disponibles/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Continuar al pago/ })).toBeDisabled()
@@ -277,7 +261,6 @@ describe('Shop · checkout', () => {
     const { user, form } = await openCheckout()
 
     expect(form.getByLabelText('Nombre de quien recibe')).toHaveValue('Ana Regalo')
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
 
     const accept = await screen.findByLabelText(/El total cambió de \$83,95 a \$97,75/)
     const go = screen.getByRole('button', { name: 'Continuar al pago · $97,75' })
@@ -286,13 +269,33 @@ describe('Shop · checkout', () => {
     expect(go).toBeEnabled()
   })
 
+  it('un carrito distinto al pedido anterior no pide aceptar un total viejo', async () => {
+    checkoutStorage.save(
+      checkoutDraft({
+        items: [{ productId: 'p-kit', quantity: 1 }],
+        acceptedTotalCents: 4830,
+      }),
+    )
+    cartStorage.save(
+      [
+        { productId: 'p-rosas', quantity: 1 },
+        { productId: 'p-box', quantity: 1 },
+      ],
+      customer.id,
+    )
+    vi.spyOn(checkoutService, 'quote').mockResolvedValue(quote({ totalCents: 6197 }))
+    await openCheckout()
+
+    expect(await screen.findByRole('button', { name: 'Continuar al pago · $61,97' })).toBeEnabled()
+    expect(screen.queryByLabelText(/El total cambió/)).not.toBeInTheDocument()
+  })
+
   it('una cotización vencida no avanza al pago', async () => {
     vi.spyOn(checkoutService, 'quote').mockResolvedValue(
       quote({ validUntil: '2000-01-01T00:00:00Z' }),
     )
     const { user, form } = await openCheckout()
     await fillDelivery(form, user)
-    await user.click(form.getByRole('button', { name: 'Calcular total' }))
     await user.click(await screen.findByRole('button', { name: /Continuar al pago/ }))
 
     expect(
@@ -304,7 +307,9 @@ describe('Shop · checkout', () => {
   it('con el carrito vacío vuelve al carrito', async () => {
     cartStorage.save([], customer.id)
     renderCheckout()
-    expect(await screen.findByText('Tu carrito está vacío.')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Tu bolsa espera un detalle.' }),
+    ).toBeInTheDocument()
   })
 
   it('muestra el resumen no cotizado con los productos reales del carrito y la leyenda aprobada', async () => {

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
 import { LocationPicker } from '../../../components/map/LocationPicker'
@@ -20,7 +20,7 @@ import { shopService } from '../shopService'
 import type { DeliverySchedule } from '../types'
 import { describeCheckoutError, type CheckoutProblem } from './checkoutErrors'
 import { checkoutService } from './checkoutService'
-import { checkoutStorage, type CheckoutDraft } from './checkoutStorage'
+import { checkoutStorage, sameItems, type CheckoutDraft } from './checkoutStorage'
 import type { DeliveryInput, Quote } from './checkoutTypes'
 import { deliveryInstant, validateDeliverySchedule } from './deliverySchedule'
 import { QuoteSummary } from './QuoteSummary'
@@ -57,6 +57,7 @@ const EMPTY_FORM: DeliveryForm = {
 }
 
 const DEFAULT_MAP_CENTER: GeoPoint = { lat: -1.2417, lng: -78.6197 }
+const QUOTE_DEBOUNCE_MS = 300
 
 /** Formulario a partir de una entrega ya cotizada (para corregirla o volver a cotizar). */
 const formFromDelivery = (delivery: DeliveryInput): DeliveryForm => ({
@@ -113,10 +114,14 @@ function DeliveryStep({
   const deliverable = (zones.data ?? []).filter((zone) => zone.depotLocation !== null)
 
   const [quote, setQuote] = useState<Quote | null>(null)
+  const [quoting, setQuoting] = useState(false)
   const [problem, setProblem] = useState<CheckoutProblem | null>(requote ?? null)
   const [acceptedChange, setAcceptedChange] = useState(false)
-  // Total aceptado antes (si se vuelve a cotizar, un total distinto exige aceptarlo de nuevo).
-  const previousTotal = draft?.acceptedTotalCents
+  const [liveErrors, setLiveErrors] = useState<FieldErrors<DeliveryForm>>({})
+  const quotedFor = useRef<string | null>(null)
+  // Solo si es la misma bolsa: un pedido nuevo no hereda el total del borrador anterior.
+  const previousTotal =
+    draft && sameItems(draft.items, items) ? draft.acceptedTotalCents : undefined
 
   const itemIdsKey = useMemo(() => items.map((i) => i.productId).sort().join(','), [items])
   const fetchProducts = useCallback(
@@ -142,20 +147,7 @@ function DeliveryStep({
     initialValues: draft ? formFromDelivery(draft.delivery) : EMPTY_FORM,
     validate: (values) => validate(values, schedule),
     errorMessage: 'No se pudo calcular el total',
-    onSubmit: async (values) => {
-      setProblem(null)
-      setAcceptedChange(false)
-      try {
-        setQuote(await checkoutService.quote(items, toDelivery(values)))
-      } catch (error) {
-        const found = describeCheckoutError(error)
-        if (found.action === 'cart') {
-          navigate(paths.shopCart, { state: { stockChanged: true } satisfies CartLocationState })
-          return
-        }
-        setProblem(found)
-      }
-    },
+    onSubmit: async () => undefined,
   })
 
   // Cualquier cambio en la entrega invalida la cotización: hay que volver a calcular.
@@ -169,6 +161,7 @@ function DeliveryStep({
   }
 
   const { values, fieldErrors } = form
+  const shownErrors: FieldErrors<DeliveryForm> = { ...liveErrors, ...fieldErrors }
   const depot = deliverable.find((zone) => zone.id === values.zoneId)?.depotLocation ?? null
   const unavailable = quote?.items.some((line) => !line.available) ?? false
   const totalChanged =
@@ -195,6 +188,56 @@ function DeliveryStep({
     navigate(paths.shopPayment)
   }
 
+  useEffect(() => {
+    const errors = validate(values, schedule)
+    const started = Boolean(
+      values.recipientName.trim() ||
+        values.zoneId ||
+        values.address.trim() ||
+        values.date ||
+        values.time ||
+        values.location,
+    )
+    if (Object.keys(errors).length > 0) {
+      quotedFor.current = null
+      setQuoting(false)
+      setLiveErrors(started && (values.date !== '' || values.time !== '') ? errors : {})
+      return
+    }
+    setLiveErrors({})
+    const payloadKey = JSON.stringify({ items, delivery: toDelivery(values) })
+    if (quotedFor.current === payloadKey) return
+
+    let cancelled = false
+    setQuoting(true)
+    const timer = window.setTimeout(async () => {
+      setProblem(null)
+      setAcceptedChange(false)
+      try {
+        const next = await checkoutService.quote(items, toDelivery(values))
+        if (cancelled) return
+        quotedFor.current = payloadKey
+        setQuote(next)
+      } catch (error) {
+        if (cancelled) return
+        quotedFor.current = null
+        setQuote(null)
+        const found = describeCheckoutError(error)
+        if (found.action === 'cart') {
+          navigate(paths.shopCart, { state: { stockChanged: true } satisfies CartLocationState })
+          return
+        }
+        setProblem(found)
+      } finally {
+        if (!cancelled) setQuoting(false)
+      }
+    }, QUOTE_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [values, items, schedule, navigate])
+
   return (
     <div className="checkout__layout">
       <form
@@ -214,7 +257,7 @@ function DeliveryStep({
             autoComplete="name"
             value={values.recipientName}
             onChange={handleChange}
-            error={fieldErrors.recipientName}
+            error={shownErrors.recipientName}
           />
           <TextField
             label="Teléfono de contacto"
@@ -223,7 +266,7 @@ function DeliveryStep({
             autoComplete="tel"
             value={values.recipientPhone}
             onChange={handleChange}
-            error={fieldErrors.recipientPhone}
+            error={shownErrors.recipientPhone}
           />
         </fieldset>
 
@@ -233,7 +276,7 @@ function DeliveryStep({
             label="Zona"
             name="zoneId"
             value={values.zoneId}
-            error={fieldErrors.zoneId ?? zones.error ?? undefined}
+            error={shownErrors.zoneId ?? zones.error ?? undefined}
             // La ubicación confirmada pertenece a la zona anterior: hay que ubicarla de nuevo.
             onChange={(event) =>
               change({ zoneId: event.target.value, location: null, locationConfirmed: false })
@@ -252,7 +295,7 @@ function DeliveryStep({
             autoComplete="street-address"
             value={values.address}
             onChange={handleChange}
-            error={fieldErrors.address}
+            error={shownErrors.address}
           />
           <LocationPicker
             center={depot ?? DEFAULT_MAP_CENTER}
@@ -261,7 +304,7 @@ function DeliveryStep({
             isConfirmed={values.locationConfirmed}
             onChange={(location) => change({ location, locationConfirmed: false })}
             onConfirm={() => change({ locationConfirmed: true })}
-            error={fieldErrors.location}
+            error={shownErrors.location}
           />
         </fieldset>
 
@@ -278,7 +321,7 @@ function DeliveryStep({
               min={todayInGuayaquil()}
               value={values.date}
               onChange={handleChange}
-              error={fieldErrors.date}
+              error={shownErrors.date}
             />
             <TextField
               label="Hora de entrega"
@@ -288,7 +331,7 @@ function DeliveryStep({
               max={schedule.endTime}
               value={values.time}
               onChange={handleChange}
-              error={fieldErrors.time}
+              error={shownErrors.time}
             />
           </div>
           <TextField
@@ -296,13 +339,10 @@ function DeliveryStep({
             name="notes"
             value={values.notes}
             onChange={handleChange}
-            error={fieldErrors.notes}
+            error={shownErrors.notes}
           />
         </fieldset>
 
-        <Button type="submit" isLoading={form.isSubmitting} loadingText="Calculando...">
-          Calcular total
-        </Button>
       </form>
 
       <div className="checkout__aside">
@@ -381,7 +421,11 @@ function DeliveryStep({
                 <dd>Total al confirmar la entrega</dd>
               </div>
             </dl>
-            <p className="text-muted">Completa la entrega para consultar el total de tu pedido.</p>
+            {quoting ? (
+              <p role="status">Calculando el total...</p>
+            ) : (
+              <p className="text-muted">Completa la entrega para consultar el total de tu pedido.</p>
+            )}
             <div className="checkout__actions">
               <Link to={paths.shopCart} className="btn btn--secondary">
                 ← Ver bolsa
