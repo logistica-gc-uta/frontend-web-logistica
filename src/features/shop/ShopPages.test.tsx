@@ -55,7 +55,8 @@ describe('Shop · cabecera', () => {
 
     const header = screen.getByRole('banner')
     expect(within(header).getByRole('link', { name: 'REGALÍA' })).toBeInTheDocument()
-    expect(within(header).getByText(/Carrito: 0 unidades/)).toBeInTheDocument()
+    expect(within(header).getByRole('link', { name: 'Carrito' })).toBeInTheDocument()
+    expect(within(header).queryByText('0')).not.toBeInTheDocument()
     for (const admin of ['Pedidos', 'Planificación', 'Urgencias', 'Cerrar sesión']) {
       expect(screen.queryByRole('link', { name: admin })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: admin })).not.toBeInTheDocument()
@@ -437,7 +438,8 @@ describe('Shop · detalle', () => {
     await user.click(screen.getByRole('button', { name: 'Añadir al carrito' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('Se añadieron 2 unidades al carrito.')
-    expect(within(screen.getByRole('banner')).getByText(/Carrito: 2 unidades/)).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).getByRole('link', { name: 'Carrito: 2 unidades' })).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).getByText('2')).toBeInTheDocument()
     expect(cartStorage.load()).toEqual([{ productId: 'p-rosas', quantity: 2 }])
     expect(screen.getByText(/ya tienes 2 en el carrito/)).toBeInTheDocument()
   })

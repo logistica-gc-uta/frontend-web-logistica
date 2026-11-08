@@ -266,6 +266,62 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+}
+
+.shop .shop-header__account-menu {
+  position: relative;
+}
+
+.shop .shop-header__customer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 5px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-heading);
+  cursor: pointer;
+}
+
+.shop .shop-header__customer[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+
+.shop .shop-header__account-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 196px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgb(20 40 20 / 10%);
+}
+
+.shop .shop-header__account-panel .shop-header__account-link {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.shop .shop-header__account-panel .shop-header__account-link:hover {
+  background: var(--color-accent-soft);
+  text-decoration: none;
+}
+
+.shop .shop-header__logout {
+  color: var(--color-heading);
 }
 
 .shop .shop-header__account-link {
@@ -287,23 +343,39 @@
 }
 
 .shop .shop-header__cart {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   color: var(--color-heading);
   text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 .shop .shop-header__cart:hover {
-  border-color: var(--color-accent);
   color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.shop .shop-header__cart-count {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
 }
 
 .shop .shop-nav-row {
@@ -1844,18 +1916,10 @@
   }
 }
 
-/* Carrito de la cabecera como pastilla, para que se distinga de los enlaces de cuenta. */
 .shop .shop-header__cart {
-  padding: 8px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  font-size: 0.9375rem;
-}
-
-.shop .shop-header__cart:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 /* Mismo orden visual y de teclado: búsqueda, tema, cuenta y carrito. */
@@ -1961,9 +2025,9 @@
   }
 
   .shop .shop-header__cart {
-    white-space: normal;
-    font-size: 0.875rem;
-    padding: 8px 12px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
   }
 
   .shop .shop-hero {

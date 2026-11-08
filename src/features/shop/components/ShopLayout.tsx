@@ -1,7 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
-import { Button } from '../../../components/ui/Button'
 import { useFetch } from '../../../hooks/useFetch'
 import { CustomerProvider } from '../account/CustomerProvider'
 import { useCustomer } from '../account/customerContext'
@@ -13,25 +12,30 @@ import { ShopThemeToggle } from './ShopThemeToggle'
 
 function CartCounter() {
   const { count } = useCart()
+  const label =
+    count === 0 ? 'Carrito' : `Carrito: ${count} ${count === 1 ? 'unidad' : 'unidades'}`
+
   return (
-    <Link to={paths.shopCart} className="shop-header__cart" aria-live="polite">
+    <Link to={paths.shopCart} className="shop-header__cart" aria-label={label} aria-live="polite">
       <svg
         className="icon"
-        width="20"
-        height="20"
+        width="22"
+        height="22"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"
         aria-hidden="true"
       >
-        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
         <line x1="3" y1="6" x2="21" y2="6" />
         <path d="M16 10a4 4 0 0 1-8 0" />
       </svg>
-      <span className="shop-header__cart-text">
-        Carrito: {count} {count === 1 ? 'unidad' : 'unidades'}
-      </span>
+      {count > 0 ? (
+        <span className="shop-header__cart-count" aria-hidden="true">
+          {count}
+        </span>
+      ) : null}
     </Link>
   )
 }
@@ -40,6 +44,24 @@ function CartCounter() {
 function AccountMenu() {
   const { customer, logout } = useCustomer()
   const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
 
   if (!customer) {
     return (
@@ -65,20 +87,39 @@ function AccountMenu() {
   }
 
   return (
-    <nav aria-label="Cuenta" className="shop-header__account">
-      <span className="shop-header__customer">Hola, {customer.name}</span>
-      <NavLink to={paths.shopOrders} className="shop-header__account-link">
-        Mis pedidos
-      </NavLink>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          logout()
-          navigate(paths.shop)
-        }}
-      >
-        Cerrar sesión
-      </Button>
+    <nav ref={menuRef} aria-label="Cuenta" className="shop-header__account">
+      <div className="shop-header__account-menu">
+        <button
+          type="button"
+          className="shop-header__customer"
+          aria-expanded={open}
+          aria-controls="shop-account-menu"
+          onClick={() => setOpen((current) => !current)}
+        >
+          Hola, {customer.name}
+          <svg className="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        {open ? (
+          <div id="shop-account-menu" className="shop-header__account-panel">
+            <NavLink to={paths.shopOrders} className="shop-header__account-link" onClick={() => setOpen(false)}>
+              Mis pedidos
+            </NavLink>
+            <button
+              type="button"
+              className="shop-header__account-link shop-header__logout"
+              onClick={() => {
+                setOpen(false)
+                logout()
+                navigate(paths.shop)
+              }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        ) : null}
+      </div>
     </nav>
   )
 }

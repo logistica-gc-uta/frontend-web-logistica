@@ -23,6 +23,17 @@ function mockCatalog() {
 
 afterEach(() => sessionStorage.clear())
 
+describe('Shop · acceso de cliente', () => {
+  it('usa los títulos del boceto en login y registro', async () => {
+    const { user } = renderShop('/shop/login')
+    expect(screen.getByRole('heading', { name: 'Un detalle empieza contigo.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Qué bueno verte.' })).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Crear cuenta' }))
+    expect(await screen.findByRole('heading', { name: 'Tu primer detalle.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Un detalle empieza contigo.' })).toBeInTheDocument()
+  })
+})
+
 describe('Shop · visibilidad de contraseña', () => {
   it.each([
     { route: '/shop/login', field: 'Contraseña', action: 'Mostrar contraseña' },
@@ -74,7 +85,7 @@ describe('Shop · registro CLIENT', () => {
   it('envía solo nombre, correo y contraseña (sin rol) y lleva al login conservando el paso pendiente', async () => {
     const post = vi.spyOn(customerApiClient, 'post').mockResolvedValue(createHttpResponse({}))
     const { user } = renderShop('/shop/checkout')
-    await user.click(await screen.findByRole('link', { name: 'Crear una cuenta' }))
+    await user.click(await screen.findByRole('link', { name: 'Crear cuenta' }))
 
     await user.type(screen.getByLabelText('Nombre completo'), '  Kerly Cliente ')
     await user.type(screen.getByLabelText('Correo electrónico'), 'kerly@regalia.test')
@@ -156,17 +167,19 @@ describe('Shop · login CLIENT', () => {
     const { user } = renderShop('/shop')
 
     const account = screen.getByRole('navigation', { name: 'Cuenta' })
-    expect(within(account).getByText('Hola, Kerly Cliente')).toBeInTheDocument()
-    expect(screen.getByText(/Carrito: 2 unidades/)).toBeInTheDocument()
+    expect(within(account).getByRole('button', { name: 'Hola, Kerly Cliente' })).toBeInTheDocument()
+    expect(within(account).queryByRole('button', { name: 'Cerrar sesión' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Carrito: 2 unidades' })).toBeInTheDocument()
 
+    await user.click(within(account).getByRole('button', { name: 'Hola, Kerly Cliente' }))
     await user.click(within(account).getByRole('button', { name: 'Cerrar sesión' }))
 
     expect(
       within(screen.getByRole('navigation', { name: 'Cuenta' })).getByRole('link', {
-        name: 'Ingresar',
+        name: 'Ingresar a Mi cuenta',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Carrito: 0 unidades/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Carrito' })).toBeInTheDocument()
     expect(customerStorage.get()).toBeNull()
   })
 
@@ -175,7 +188,7 @@ describe('Shop · login CLIENT', () => {
     authStorage.save(adminSession)
     renderShop('/shop')
 
-    expect(screen.getByRole('link', { name: 'Ingresar' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ingresar a Mi cuenta' })).toBeInTheDocument()
     expect(screen.queryByText(/Hola,/)).not.toBeInTheDocument()
   })
 })
@@ -188,7 +201,7 @@ describe('Shop · rutas protegidas y sesión vencida', () => {
     '/shop/mis-pedidos/p1/comprobante',
   ])('%s exige iniciar sesión', async (route) => {
     renderShop(route)
-    expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Qué bueno verte.' })).toBeInTheDocument()
     expect(screen.getByRole('note')).toHaveTextContent('Inicia sesión o crea una cuenta')
   })
 
@@ -225,7 +238,7 @@ describe('Shop · carrito por cuenta', () => {
     await waitFor(() =>
       expect(cartStorage.load(customer.id)).toEqual([{ productId: 'p1', quantity: 3 }]),
     )
-    expect(screen.getByText(/Carrito: 3 unidades/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Carrito: 3 unidades' })).toBeInTheDocument()
   })
 
   it('no muestra el carrito guardado de otra cuenta', () => {
@@ -234,6 +247,7 @@ describe('Shop · carrito por cuenta', () => {
     signInCustomer()
     renderShop('/shop')
 
-    expect(screen.getByText(/Carrito: 0 unidades/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Carrito' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Carrito: / })).not.toBeInTheDocument()
   })
 })
