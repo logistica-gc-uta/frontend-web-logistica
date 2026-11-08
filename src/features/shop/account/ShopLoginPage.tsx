@@ -45,7 +45,7 @@ export function ShopLoginPage() {
       <div className="account__access">
         <aside className="account__context" aria-labelledby="account-context-title">
           <p className="account__eyebrow">Mi cuenta · REGALÍA</p>
-          <h2 id="account-context-title">Un detalle empieza contigo.</h2>
+          <h1 id="account-context-title">Un detalle empieza contigo.</h1>
           <p>Vuelve a tus regalos y continúa con ese detalle especial.</p>
           <AccountGiftArt />
           <div className="account__info">
@@ -58,7 +58,7 @@ export function ShopLoginPage() {
             <Link to={paths.shopLogin} state={{ from: state.from }} aria-current="page">Iniciar sesión</Link>
             <Link to={paths.shopRegister} state={{ from: state.from }}>Crear cuenta</Link>
           </nav>
-          <h1 id="shop-login-title">Iniciar sesión</h1>
+          <h2 id="shop-login-title">Qué bueno verte.</h2>
           <p className="account__lead">Todos los campos son obligatorios.</p>
           {state.registered && (
             <Alert variant="success">Tu cuenta se creó. Ingresa con tu correo y contraseña.</Alert>
@@ -104,16 +104,6 @@ export function ShopLoginPage() {
               Ingresar
             </Button>
           </form>
-
-          <p>
-            ¿No tienes cuenta?{' '}
-            <Link
-              to={paths.shopRegister}
-              state={{ from: state.from } satisfies CustomerRedirectState}
-            >
-              Crear una cuenta
-            </Link>
-          </p>
         </section>
       </div>
     </div>

@@ -25,6 +25,10 @@
   background: var(--color-surface);
 }
 
+.shop .account-presentation .account__access > * {
+  min-width: 0;
+}
+
 .shop .account-presentation .account__context {
   padding: 42px;
   background: var(--color-accent-soft);
@@ -39,7 +43,7 @@
   color: var(--color-muted);
 }
 
-.shop .account-presentation .account__context h2 {
+.shop .account-presentation .account__context h1 {
   max-width: 13ch;
   margin: 0 0 18px;
   font-family: var(--font-display);
@@ -70,7 +74,10 @@
 }
 
 .shop .account-presentation .account__tabs a {
+  display: flex;
   flex: 1;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   min-height: 44px;
   padding: 10px 12px;
@@ -97,6 +104,10 @@
   font-size: 0.875rem;
 }
 
+.shop .account-presentation .account__info p {
+  overflow-wrap: anywhere;
+}
+
 .shop .account-presentation .account__info p:last-child {
   margin-bottom: 0;
 }
@@ -112,7 +123,7 @@
   box-shadow: none;
 }
 
-.shop .account-presentation .account-card h1 {
+.shop .account-presentation .account-card h2 {
   margin: 0 0 8px;
   font-family: var(--font-display);
   font-size: 1.75rem;
@@ -183,17 +194,12 @@
 }
 
 .shop .account-presentation .form > .btn {
+  display: flex;
+  align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 48px;
   border-radius: 4px;
-}
-
-.shop .account-presentation .account-card > p:last-child {
-  margin: 24px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-border);
-  font-size: 0.875rem;
 }
 
 .shop .account-presentation :focus-visible {
@@ -218,7 +224,7 @@
     padding: 24px;
   }
 
-  .shop .account-presentation .account__context h2,
+  .shop .account-presentation .account__context h1,
   .shop .account-presentation .account__context > p:not(.account__eyebrow) {
     max-width: none;
   }
