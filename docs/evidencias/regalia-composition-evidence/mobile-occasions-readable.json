@@ -1,0 +1,86 @@
+[
+  {
+    "viewport": 390,
+    "pageWidth": 390,
+    "labels": [
+      {
+        "text": "Navidad",
+        "width": 58,
+        "scrollWidth": 58,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "Cumpleaños",
+        "width": 86,
+        "scrollWidth": 86,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "San Valentín",
+        "width": 87,
+        "scrollWidth": 87,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "Aniversarios",
+        "width": 87,
+        "scrollWidth": 87,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "Graduaciones",
+        "width": 95,
+        "scrollWidth": 95,
+        "height": 22,
+        "lineHeight": 21.7
+      }
+    ],
+    "lastVisible": true
+  },
+  {
+    "viewport": 320,
+    "pageWidth": 320,
+    "labels": [
+      {
+        "text": "Navidad",
+        "width": 58,
+        "scrollWidth": 58,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "Cumpleaños",
+        "width": 86,
+        "scrollWidth": 86,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "San Valentín",
+        "width": 87,
+        "scrollWidth": 87,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "Aniversarios",
+        "width": 87,
+        "scrollWidth": 87,
+        "height": 22,
+        "lineHeight": 21.7
+      },
+      {
+        "text": "Graduaciones",
+        "width": 95,
+        "scrollWidth": 95,
+        "height": 22,
+        "lineHeight": 21.7
+      }
+    ],
+    "lastVisible": true
+  }
+]

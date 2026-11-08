@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from 'react'
-import { useLocation, useSearchParams } from 'react-router'
+import { useCallback, useMemo, useState } from 'react'
+import { Link, useLocation, useSearchParams } from 'react-router'
+import { paths } from '../../../app/paths'
 import { AsyncContent } from '../../../components/ui/AsyncContent'
 import { Button } from '../../../components/ui/Button'
 import { Pagination } from '../../../components/ui/Pagination'
@@ -32,6 +33,7 @@ const NO_FILTERS: CatalogFilters = {
  * reproduce la misma vista y volver desde el detalle la conserva.
  */
 export function CatalogPage() {
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const { search: locationSearch } = useLocation()
   const queryKey = searchParams.toString()
@@ -52,48 +54,78 @@ export function CatalogPage() {
 
   return (
     <div className="shop-page catalog">
-      <h1>Catálogo de regalos</h1>
+      <nav className="breadcrumb" aria-label="Ruta de navegación">
+        <Link to={paths.shop}>Inicio</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Catálogo</span>
+      </nav>
 
-      <div className="catalog__layout">
-        <aside className="catalog__filters">
-          <CatalogFiltersForm
-            key={queryKey}
-            applied={state}
-            categories={categories.data ?? []}
-            onApply={applyFilters}
-            onClear={() => navigate({ ...state, ...NO_FILTERS, page: 1 })}
-          />
-          {categories.error && <p className="field__error">{categories.error}</p>}
+      <div className="intro">
+        <h1 id="catalog-title">Catálogo de regalos</h1>
+        <p>Encuentra un detalle por ocasión, categoría o precio.</p>
+      </div>
+
+      <div className="catalog-layout catalog__layout" id="regalos">
+        <aside className={`filters-sidebar catalog__filters${filtersOpen ? ' is-open catalog__filters--open' : ''}`}>
+          <button
+            type="button"
+            className="reset filter-toggle catalog__filter-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="catalog-filter-fields"
+            onClick={() => setFiltersOpen((current) => !current)}
+          >
+            {filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
+            {hasActiveFilters(state) ? ' · activos' : ''}
+          </button>
+          <div id="catalog-filter-fields" className={filtersOpen ? 'is-open' : undefined}>
+            <CatalogFiltersForm
+              key={queryKey}
+              applied={state}
+              categories={categories.data ?? []}
+              onApply={applyFilters}
+              onClear={() => navigate({ ...state, ...NO_FILTERS, page: 1 })}
+            />
+            {categories.error && <p className="field__error">{categories.error}</p>}
+          </div>
         </aside>
 
-        <section className="catalog__results" aria-labelledby="catalog-results-title">
-          <div className="catalog__toolbar">
-            <h2 id="catalog-results-title" aria-live="polite">
-              {state.search ? `Resultados para «${state.search}»` : 'Todos los regalos'}
+        <section className="results-region catalog__results" aria-labelledby="catalog-results-title">
+          <div className="results-bar catalog__toolbar">
+            <div>
+              <h2 className="results-heading" id="catalog-results-title" aria-live="polite">
+                {state.search ? `Resultados para «${state.search}»` : 'Todos los regalos'}
+                {products.data && !products.isLoading && (
+                  <small>
+                    {' '}
+                    · {products.data.total} {products.data.total === 1 ? 'regalo' : 'regalos'}
+                  </small>
+                )}
+              </h2>
               {products.data && !products.isLoading && (
-                <small>
-                  {' '}
-                  · {products.data.total} {products.data.total === 1 ? 'regalo' : 'regalos'}
-                </small>
+                <p id="result-status">
+                  {products.data.total} {products.data.total === 1 ? 'regalo disponible' : 'regalos disponibles'}
+                </p>
               )}
-            </h2>
-            {state.search && (
-              <Button variant="secondary" onClick={() => applyFilters({ ...state, search: '' })}>
-                Quitar búsqueda
-              </Button>
-            )}
-            <div className="catalog__sort">
-              <SelectField
-                label="Ordenar por"
-                value={state.sort}
-                onChange={(event) => changeSort(event.target.value as CatalogSort)}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </SelectField>
+            </div>
+            <div className="catalog__sort-actions">
+              {state.search && (
+                <Button variant="secondary" onClick={() => applyFilters({ ...state, search: '' })}>
+                  Quitar búsqueda
+                </Button>
+              )}
+              <div className="catalog__sort">
+                <SelectField
+                  label="Ordenar por"
+                  value={state.sort}
+                  onChange={(event) => changeSort(event.target.value as CatalogSort)}
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
             </div>
           </div>
 
@@ -101,7 +133,7 @@ export function CatalogPage() {
             <AsyncContent {...products} onRetry={products.reload} loadingText="Cargando regalos...">
               {(page) =>
                 page.items.length === 0 ? (
-                  <div className="empty-state">
+                  <div id="empty" className="empty-state">
                     {state.page > 1 && page.total > 0 ? (
                       <>
                         <p>Esta página ya no tiene regalos.</p>
@@ -125,7 +157,7 @@ export function CatalogPage() {
                   </div>
                 ) : (
                   <>
-                    <ul className="product-grid">
+                    <ul className="products product-grid">
                       {page.items.map((product) => (
                         <li key={product.id}>
                           <ProductCard product={product} fromSearch={locationSearch} />

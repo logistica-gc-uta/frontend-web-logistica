@@ -55,7 +55,7 @@ export function AddToCart({ product }: { product: ShopProduct }) {
   const current = isWholeNumber(quantity) ? Number(quantity) : 1
 
   return (
-    <div className="add-to-cart">
+    <div className="buy add-to-cart">
       {settings.error ? (
         <Alert>
           <span>{settings.error}. No se puede añadir hasta conocerlo.</span>{' '}
@@ -72,19 +72,19 @@ export function AddToCart({ product }: { product: ShopProduct }) {
         )
       )}
 
+      <label htmlFor="quantity-input" className="quantity-label">
+        Cantidad
+      </label>
       <div className="quantity" role="group" aria-label="Selector de cantidad">
         <button
           type="button"
-          className="btn btn--secondary"
+          className="btn btn--secondary quantity__btn"
           aria-label="Quitar una unidad"
           disabled={!canAdd || current <= 1}
           onClick={() => change(String(current - 1))}
         >
           −
         </button>
-        <label htmlFor="quantity-input" className="visually-hidden">
-          Cantidad
-        </label>
         <input
           id="quantity-input"
           className="field__input quantity__input"
@@ -101,7 +101,7 @@ export function AddToCart({ product }: { product: ShopProduct }) {
         />
         <button
           type="button"
-          className="btn btn--secondary"
+          className="btn btn--secondary quantity__btn"
           aria-label="Agregar una unidad"
           disabled={!canAdd || current >= maximum}
           onClick={() => change(String(current + 1))}
@@ -116,8 +116,8 @@ export function AddToCart({ product }: { product: ShopProduct }) {
       )}
       {blockedReason && <p className="add-to-cart__blocked">{blockedReason}</p>}
 
-      <Button disabled={!canAdd} onClick={add}>
-        Añadir al carrito
+      <Button className="cta" disabled={!canAdd} onClick={add}>
+        Añadir al carrito <span aria-hidden="true">↗</span>
       </Button>
       {added !== null && (
         <p role="status" className="add-to-cart__added">

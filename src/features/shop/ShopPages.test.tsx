@@ -72,14 +72,68 @@ describe('Shop · cabecera', () => {
 })
 
 describe('Shop · inicio', () => {
+  it.each([5, 8])('ocasiones: conserva las %i categorías reales y sus enlaces en la tira', async (count) => {
+    const categories = Array.from({ length: count }, (_, index) => shopCategory({
+      id: `cat-${index}`, name: `Ocasión ${index + 1}`, productCount: count - index,
+    }))
+    mockShop({ categories: [...categories, shopCategory({ name: 'Vacía', productCount: 0 })] })
+    renderShop('/shop')
+    const section = screen.getByRole('region', { name: 'Cada ocasión, un detalle.' })
+    await waitFor(() => expect(section.querySelectorAll('.occasion-grid a')).toHaveLength(count))
+    for (const category of categories) {
+      expect(within(section).getByRole('link', { name: category.name })).toHaveAttribute(
+        'href', `/shop/catalogo?categoria=${category.id}`,
+      )
+    }
+    expect(within(section).queryByText('Vacía')).not.toBeInTheDocument()
+    expect(section.closest('.shop-home')).toBeInTheDocument()
+  })
+
+  it('contenedores: eleva fotos reales con foco y selecciona en sitio sin navegar ni desplazar', async () => {
+    const api = mockShop()
+    const { user } = renderShop('/shop')
+    const card = await screen.findByRole('button', { name: /Destacar Ramo de rosas/ })
+    expect(within(card).getByRole('img')).toHaveAttribute('src', ROSES.primaryImageUrl)
+    card.focus()
+    expect(card).toHaveFocus()
+    const scroll = vi.spyOn(window, 'scrollTo')
+    await user.click(card)
+    expect(card).toHaveAttribute('aria-pressed', 'true')
+    expect(scroll).not.toHaveBeenCalled()
+    expect(api.product).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Hay regalos que lo dicen todo.')
+    await user.click(screen.getByRole('button', { name: /Destacar Taza personalizada/ }))
+    expect(card).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('contenedores: limita el collage a tres fotos reales y retira imágenes fallidas sin dejar un hero vacío', async () => {
+    mockShop({ products: productPage([
+      ROSES, MUG,
+      shopProduct({ id: 'p-3', name: 'Tercero' }),
+      shopProduct({ id: 'p-4', name: 'Cuarto' }),
+    ]) })
+    renderShop('/shop')
+    const collage = await screen.findByRole('group', { name: 'Regalos de la tienda' })
+    expect(within(collage).getAllByRole('button')).toHaveLength(3)
+    fireEvent.error(within(screen.getByRole('button', { name: 'Destacar Ramo de rosas' })).getByRole('img'))
+    expect(screen.queryByRole('button', { name: 'Destacar Ramo de rosas' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Destacar Cuarto' })).toBeInTheDocument()
+    for (const button of within(collage).getAllByRole('button')) {
+      fireEvent.error(within(button).getByRole('img'))
+    }
+    expect(screen.queryByRole('group', { name: 'Regalos de la tienda' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver regalos' })).toBeInTheDocument()
+  })
+
   it('muestra el llamado al catálogo, solo categorías con regalos y los destacados', async () => {
     mockShop()
     const { user } = renderShop('/shop')
 
-    expect(await screen.findByRole('link', { name: /Flores/ })).toHaveAttribute(
-      'href',
-      '/shop/catalogo?categoria=cat-flores',
-    )
+    const flowerLinks = await screen.findAllByRole('link', { name: /Flores/ })
+    expect(flowerLinks.length).toBeGreaterThan(0)
+    for (const link of flowerLinks) {
+      expect(link).toHaveAttribute('href', '/shop/catalogo?categoria=cat-flores')
+    }
     expect(screen.queryByText('Vacía')).not.toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Destacados' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Taza personalizada' })).toBeInTheDocument()
@@ -128,11 +182,16 @@ describe('Shop · tarjeta de regalo', () => {
     expect(within(card).getByText('Envío gratis — incluido en el precio')).toBeInTheDocument()
     expect(within(card).getByRole('img', { name: 'Ramo de rosas rojas' })).toBeInTheDocument()
     expect(
-      within(card).getByRole('link', { name: 'Ver detalle de Ramo de rosas' }),
+      within(card).getByRole('link', { name: 'Ramo de rosas' }),
     ).toHaveAttribute('href', '/shop/productos/p-rosas')
+    const link = within(card).getByRole('link', { name: 'Ramo de rosas' })
+    expect(link).toContainElement(within(card).getByRole('img'))
+    expect(link).toContainElement(within(card).getByRole('heading'))
+    expect(within(card).queryByText('Ver detalle')).not.toBeInTheDocument()
+    expect(within(link).queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('si la imagen falla o no existe muestra un reemplazo con texto alternativo', async () => {
+  it('encuadre: si la imagen falla o no existe muestra un reemplazo con texto alternativo', async () => {
     mockShop({
       products: productPage([
         ROSES,
@@ -145,6 +204,7 @@ describe('Shop · tarjeta de regalo', () => {
     fireEvent.error(within(card).getByRole('img', { name: 'Ramo de rosas rojas' }))
 
     expect(within(card).getByText('Imagen no disponible')).toBeInTheDocument()
+    expect(within(card).getByRole('img').parentElement).toHaveClass('product-figure')
     expect(within(card).getByRole('img', { name: 'Ramo de rosas rojas' })).toBeInTheDocument()
     const withoutImage = screen.getByRole('article', { name: 'Sin foto' })
     expect(within(withoutImage).getByRole('img', { name: 'Sin foto' })).toBeInTheDocument()
@@ -299,7 +359,7 @@ describe('Shop · catálogo', () => {
     mockShop()
     const { user } = renderShop('/shop/catalogo?q=rosa&orden=price_asc&pagina=2')
 
-    await user.click(await screen.findByRole('link', { name: 'Ver detalle de Ramo de rosas' }))
+    await user.click(await screen.findByRole('link', { name: 'Ramo de rosas' }))
     await screen.findByRole('heading', { name: 'Ramo de rosas', level: 1 })
     const breadcrumb = screen.getByRole('navigation', { name: 'Ruta de navegación' })
     expect(within(breadcrumb).getByRole('link', { name: 'Catálogo' })).toHaveAttribute(
@@ -330,7 +390,7 @@ describe('Shop · detalle', () => {
     expect(detail.querySelector('img[src="x"]')).toBeNull()
   })
 
-  it('permite elegir entre las imágenes de la galería', async () => {
+  it('encuadre: permite elegir entre las imágenes de la galería acotada', async () => {
     mockShop({
       product: shopProduct({
         images: [
@@ -353,7 +413,9 @@ describe('Shop · detalle', () => {
     })
     const { user } = renderShop('/shop/productos/p-rosas')
 
-    expect(await screen.findByRole('img', { name: 'Vista frontal' })).toBeInTheDocument()
+    const mainImage = await screen.findByRole('img', { name: 'Vista frontal' })
+    expect(mainImage.closest('.shop-page')).toHaveClass('product-detail-page')
+    expect(mainImage.parentElement).toHaveClass('stage')
     await user.click(screen.getByRole('button', { name: 'Ver imagen 2 de 2' }))
 
     expect(screen.getByRole('img', { name: 'Vista lateral' })).toBeInTheDocument()
@@ -361,6 +423,9 @@ describe('Shop · detalle', () => {
       'aria-pressed',
       'true',
     )
+    fireEvent.error(screen.getByRole('img', { name: 'Vista lateral' }))
+    expect(screen.getByRole('img', { name: 'Vista lateral' }).parentElement).toHaveClass('stage')
+    expect(screen.getByText('Imagen no disponible')).toBeInTheDocument()
   })
 
   it('añade al carrito, confirma y actualiza el contador de la cabecera', async () => {

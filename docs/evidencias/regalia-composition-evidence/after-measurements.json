@@ -1,0 +1,206 @@
+{
+  "capturedAt": "2026-11-08T13:56:26.715Z",
+  "records": [
+    {
+      "screen": "home",
+      "width": 2551,
+      "scrollWidth": 2551,
+      "home": 1440,
+      "hero": 1440,
+      "occasionRows": 1,
+      "occasionCount": 5,
+      "occasionInternalScroll": false,
+      "cardImage": {
+        "width": 246.796875,
+        "height": 180.09375,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "detail",
+      "width": 2551,
+      "scrollWidth": 2551,
+      "layout": 1280,
+      "image": {
+        "width": 622.6875,
+        "height": 513.5625,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "catalog",
+      "width": 2551,
+      "scrollWidth": 2551,
+      "main": 2240,
+      "imageFit": "contain",
+      "ok": true
+    },
+    {
+      "screen": "home",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "home": 1360,
+      "hero": 1360,
+      "occasionRows": 1,
+      "occasionCount": 5,
+      "occasionInternalScroll": false,
+      "cardImage": {
+        "width": 418,
+        "height": 308.5,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "detail",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "layout": 1280,
+      "image": {
+        "width": 622.6875,
+        "height": 513.5625,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "catalog",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "main": 1360,
+      "imageFit": "contain",
+      "ok": true
+    },
+    {
+      "screen": "home",
+      "width": 768,
+      "scrollWidth": 768,
+      "home": 704,
+      "hero": 704,
+      "occasionRows": 1,
+      "occasionCount": 5,
+      "occasionInternalScroll": true,
+      "cardImage": {
+        "width": 324,
+        "height": 238,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "detail",
+      "width": 768,
+      "scrollWidth": 768,
+      "layout": 704,
+      "image": {
+        "width": 672,
+        "height": 554.65625,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "catalog",
+      "width": 768,
+      "scrollWidth": 768,
+      "main": 704,
+      "imageFit": "contain",
+      "ok": true
+    },
+    {
+      "screen": "home",
+      "width": 390,
+      "scrollWidth": 390,
+      "home": 358,
+      "hero": 358,
+      "occasionRows": 1,
+      "occasionCount": 5,
+      "occasionInternalScroll": true,
+      "cardImage": {
+        "width": 336,
+        "height": 247,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "detail",
+      "width": 390,
+      "scrollWidth": 390,
+      "layout": 358,
+      "image": {
+        "width": 326,
+        "height": 266.328125,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "catalog",
+      "width": 390,
+      "scrollWidth": 390,
+      "main": 358,
+      "imageFit": "contain",
+      "ok": true
+    },
+    {
+      "screen": "home",
+      "width": 320,
+      "scrollWidth": 320,
+      "home": 288,
+      "hero": 288,
+      "occasionRows": 1,
+      "occasionCount": 5,
+      "occasionInternalScroll": true,
+      "cardImage": {
+        "width": 266,
+        "height": 194.5,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "detail",
+      "width": 320,
+      "scrollWidth": 320,
+      "layout": 288,
+      "image": {
+        "width": 256,
+        "height": 208,
+        "fit": "contain",
+        "naturalWidth": 800,
+        "naturalHeight": 800
+      },
+      "ok": true
+    },
+    {
+      "screen": "catalog",
+      "width": 320,
+      "scrollWidth": 320,
+      "main": 288,
+      "imageFit": "contain",
+      "ok": true
+    }
+  ],
+  "allPassed": true
+}

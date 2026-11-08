@@ -3,20 +3,26 @@ import { paths } from '../../../app/paths'
 import { catalogSearch } from '../catalogQuery'
 import type { ShopCategory } from '../types'
 
-/** Ocasión o categoría: enlaza al catálogo filtrado. La API no trae imagen, así que usa la inicial. */
-export function CategoryCard({ category }: { category: ShopCategory }) {
+const OCCASION_COLORS = ['rose', 'sage', 'peach', 'lilac'] as const
+const OCCASION_SYMBOLS = ['✷', '♡', '❀', '✧'] as const
+
+interface CategoryCardProps {
+  category: ShopCategory
+  index?: number
+}
+
+/** Ocasión o categoría: presentación compacta de diseño aprobado con categorías reales. */
+export function CategoryCard({ category, index = 0 }: CategoryCardProps) {
+  const colorClass = OCCASION_COLORS[index % OCCASION_COLORS.length]
+  const symbol = OCCASION_SYMBOLS[index % OCCASION_SYMBOLS.length]
+
   return (
     <Link
-      className="category-card"
+      className={`occasion ${colorClass}`}
       to={`${paths.shopCatalog}${catalogSearch({ categoryId: category.id })}`}
     >
-      <span className="category-card__icon" aria-hidden="true">
-        {category.name.charAt(0).toUpperCase()}
-      </span>
-      <span className="category-card__name">{category.name}</span>
-      <small>
-        {category.productCount} {category.productCount === 1 ? 'regalo' : 'regalos'}
-      </small>
+      <span aria-hidden="true">{symbol}</span>
+      <span className="occasion-name">{category.name}</span>
     </Link>
   )
 }

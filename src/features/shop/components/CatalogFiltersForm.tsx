@@ -46,52 +46,69 @@ export function CatalogFiltersForm({
   }
 
   return (
-    <form className="catalog-filters" aria-label="Filtrar regalos" noValidate onSubmit={submit}>
-      <TextField
-        label="Buscar por nombre o descripción"
-        type="search"
-        maxLength={100}
-        value={draft.search}
-        onChange={(event) => set('search', event.target.value)}
-      />
-      <SelectField
-        label="Categoría"
-        value={draft.categoryId}
-        onChange={(event) => set('categoryId', event.target.value)}
-      >
-        <option value="">Todas las categorías</option>
-        {categories.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </SelectField>
-      <div className="catalog-filters__prices">
+    <form className="filters catalog-filters" aria-label="Filtrar regalos" noValidate onSubmit={submit}>
+      <h2>Encuentra tu detalle</h2>
+      <p className="filters__intro">Combina categorías, precio y disponibilidad.</p>
+
+      <fieldset className="filter-group">
         <TextField
-          label="Precio mínimo (USD)"
-          inputMode="decimal"
-          placeholder="0,00"
-          value={draft.minPrice}
-          error={errors.minPrice}
-          onChange={(event) => set('minPrice', event.target.value)}
+          label="Buscar por nombre o descripción"
+          type="search"
+          maxLength={100}
+          value={draft.search}
+          onChange={(event) => set('search', event.target.value)}
         />
-        <TextField
-          label="Precio máximo (USD)"
-          inputMode="decimal"
-          placeholder="0,00"
-          value={draft.maxPrice}
-          error={errors.maxPrice}
-          onChange={(event) => set('maxPrice', event.target.value)}
-        />
-      </div>
-      <label className="catalog-filters__check">
-        <input
-          type="checkbox"
-          checked={draft.inStock}
-          onChange={(event) => set('inStock', event.target.checked)}
-        />
-        Solo disponibles
-      </label>
+      </fieldset>
+
+      <fieldset className="filter-group">
+        <SelectField
+          label="Categoría"
+          value={draft.categoryId}
+          onChange={(event) => set('categoryId', event.target.value)}
+        >
+          <option value="">Todas las categorías</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </SelectField>
+      </fieldset>
+
+      <fieldset className="filter-group">
+        <legend>Precio (USD)</legend>
+        <div className="price-fields catalog-filters__prices">
+          <TextField
+            label="Precio mínimo (USD)"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={draft.minPrice}
+            error={errors.minPrice}
+            onChange={(event) => set('minPrice', event.target.value)}
+          />
+          <TextField
+            label="Precio máximo (USD)"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={draft.maxPrice}
+            error={errors.maxPrice}
+            onChange={(event) => set('maxPrice', event.target.value)}
+          />
+        </div>
+        <p className="price-help">Rango inclusivo. Puedes dejarlo vacío.</p>
+      </fieldset>
+
+      <fieldset className="filter-group">
+        <label className="check catalog-filters__check">
+          <input
+            type="checkbox"
+            checked={draft.inStock}
+            onChange={(event) => set('inStock', event.target.checked)}
+          />
+          Solo disponibles
+        </label>
+      </fieldset>
+
       <div className="catalog-filters__actions">
         <Button type="submit">Aplicar filtros</Button>
         <Button variant="secondary" onClick={onClear}>
