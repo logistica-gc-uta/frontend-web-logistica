@@ -95,9 +95,9 @@ function translate(error: unknown): never {
 
 /** Pedidos del cliente autenticado (el backend filtra por el comprador del token). */
 export const customerOrdersService = {
-  async list(page: number, pageSize = 10): Promise<CustomerOrderPage> {
+  async list(page: number, pageSize = 10, status?: OrderStatus): Promise<CustomerOrderPage> {
     const { data } = await customerApiClient.get<CustomerOrderPage>('/shop/orders', {
-      params: { page, pageSize },
+      params: { page, pageSize, ...(status ? { status } : {}) },
     })
     return data
   },

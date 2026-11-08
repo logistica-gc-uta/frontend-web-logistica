@@ -52,16 +52,17 @@ describe('Shop · confirmación', () => {
     expect(cartStorage.load(customer.id)).toHaveLength(1)
   })
 
-  it('muestra pedido, pago ficticio, entrega, productos y desglose con IVA simulado', async () => {
+  it('muestra pedido, pago, entrega, productos e importes históricos con IVA', async () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
     renderShop('/shop/confirmacion/pedido-1')
 
     expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
     expect(screen.getByText('RG-2030-0001')).toBeInTheDocument()
     expect(screen.getByText('aprobado')).toBeInTheDocument()
-    expect(screen.getByText(/Total pagado \(incluye IVA simulado\): \$83,95/)).toBeInTheDocument()
-    expect(screen.getByText('IVA simulado 15 %')).toBeInTheDocument()
-    expect(screen.getByText('Envío gratis $0,00')).toBeInTheDocument()
+    expect(screen.getByText(/Total pagado: \$83,95/)).toBeInTheDocument()
+    expect(screen.getByText('IVA 15 %')).toBeInTheDocument()
+    expect(screen.getAllByText('$0,00')).toHaveLength(1)
+    expect(screen.queryByText(/simulado|ficticio/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver comprobante' })).toHaveAttribute(
       'href',
       '/shop/mis-pedidos/pedido-1/comprobante',
@@ -71,7 +72,7 @@ describe('Shop · confirmación', () => {
 })
 
 describe('Shop · mis pedidos', () => {
-  it('lista número, fechas, estado del backend, total histórico y enlaces', async () => {
+  it('lista cada pedido en una fila completa con enlace nativo de 5 columnas sin enlaces duplicados', async () => {
     vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
       items: [
         orderSummary(),
@@ -84,16 +85,56 @@ describe('Shop · mis pedidos', () => {
     })
     renderShop('/shop/mis-pedidos')
 
-    const first = await screen.findByRole('listitem', { name: 'Pedido RG-2030-0001' })
-    expect(within(first).getByText('Pendiente de despacho')).toBeInTheDocument()
-    expect(within(first).getByText('$83,95')).toBeInTheDocument()
-    expect(within(first).getByRole('link', { name: 'Ver detalle y seguimiento' })).toHaveAttribute(
-      'href',
-      '/shop/mis-pedidos/pedido-1',
-    )
-    expect(
-      within(screen.getByRole('listitem', { name: 'Pedido RG-2' })).getByText('En camino'),
-    ).toBeInTheDocument()
+    const firstLink = await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
+    expect(firstLink).toHaveAttribute('href', '/shop/mis-pedidos/pedido-1')
+    expect(within(firstLink).getByText('Pendiente de despacho')).toBeInTheDocument()
+    expect(within(firstLink).getByText('$83,95')).toBeInTheDocument()
+    // No enlaces internos duplicados en la fila
+    expect(within(firstLink).queryByRole('link', { name: 'Ver detalle y seguimiento' })).not.toBeInTheDocument()
+    expect(within(firstLink).queryByRole('link', { name: 'Comprobante' })).not.toBeInTheDocument()
+
+    const secondLink = screen.getByRole('link', { name: 'Pedido RG-2' })
+    expect(secondLink).toHaveAttribute('href', '/shop/mis-pedidos/pedido-2')
+    expect(within(secondLink).getByText('En camino')).toBeInTheDocument()
+    expect(within(secondLink).getByText('$11,49')).toBeInTheDocument()
+  })
+
+  it('filtro horizontal con botón para limpiar filtros que reinicia estado y página', async () => {
+    const list = vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
+      items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
+    })
+    const { user } = renderShop('/shop/mis-pedidos')
+    await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
+
+    await user.selectOptions(screen.getByLabelText('Estado del pedido'), 'DELIVERED')
+    expect(list).toHaveBeenLastCalledWith(1, 10, 'DELIVERED')
+
+    const resetBtn = screen.getByRole('button', { name: 'Limpiar filtros' })
+    await user.click(resetBtn)
+    expect(list).toHaveBeenLastCalledWith(1, 10, undefined)
+  })
+
+  it('consulta el estado en el servidor, reinicia la página y mantiene los totales reales', async () => {
+    const list = vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
+      items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
+    })
+    const { user } = renderShop('/shop/mis-pedidos')
+    await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
+    expect(list).toHaveBeenLastCalledWith(1, 10, undefined)
+    expect(screen.getByText('Página 1 de 2 · 11 registros')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
+    expect(list).toHaveBeenLastCalledWith(2, 10, undefined)
+    list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 })
+    await user.selectOptions(screen.getByLabelText('Estado del pedido'), 'DELIVERED')
+    expect(await screen.findByText('No encontramos pedidos con ese estado')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith(1, 10, 'DELIVERED')
+    list.mockResolvedValue({
+      items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
+    })
+    await user.selectOptions(screen.getByLabelText('Estado del pedido'), '')
+    await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
+    expect(list).toHaveBeenLastCalledWith(1, 10, undefined)
   })
 
   it('sin pedidos invita a explorar; si falla permite reintentar', async () => {
@@ -104,14 +145,14 @@ describe('Shop · mis pedidos', () => {
     const { user } = renderShop('/shop/mis-pedidos')
 
     await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
-    expect(await screen.findByText('Todavía no tienes pedidos.')).toBeInTheDocument()
+    expect(await screen.findByText('Tu próximo detalle empieza aquí')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Explorar regalos' })).toBeInTheDocument()
     expect(list).toHaveBeenCalledTimes(2)
   })
 })
 
 describe('Shop · detalle y seguimiento', () => {
-  it('muestra solo los cambios registrados por el backend, la entrega y los precios congelados', async () => {
+  it('muestra banner de entrega, Para quién, Dónde, pago y seguimiento con fechas del backend', async () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(
       orderDetail({
         status: 'IN_TRANSIT',
@@ -124,12 +165,30 @@ describe('Shop · detalle y seguimiento', () => {
     )
     renderShop('/shop/mis-pedidos/pedido-1')
 
-    const timeline = await screen.findByRole('region', { name: 'Seguimiento' })
+    // Banner de entrega
+    expect(await screen.findByText(/Entrega programada/)).toBeInTheDocument()
+    expect(screen.getByText(/Ecuador/)).toBeInTheDocument()
+
+    // Para quién / Dónde
+    expect(screen.getByRole('heading', { level: 3, name: 'Para quién' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Dónde' })).toBeInTheDocument()
+    expect(screen.getByText(/Ana Regalo · 0991234567/)).toBeInTheDocument()
+    expect(screen.getByText(/Av. Cevallos y Montalvo · Centro/)).toBeInTheDocument()
+
+    // Recorrido
+    const timeline = screen.getByRole('region', { name: 'Recorrido del pedido' })
     expect(within(timeline).getAllByRole('listitem')).toHaveLength(3)
     expect(within(timeline).getByText('Asignado a una ruta')).toBeInTheDocument()
-    expect(within(timeline).getByText(/No incluye ubicación en tiempo real/)).toBeInTheDocument()
-    expect(screen.getByText(/Ana Regalo · 0991234567/)).toBeInTheDocument()
+
+    // Pago
+    expect(screen.getByText(/Pago aprobado/)).toBeInTheDocument()
+
+    // Enlaces de productos e importes
     expect(screen.getByText(/\$36,50 c\/u al comprar/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver Ramo de rosas' })).toHaveAttribute(
+      'href',
+      '/shop/productos/p-rosas',
+    )
     expect(screen.queryByRole('button', { name: /estado/i })).not.toBeInTheDocument()
   })
 
@@ -141,8 +200,21 @@ describe('Shop · detalle y seguimiento', () => {
   })
 })
 
-describe('Shop · comprobante simulado', () => {
-  it('destaca que no tiene validez tributaria y muestra los importes históricos sin la tarjeta completa', async () => {
+describe('Shop · importes históricos', () => {
+  it('no llama gratis a un envío con importe y conserva el IVA desactivado', async () => {
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail({
+      taxEnabled: false, taxAmountCents: 0, shippingAmountCents: 450, totalCents: 7750,
+    }))
+    renderShop('/shop/mis-pedidos/pedido-1')
+    expect(await screen.findByText('IVA no aplicado')).toBeInTheDocument()
+    expect(screen.getByText('$4,50')).toBeInTheDocument()
+    expect(screen.getByText('$77,50')).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).queryByText(/gratis|simulado/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('Shop · comprobante de compra', () => {
+  it('omite la leyenda en pantalla e impresión y conserva los importes históricos sin la tarjeta completa', async () => {
     vi.spyOn(customerOrdersService, 'receipt').mockResolvedValue(
       receipt({ tax: { enabled: true, ratePercent: 12, amountCents: 876 }, totalCents: 8176 }),
     )
@@ -151,18 +223,19 @@ describe('Shop · comprobante simulado', () => {
     const { user } = renderShop('/shop/mis-pedidos/pedido-1/comprobante')
 
     expect(
-      await screen.findByText('COMPROBANTE DE COMPRA SIMULADO — SIN VALIDEZ TRIBUTARIA'),
+      await screen.findByRole('heading', { name: 'Comprobante de compra' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { name: 'Comprobante CMP-RG-2030-0001' }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('CMP-RG-2030-0001')).toBeInTheDocument()
+    expect(screen.queryByText(/SIN VALIDEZ TRIBUTARIA|simulado/i)).not.toBeInTheDocument()
     // La tasa es la del momento de la compra (12 %), no la vigente.
-    expect(screen.getByText('IVA simulado 12 % (tasa al comprar)')).toBeInTheDocument()
+    expect(screen.getByText('IVA 12 % (tasa al comprar)')).toBeInTheDocument()
+    expect(screen.getByText('$8,76')).toBeInTheDocument()
     expect(screen.getByText('$81,76')).toBeInTheDocument()
     expect(screen.getByText(/PAY-DEMO-1 · tarjeta terminada en 0001/)).toBeInTheDocument()
     expect(await screen.findByText(/Av. Cevallos y Montalvo/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Imprimir' }))
     expect(print).toHaveBeenCalled()
+    expect(screen.queryByText(receipt().disclaimer)).not.toBeInTheDocument()
   })
 })
