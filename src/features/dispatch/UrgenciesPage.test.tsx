@@ -61,7 +61,7 @@ describe('UrgenciesPage', () => {
     ).toBeInTheDocument()
     expect(
       within(screen.getByRole('note')).getByRole('link', { name: 'Entregas fallidas' }),
-    ).toHaveAttribute('href', '/entregas-fallidas')
+    ).toHaveAttribute('href', '/admin/entregas-fallidas')
     expect(
       await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }),
     ).toBeInTheDocument()

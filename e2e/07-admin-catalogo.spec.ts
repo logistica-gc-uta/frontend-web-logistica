@@ -112,7 +112,7 @@ test('el ADMIN crea, ilustra y publica un regalo, y el Shop lo muestra', async (
     await evidence(page, 'e2e-01-editor-publicado', FOLDER)
 
     const productId = page.url().split('/').pop()!
-    await page.goto(`/shop/productos/${productId}`)
+    await page.goto(`/productos/${productId}`)
     await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible()
     await expect(page.getByRole('img', { name: 'Kit de graduación verde' })).toBeVisible()
     await expect(page.getByText('$19,50')).toBeVisible()
@@ -162,7 +162,7 @@ test('un CLIENT no ve ni abre la administración del catálogo', async ({ browse
     { token: buyer.token, user: { ...buyer.user, role: 'CLIENT' } },
   )
 
-  await page.goto('/shop')
+  await page.goto('/')
   await expect(page.getByRole('link', { name: 'Productos' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Configuración Shop' })).toHaveCount(0)
   for (const route of ['/productos', '/categorias', '/configuracion-shop']) {

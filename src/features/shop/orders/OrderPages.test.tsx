@@ -47,7 +47,7 @@ describe('Shop · confirmación', () => {
   it('abierta a mano no vacía el carrito ni inventa un éxito si el pedido no es propio', async () => {
     cartStorage.save([{ productId: 'p1', quantity: 1 }], customer.id)
     vi.spyOn(customerOrdersService, 'detail').mockRejectedValue(new Error(ORDER_NOT_FOUND_MESSAGE))
-    renderShop('/shop/confirmacion/ajeno')
+    renderShop('/checkout/confirmacion/ajeno')
 
     expect(await screen.findByText('No se pudo cargar el pedido')).toBeInTheDocument()
     expect(screen.queryByText('Ya es un detalle nuestro.')).not.toBeInTheDocument()
@@ -56,7 +56,7 @@ describe('Shop · confirmación', () => {
 
   it('muestra pedido, pago, entrega, productos e importes históricos con IVA', async () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
-    renderShop('/shop/confirmacion/pedido-1')
+    renderShop('/checkout/confirmacion/pedido-1')
 
     expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
     expect(screen.getByText('RG-2030-0001')).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('Shop · confirmación', () => {
     expect(screen.queryByText(/simulado|ficticio/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver comprobante' })).toHaveAttribute(
       'href',
-      '/shop/mis-pedidos/pedido-1/comprobante',
+      '/mi-cuenta/pedidos/pedido-1/comprobante',
     )
     expect(screen.queryByText(/9000/)).not.toBeInTheDocument()
   })
@@ -75,7 +75,7 @@ describe('Shop · confirmación', () => {
   it('si el pedido no congeló foto, muestra la del catálogo dentro del recuadro', async () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
     vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
-    renderShop('/shop/confirmacion/pedido-1')
+    renderShop('/checkout/confirmacion/pedido-1')
 
     await waitFor(() => {
       expect(screen.getByRole('img', { name: 'Ramo de rosas' })).toHaveAttribute(
@@ -99,10 +99,10 @@ describe('Shop · mis pedidos', () => {
       pageSize: 10,
       totalPages: 1,
     })
-    renderShop('/shop/mis-pedidos')
+    renderShop('/mi-cuenta/pedidos')
 
     const firstLink = await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
-    expect(firstLink).toHaveAttribute('href', '/shop/mis-pedidos/pedido-1')
+    expect(firstLink).toHaveAttribute('href', '/mi-cuenta/pedidos/pedido-1')
     expect(within(firstLink).getByText('Pendiente de despacho')).toBeInTheDocument()
     expect(within(firstLink).getByText('$83,95')).toBeInTheDocument()
     // No enlaces internos duplicados en la fila
@@ -110,7 +110,7 @@ describe('Shop · mis pedidos', () => {
     expect(within(firstLink).queryByRole('link', { name: 'Comprobante' })).not.toBeInTheDocument()
 
     const secondLink = screen.getByRole('link', { name: 'Pedido RG-2' })
-    expect(secondLink).toHaveAttribute('href', '/shop/mis-pedidos/pedido-2')
+    expect(secondLink).toHaveAttribute('href', '/mi-cuenta/pedidos/pedido-2')
     expect(within(secondLink).getByText('En camino')).toBeInTheDocument()
     expect(within(secondLink).getByText('$11,49')).toBeInTheDocument()
   })
@@ -124,7 +124,7 @@ describe('Shop · mis pedidos', () => {
       totalPages: 1,
     })
     vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
-    renderShop('/shop/mis-pedidos')
+    renderShop('/mi-cuenta/pedidos')
 
     const row = await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
     await waitFor(() => {
@@ -137,7 +137,7 @@ describe('Shop · mis pedidos', () => {
     const list = vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
       items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
     })
-    const { user } = renderShop('/shop/mis-pedidos')
+    const { user } = renderShop('/mi-cuenta/pedidos')
     await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
 
     await user.selectOptions(screen.getByLabelText('Estado del pedido'), 'DELIVERED')
@@ -152,7 +152,7 @@ describe('Shop · mis pedidos', () => {
     const list = vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
       items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
     })
-    const { user } = renderShop('/shop/mis-pedidos')
+    const { user } = renderShop('/mi-cuenta/pedidos')
     await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
     expect(list).toHaveBeenLastCalledWith(1, 10, undefined)
     expect(screen.getByText('Página 1 de 2 · 11 registros')).toBeInTheDocument()
@@ -176,7 +176,7 @@ describe('Shop · mis pedidos', () => {
       .spyOn(customerOrdersService, 'list')
       .mockRejectedValueOnce(createHttpError(500))
       .mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 })
-    const { user } = renderShop('/shop/mis-pedidos')
+    const { user } = renderShop('/mi-cuenta/pedidos')
 
     await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
     expect(await screen.findByText('Tu próximo detalle empieza aquí')).toBeInTheDocument()
@@ -197,7 +197,7 @@ describe('Shop · detalle y seguimiento', () => {
         ],
       }),
     )
-    renderShop('/shop/mis-pedidos/pedido-1')
+    renderShop('/mi-cuenta/pedidos/pedido-1')
 
     // Banner de entrega
     expect(await screen.findByText(/Entrega programada/)).toBeInTheDocument()
@@ -221,14 +221,14 @@ describe('Shop · detalle y seguimiento', () => {
     expect(screen.getByText(/\$36,50 c\/u al comprar/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver Ramo de rosas' })).toHaveAttribute(
       'href',
-      '/shop/productos/p-rosas',
+      '/productos/p-rosas',
     )
     expect(screen.queryByRole('button', { name: /estado/i })).not.toBeInTheDocument()
   })
 
   it('un pedido ajeno o inexistente no expone información', async () => {
     vi.spyOn(customerOrdersService, 'detail').mockRejectedValue(new Error('x'))
-    renderShop('/shop/mis-pedidos/ajeno')
+    renderShop('/mi-cuenta/pedidos/ajeno')
     expect(await screen.findByText('No se pudo cargar el pedido')).toBeInTheDocument()
     expect(screen.queryByText('Ana Regalo')).not.toBeInTheDocument()
   })
@@ -239,7 +239,7 @@ describe('Shop · importes históricos', () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail({
       taxEnabled: false, taxAmountCents: 0, shippingAmountCents: 450, totalCents: 7750,
     }))
-    renderShop('/shop/mis-pedidos/pedido-1')
+    renderShop('/mi-cuenta/pedidos/pedido-1')
     expect(await screen.findByText('IVA no aplicado')).toBeInTheDocument()
     expect(screen.getByText('$4,50')).toBeInTheDocument()
     expect(screen.getByText('$77,50')).toBeInTheDocument()
@@ -254,7 +254,7 @@ describe('Shop · comprobante de compra', () => {
     )
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
     const print = vi.spyOn(window, 'print').mockImplementation(() => undefined)
-    const { user } = renderShop('/shop/mis-pedidos/pedido-1/comprobante')
+    const { user } = renderShop('/mi-cuenta/pedidos/pedido-1/comprobante')
 
     expect(
       await screen.findByRole('heading', { name: 'Comprobante de compra' }),

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import { paths } from '../../../app/paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { useFetch } from '../../../hooks/useFetch'
@@ -16,6 +18,7 @@ const isWholeNumber = (text: string) => /^\d+$/.test(text)
 export function AddToCart({ product }: { product: ShopProduct }) {
   const settings = useFetch(shopService.settings, 'No se pudo consultar el límite por pedido')
   const { addItem, quantityOf } = useCart()
+  const navigate = useNavigate()
   const [quantity, setQuantity] = useState('1')
   const [error, setError] = useState<string | null>(null)
   const [added, setAdded] = useState<number | null>(null)
@@ -43,13 +46,14 @@ export function AddToCart({ product }: { product: ShopProduct }) {
     setAdded(null)
   }
 
-  const add = () => {
+  const add = (goToCheckout = false) => {
     const value = Number(quantity)
     if (!isWholeNumber(quantity) || value < 1) return setError('Indica una cantidad entera desde 1')
     if (value > maximum) return setError(`Puedes añadir como máximo ${maximum}`)
     addItem(product.id, value)
     setAdded(value)
     setQuantity('1')
+    if (goToCheckout) navigate(paths.shopCheckout)
   }
 
   const current = isWholeNumber(quantity) ? Number(quantity) : 1
@@ -116,12 +120,16 @@ export function AddToCart({ product }: { product: ShopProduct }) {
       )}
       {blockedReason && <p className="add-to-cart__blocked">{blockedReason}</p>}
 
-      <Button className="cta" disabled={!canAdd} onClick={add}>
+      <Button className="cta" disabled={!canAdd} onClick={() => add()}>
         Añadir al carrito <span aria-hidden="true">↗</span>
+      </Button>
+      <Button variant="secondary" disabled={!canAdd} onClick={() => add(true)}>
+        Comprar ahora
       </Button>
       {added !== null && (
         <p role="status" className="add-to-cart__added">
-          Se {added === 1 ? 'añadió 1 unidad' : `añadieron ${added} unidades`} al carrito.
+          Se {added === 1 ? 'añadió 1 unidad' : `añadieron ${added} unidades`} al carrito.{' '}
+          <Link to={paths.shopCart}>Ver carrito</Link>
         </p>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { paths } from '../../../app/paths'
+import { safeShopNext } from './shopNext'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { TextField } from '../../../components/ui/TextField'
@@ -17,13 +18,22 @@ const NOTICES: Record<NonNullable<CustomerRedirectState['reason']>, string> = {
   expired: 'Tu sesión terminó. Vuelve a iniciar sesión para continuar.',
 }
 
+function locationSearch(params: URLSearchParams): string {
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
 /** Login CLIENT del Shop: al ingresar vuelve al paso de compra pendiente. */
 export function ShopLoginPage() {
   const { customer, login } = useCustomer()
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const state = (useLocation().state as CustomerRedirectState | null) ?? {}
-  const redirectTo = state.from ?? paths.shop
+  const aviso = params.get('aviso')
+  const reason =
+    state.reason ?? (aviso === 'expired' || aviso === 'required' ? aviso : undefined)
+  const redirectTo = safeShopNext(params.get('next') ?? state.from)
 
   const { values, fieldErrors, submitError, isSubmitting, handleChange, handleSubmit } = useForm({
     initialValues: { email: state.email ?? '', password: '' } satisfies LoginCredentials,
@@ -55,15 +65,17 @@ export function ShopLoginPage() {
         </aside>
         <section className="card account-card" aria-labelledby="shop-login-title">
           <nav className="account__tabs" aria-label="Acceso de cliente">
-            <Link to={paths.shopLogin} state={{ from: state.from }} aria-current="page">Iniciar sesión</Link>
-            <Link to={paths.shopRegister} state={{ from: state.from }}>Crear cuenta</Link>
+            <Link to={`${paths.shopLogin}${locationSearch(params)}`} aria-current="page">
+              Iniciar sesión
+            </Link>
+            <Link to={`${paths.shopRegister}${locationSearch(params)}`}>Crear cuenta</Link>
           </nav>
           <h2 id="shop-login-title">Qué bueno verte.</h2>
           <p className="account__lead">Todos los campos son obligatorios.</p>
           {state.registered && (
             <Alert variant="success">Tu cuenta se creó. Ingresa con tu correo y contraseña.</Alert>
           )}
-          {state.reason && !state.registered && <p role="note">{NOTICES[state.reason]}</p>}
+          {reason && !state.registered && <p role="note">{NOTICES[reason]}</p>}
           {submitError && <Alert>{submitError}</Alert>}
 
           <form className="form" onSubmit={handleSubmit} noValidate aria-label="Iniciar sesión">

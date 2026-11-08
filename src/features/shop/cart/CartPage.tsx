@@ -183,16 +183,6 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
   )
 }
 
-const EMPTY_ESTIMATE: CartEstimate = {
-  units: 0,
-  subtotalCents: 0,
-  taxEnabled: false,
-  taxPercent: 0,
-  taxCents: 0,
-  shippingCents: 0,
-  totalCents: 0,
-}
-
 /** Carrito: revalida precio, stock y límite con la API cada vez que se abre. */
 export function CartPage() {
   const { items } = useCart()
@@ -220,22 +210,12 @@ export function CartPage() {
     return (
       <div className="shop-page cart cart-presentation">
         <CartHeading />
-        <div className="cart__layout">
-          <section className="card cart-empty">
-            <h2>Tu bolsa espera un detalle.</h2>
-            <Link to={paths.shopCatalog} className="btn btn--primary">
-              Explorar el catálogo
-            </Link>
-          </section>
-          <CartSummary
-            estimate={{
-              ...EMPTY_ESTIMATE,
-              taxEnabled: settings.data?.tax.enabled ?? false,
-              taxPercent: settings.data?.tax.ratePercent ?? 0,
-            }}
-            canCheckout={false}
-          />
-        </div>
+        <section className="card cart-empty">
+          <h2>Tu bolsa espera un detalle.</h2>
+          <Link to={paths.shopCatalog} className="btn btn--primary">
+            Explorar el catálogo
+          </Link>
+        </section>
       </div>
     )
   }

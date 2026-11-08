@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { AppError } from '../../lib/errors/AppError'
-import { apiClient } from '../../lib/http/apiClient'
+import { shopPublicClient } from '../../lib/http/shopPublicClient'
+import type { Zone } from '../zones/types'
 import { shopErrorCode } from './shopError'
 import type {
   CatalogApiQuery,
@@ -80,19 +81,19 @@ interface RawSettings {
 
 export const shopService = {
   async categories(): Promise<ShopCategory[]> {
-    const { data } = await apiClient.get<{ items: ShopCategory[] }>('/shop/categories')
+    const { data } = await shopPublicClient.get<{ items: ShopCategory[] }>('/shop/categories')
     return data.items
   },
 
   async products(query: CatalogApiQuery): Promise<ProductPage> {
-    const { data } = await apiClient
+    const { data } = await shopPublicClient
       .get<ProductPage & { items: RawProduct[] }>('/shop/products', { params: toParams(query) })
       .catch(translate)
     return { ...data, items: data.items.map(toProduct) }
   },
 
   async product(id: string): Promise<ShopProduct> {
-    const { data } = await apiClient
+    const { data } = await shopPublicClient
       .get<RawProduct>(`/shop/products/${encodeURIComponent(id)}`)
       .catch((error: unknown) => {
         // Un ID mal formado (400) es, para el visitante, un regalo que no existe.
@@ -109,7 +110,7 @@ export const shopService = {
    * que no se fijan en el código.
    */
   async settings(): Promise<ShopSettings> {
-    const { data } = await apiClient.get<RawSettings>('/shop/settings')
+    const { data } = await shopPublicClient.get<RawSettings>('/shop/settings')
     return {
       version: data.version,
       maxUnitsPerSkuPerOrder: data.limits.maxUnitsPerSkuPerOrder,
@@ -125,5 +126,10 @@ export const shopService = {
         endTime: data.deliverySchedule.endTime,
       },
     }
+  },
+
+  async zones(): Promise<Zone[]> {
+    const { data } = await shopPublicClient.get<Zone[]>('/zones')
+    return data
   },
 }

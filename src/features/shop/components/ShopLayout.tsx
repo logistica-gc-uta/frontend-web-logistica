@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
 import { useFetch } from '../../../hooks/useFetch'
 import { CustomerProvider } from '../account/CustomerProvider'
@@ -8,6 +8,7 @@ import { CartProvider } from '../cart/CartProvider'
 import { useCart } from '../cart/cartContext'
 import { catalogSearch } from '../catalogQuery'
 import { shopService } from '../shopService'
+import { shopDocumentTitle } from '../shopTitles'
 import { ShopThemeToggle } from './ShopThemeToggle'
 
 function CartCounter() {
@@ -103,6 +104,9 @@ function AccountMenu() {
         </button>
         {open ? (
           <div id="shop-account-menu" className="shop-header__account-panel">
+            <NavLink to={paths.shopAccount} className="shop-header__account-link" onClick={() => setOpen(false)}>
+              Mi cuenta
+            </NavLink>
             <NavLink to={paths.shopOrders} className="shop-header__account-link" onClick={() => setOpen(false)}>
               Mis pedidos
             </NavLink>
@@ -186,7 +190,14 @@ function HeaderSearch() {
  */
 export function ShopLayout() {
   const [dark, setDark] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
   const categories = useFetch(shopService.categories, 'No se pudieron cargar las categorías')
+
+  useEffect(() => {
+    document.title = shopDocumentTitle(location.pathname)
+    setMenuOpen(false)
+  }, [location.pathname])
 
   return (
     <CustomerProvider>
@@ -201,15 +212,24 @@ export function ShopLayout() {
                 REGALÍA
               </Link>
               <HeaderSearch />
+              <button
+                type="button"
+                className="shop-header__menu-toggle"
+                aria-expanded={menuOpen}
+                aria-controls="shop-occasions"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                {menuOpen ? 'Cerrar menú' : 'Menú'}
+              </button>
               <ShopThemeToggle dark={dark} onToggle={() => setDark((current) => !current)} />
               <div className="shop-tools">
                 <AccountMenu />
                 <CartCounter />
               </div>
             </div>
-            <div className="shop-nav-row">
+            <div className={`shop-nav-row${menuOpen ? ' is-open' : ''}`}>
               <div className="shop-wrap shop-nav">
-                <nav aria-label="Ocasiones" className="shop-occasions-nav">
+                <nav id="shop-occasions" aria-label="Ocasiones" className="shop-occasions-nav">
                   <NavLink to={paths.shop} end className="shop-header__link">
                     Inicio
                   </NavLink>
@@ -239,6 +259,13 @@ export function ShopLayout() {
           <footer className="shop-footer">
             <div className="shop-wrap shop-footer__content">
               <span>REGALÍA · El arte de tener un detalle.</span>
+              <nav aria-label="Pie de página">
+                <Link to={paths.shop}>Inicio</Link>
+                {' · '}
+                <Link to={paths.shopCatalog}>Catálogo</Link>
+                {' · '}
+                <Link to={paths.shopAccount}>Mi cuenta</Link>
+              </nav>
               <span>Envío gratis incluido en el precio de cada regalo.</span>
             </div>
           </footer>

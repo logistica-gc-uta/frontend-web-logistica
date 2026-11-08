@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 async function openPayment() {
-  const view = renderWithProviders(<App />, { route: '/shop/pago' })
+  const view = renderWithProviders(<App />, { route: '/checkout/pago' })
   const form = within(await screen.findByRole('form', { name: 'Pago con tarjeta' }))
   return { ...view, form }
 }
@@ -108,7 +108,7 @@ describe('Shop · pago ficticio', () => {
     expect(attempt).not.toHaveBeenCalled()
     expect(cartStorage.load(customer.id)).toEqual([{ productId: 'p-rosas', quantity: 2 }])
     expect(checkoutStorage.load(customer.id)).toEqual(checkoutDraft())
-    expect(screen.queryByText('¡Compra confirmada!')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ya es un detalle nuestro.')).not.toBeInTheDocument()
     expect(form.getByLabelText('CVV')).toHaveValue('')
   })
 
@@ -194,7 +194,7 @@ describe('Shop · pago ficticio', () => {
 
     release(checkoutSuccess)
 
-    expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
     expect(customerOrdersService.detail).toHaveBeenCalledWith('pedido-1')
     await waitFor(() => expect(cartStorage.load(customer.id)).toEqual([]))
     expect(checkoutStorage.load(customer.id)).toBeNull()
@@ -218,11 +218,11 @@ describe('Shop · pago ficticio', () => {
     expect(form.getByLabelText('CVV')).toHaveValue('')
     expect(cartStorage.load(customer.id)).toHaveLength(1)
     expect(checkoutStorage.load(customer.id)?.pendingKey).toBeUndefined()
-    expect(screen.queryByText('¡Compra confirmada!')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ya es un detalle nuestro.')).not.toBeInTheDocument()
 
     await fillCard(form, user)
     await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
-    expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
     expect(pay.mock.calls[1][0]).not.toBe(pay.mock.calls[0][0])
   })
 
@@ -273,7 +273,7 @@ describe('Shop · pago ficticio', () => {
     await fillCard(form, user)
     await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
-    expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
     expect(attempt).toHaveBeenCalledWith(pay.mock.calls[0][0])
     expect(pay).toHaveBeenCalledTimes(1)
   })
@@ -328,9 +328,9 @@ describe('Shop · pago ficticio', () => {
       orderId: 'pedido-1',
       errorCode: null,
     })
-    renderWithProviders(<App />, { route: '/shop/pago' })
+    renderWithProviders(<App />, { route: '/checkout/pago' })
 
-    expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
     expect(attempt).toHaveBeenCalledWith('clave-original')
     expect(pay).not.toHaveBeenCalled()
   })
@@ -338,7 +338,7 @@ describe('Shop · pago ficticio', () => {
   it('sin cotización vuelve al checkout; si el carrito cambió pide cotizar de nuevo', async () => {
     cartStorage.save([{ productId: 'p-rosas', quantity: 3 }], customer.id)
     vi.spyOn(checkoutService, 'quote')
-    renderWithProviders(<App />, { route: '/shop/pago' })
+    renderWithProviders(<App />, { route: '/checkout/pago' })
 
     expect(
       await screen.findByText('El carrito cambió. Vuelve a calcular el total.'),
@@ -352,11 +352,11 @@ describe('Shop · pago ficticio', () => {
     const steps = screen.getByRole('navigation', { name: 'Pasos de compra' })
     expect(within(steps).getByRole('link', { name: /Entrega/ })).toHaveAttribute(
       'href',
-      '/shop/checkout',
+      '/checkout',
     )
     expect(screen.getByRole('link', { name: '← Volver a entrega' })).toHaveAttribute(
       'href',
-      '/shop/checkout',
+      '/checkout',
     )
   })
 })

@@ -6,7 +6,6 @@ import { zones } from '../../../test/fixtures'
 import { createHttpError } from '../../../test/http'
 import { renderWithProviders } from '../../../test/renderWithProviders'
 import { shopProduct, shopSettings } from '../../../test/shopFixtures'
-import { zonesService } from '../../zones/zonesService'
 import { cartStorage } from '../cart/cartStorage'
 import { shopService } from '../shopService'
 import { checkoutService } from './checkoutService'
@@ -52,15 +51,15 @@ beforeEach(() => {
   cartStorage.save([{ productId: 'p-rosas', quantity: 2 }], customer.id)
   vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
   vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
-  vi.spyOn(zonesService, 'list').mockResolvedValue(zones)
+  vi.spyOn(shopService, 'zones').mockResolvedValue(zones)
 })
 
 afterEach(() => sessionStorage.clear())
 
-const renderCheckout = () => renderWithProviders(<App />, { route: '/shop/checkout' })
+const renderCheckout = () => renderWithProviders(<App />, { route: '/checkout' })
 
 async function openCheckout() {
-  const view = renderWithProviders(<App />, { route: '/shop/checkout' })
+  const view = renderWithProviders(<App />, { route: '/checkout' })
   const form = await screen.findByRole('form', { name: 'Datos de entrega' })
   await waitFor(() => expect(within(form).getAllByRole('option').length).toBeGreaterThan(1))
   return { ...view, form: within(form) }
@@ -322,7 +321,7 @@ describe('Shop · checkout', () => {
     expect(within(aside).getByText('Total al confirmar la entrega')).toBeInTheDocument()
     expect(within(aside).getByRole('link', { name: '← Ver bolsa' })).toHaveAttribute(
       'href',
-      '/shop/carrito',
+      '/carrito',
     )
   })
 })

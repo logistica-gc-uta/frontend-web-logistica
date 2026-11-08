@@ -5,6 +5,7 @@ import { AsyncContent } from '../../../components/ui/AsyncContent'
 import { useFetch } from '../../../hooks/useFetch'
 import { catalogSearch } from '../catalogQuery'
 import { AddToCart } from '../components/AddToCart'
+import { ProductCard } from '../components/ProductCard'
 import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { shopService } from '../shopService'
@@ -84,6 +85,36 @@ function ProductDetail({ product }: { product: ShopProduct }) {
   )
 }
 
+function RelatedProducts({ product, fromSearch }: { product: ShopProduct; fromSearch: string }) {
+  const categoryId = product.category?.id
+  const load = useCallback(
+    () =>
+      shopService.products({
+        page: 1,
+        pageSize: 8,
+        sort: 'featured',
+        categoryId,
+      }),
+    [categoryId],
+  )
+  const related = useFetch(load, 'No se pudieron cargar regalos relacionados')
+  const items = related.data?.items.filter((item) => item.id !== product.id).slice(0, 4) ?? []
+  if (items.length === 0) return null
+
+  return (
+    <section className="related-products" aria-labelledby="related-title">
+      <h2 id="related-title">También te puede gustar</h2>
+      <ul className="products product-grid">
+        {items.map((item) => (
+          <li key={item.id}>
+            <ProductCard product={item} fromSearch={fromSearch} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 interface DetailLocationState {
   fromSearch?: string
 }
@@ -112,10 +143,16 @@ export function ProductDetailPage() {
         </ol>
       </nav>
 
-      <AsyncContent {...product} onRetry={product.reload} loadingText="Cargando regalo...">
+      <AsyncContent
+        {...product}
+        onRetry={product.reload}
+        loadingText="Cargando regalo..."
+        loading={<div className="shop-skeleton" role="status" aria-label="Cargando regalo" />}
+      >
         {(data) => (
           <>
             <ProductDetail product={data} />
+            {data.category && <RelatedProducts product={data} fromSearch={fromSearch} />}
             <div className="endnote">
               <Link to={catalogLink}>← Seguir explorando el catálogo</Link>
             </div>

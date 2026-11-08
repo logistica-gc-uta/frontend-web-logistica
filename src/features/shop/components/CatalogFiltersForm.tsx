@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { SelectField } from '../../../components/ui/SelectField'
 import { TextField } from '../../../components/ui/TextField'
@@ -6,16 +6,24 @@ import { validateFilters, type CatalogFilters, type FilterErrors } from '../cata
 import type { ShopCategory } from '../types'
 
 interface CatalogFiltersFormProps {
-  /** Filtros aplicados (los de la URL); el formulario edita una copia hasta pulsar «Aplicar». */
   applied: CatalogFilters
   categories: ShopCategory[]
   onApply: (filters: CatalogFilters) => void
   onClear: () => void
 }
 
+function commit(draft: CatalogFilters): CatalogFilters {
+  return {
+    ...draft,
+    search: draft.search.trim(),
+    minPrice: draft.minPrice.trim(),
+    maxPrice: draft.maxPrice.trim(),
+  }
+}
+
 /**
- * Búsqueda y filtros combinables. Se aplican al enviar el formulario (no en cada tecla), así no se
- * consulta la API de más.
+ * Búsqueda y filtros combinables. Categoría y disponibilidad se aplican al cambiar; búsqueda y
+ * precios, al pausar la escritura si el rango es válido.
  */
 export function CatalogFiltersForm({
   applied,
@@ -26,23 +34,40 @@ export function CatalogFiltersForm({
   const [draft, setDraft] = useState(applied)
   const [errors, setErrors] = useState<FilterErrors>({})
 
-  const set = <K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
-    setDraft((current) => ({ ...current, [key]: value }))
-    if (key === 'minPrice' || key === 'maxPrice') setErrors({})
+  useEffect(() => {
+    setDraft(applied)
+  }, [applied.search, applied.categoryId, applied.minPrice, applied.maxPrice, applied.inStock])
+
+  const applyIfValid = (next: CatalogFilters) => {
+    const found = validateFilters(next)
+    setErrors(found)
+    if (Object.keys(found).length === 0) onApply(commit(next))
   }
+
+  const set = <K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
+    setDraft((current) => {
+      const next = { ...current, [key]: value }
+      if (key === 'categoryId' || key === 'inStock') applyIfValid(next)
+      return next
+    })
+  }
+
+  useEffect(() => {
+    const next = commit(draft)
+    if (
+      next.search === applied.search &&
+      next.minPrice === applied.minPrice &&
+      next.maxPrice === applied.maxPrice
+    ) {
+      return
+    }
+    const timer = window.setTimeout(() => applyIfValid(draft), 400)
+    return () => window.clearTimeout(timer)
+  }, [applied.maxPrice, applied.minPrice, applied.search, draft])
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const found = validateFilters(draft)
-    setErrors(found)
-    if (Object.keys(found).length === 0) {
-      onApply({
-        ...draft,
-        search: draft.search.trim(),
-        minPrice: draft.minPrice.trim(),
-        maxPrice: draft.maxPrice.trim(),
-      })
-    }
+    applyIfValid(draft)
   }
 
   return (
@@ -110,7 +135,6 @@ export function CatalogFiltersForm({
       </fieldset>
 
       <div className="catalog-filters__actions">
-        <Button type="submit">Aplicar filtros</Button>
         <Button variant="secondary" onClick={onClear}>
           Quitar filtros
         </Button>

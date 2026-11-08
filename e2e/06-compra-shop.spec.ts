@@ -35,7 +35,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => admin?.dispose())
 
 async function addToCart(page: Page, quantity = 1) {
-  await page.goto(`/shop/productos/${product.id}`)
+  await page.goto(`/productos/${product.id}`)
   await expect(page.getByRole('heading', { name: product.name, level: 1 })).toBeVisible()
   for (let extra = 1; extra < quantity; extra += 1) {
     await page.getByRole('button', { name: 'Agregar una unidad' }).click()
@@ -178,7 +178,7 @@ test('[simulada] 07B · si la respuesta del pago se pierde, verifica el mismo in
   })
 
   await addToCart(page)
-  await page.goto('/shop/checkout')
+  await page.goto('/checkout')
   const form = page.getByRole('form', { name: 'Datos de entrega' })
   await fillDelivery(form, '10:00')
   await page.getByRole('button', { name: /Continuar al pago/ }).click()

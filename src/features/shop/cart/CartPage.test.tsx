@@ -25,7 +25,7 @@ function mockApi(
   })
 }
 
-const renderCart = () => renderWithProviders(<App />, { route: '/shop/carrito' })
+const renderCart = () => renderWithProviders(<App />, { route: '/carrito' })
 
 afterEach(() => sessionStorage.clear())
 
@@ -96,19 +96,18 @@ describe('Shop · carrito', () => {
     expect(await screen.findByRole('heading', { name: 'Tu bolsa de regalos' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Continuar a la entrega/ })).toHaveAttribute(
       'href',
-      '/shop/checkout',
+      '/checkout',
     )
     expect(screen.getByRole('button', { name: 'Quitar Ramo de rosas' })).toBeInTheDocument()
   })
 
-  it('06A · vacío: sin líneas, resumen en cero y sin checkout', async () => {
+  it('06A · vacío: sin líneas, sin total en cero y sin checkout', async () => {
     vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
     const { user } = renderCart()
 
     expect(screen.getByRole('heading', { name: 'Tu bolsa espera un detalle.' })).toBeInTheDocument()
-    const summary = screen.getByRole('complementary', { name: 'Resumen estimado' })
-    expect(within(summary).getAllByText(/0,00/)).toHaveLength(4)
-    expect(within(summary).getByRole('button', { name: 'Continuar a la entrega' })).toBeDisabled()
+    expect(screen.queryByRole('complementary', { name: 'Resumen estimado' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/0,00/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Explorar el catálogo' }))
     expect(await screen.findByRole('heading', { name: 'Catálogo de regalos' })).toBeInTheDocument()
@@ -135,7 +134,7 @@ describe('Shop · carrito', () => {
     expect(within(summary).getByText(/El total se confirma antes de pagar/)).toBeInTheDocument()
     expect(within(summary).getByRole('link', { name: /Continuar a la entrega/ })).toHaveAttribute(
       'href',
-      '/shop/checkout',
+      '/checkout',
     )
 
     // La taza tiene 2 en stock: el selector no deja pedir más.

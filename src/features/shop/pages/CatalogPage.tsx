@@ -79,7 +79,6 @@ export function CatalogPage() {
           </button>
           <div id="catalog-filter-fields" className={filtersOpen ? 'is-open' : undefined}>
             <CatalogFiltersForm
-              key={queryKey}
               applied={state}
               categories={categories.data ?? []}
               onApply={applyFilters}
@@ -107,6 +106,49 @@ export function CatalogPage() {
                 </p>
               )}
             </div>
+            {hasActiveFilters(state) && (
+              <ul className="filter-chips" aria-label="Filtros activos">
+                {state.search ? (
+                  <li>
+                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, search: '' })}>
+                      Búsqueda: {state.search} ×
+                    </button>
+                  </li>
+                ) : null}
+                {state.categoryId ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      onClick={() => applyFilters({ ...state, categoryId: '' })}
+                    >
+                      Categoría ×
+                    </button>
+                  </li>
+                ) : null}
+                {state.minPrice ? (
+                  <li>
+                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, minPrice: '' })}>
+                      Mín. {state.minPrice} ×
+                    </button>
+                  </li>
+                ) : null}
+                {state.maxPrice ? (
+                  <li>
+                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, maxPrice: '' })}>
+                      Máx. {state.maxPrice} ×
+                    </button>
+                  </li>
+                ) : null}
+                {state.inStock ? (
+                  <li>
+                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, inStock: false })}>
+                      Solo disponibles ×
+                    </button>
+                  </li>
+                ) : null}
+              </ul>
+            )}
             <div className="catalog__sort-actions">
               {state.search && (
                 <Button variant="secondary" onClick={() => applyFilters({ ...state, search: '' })}>
@@ -130,7 +172,12 @@ export function CatalogPage() {
           </div>
 
           <div className={products.isLoading && products.data ? 'is-refreshing' : undefined}>
-            <AsyncContent {...products} onRetry={products.reload} loadingText="Cargando regalos...">
+            <AsyncContent
+              {...products}
+              onRetry={products.reload}
+              loadingText="Cargando regalos..."
+              loading={<div className="shop-skeleton shop-skeleton--grid" role="status" aria-label="Cargando regalos" />}
+            >
               {(page) =>
                 page.items.length === 0 ? (
                   <div id="empty" className="empty-state">

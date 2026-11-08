@@ -14,6 +14,8 @@ import { adminSession } from '../test/fixtures'
 import { mockDashboardServices } from '../test/dashboardMocks'
 import { createHttpError } from '../test/http'
 import { renderWithProviders } from '../test/renderWithProviders'
+import { shopService } from '../features/shop/shopService'
+import { productPage } from '../test/shopFixtures'
 import { App } from './App'
 import { paths } from './paths'
 
@@ -103,8 +105,17 @@ describe('App', () => {
   )
 
   it('muestra la página 404 en rutas desconocidas', () => {
+    vi.spyOn(shopService, 'categories').mockResolvedValue([])
     renderWithProviders(<App />, { route: '/ruta-inexistente' })
 
     expect(screen.getByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument()
+  })
+
+  it('la tienda vive en / y /shop redirige ahí', async () => {
+    vi.spyOn(shopService, 'categories').mockResolvedValue([])
+    vi.spyOn(shopService, 'products').mockResolvedValue(productPage([]))
+    renderWithProviders(<App />, { route: '/shop' })
+
+    expect(await screen.findByRole('link', { name: 'REGALÍA' })).toBeInTheDocument()
   })
 })

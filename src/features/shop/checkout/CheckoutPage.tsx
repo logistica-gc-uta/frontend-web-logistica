@@ -10,7 +10,6 @@ import { useFetch } from '../../../hooks/useFetch'
 import { useForm, type FieldErrors } from '../../../hooks/useForm'
 import { todayInGuayaquil } from '../../../lib/time/guayaquil'
 import type { GeoPoint } from '../../../types/geo'
-import { zonesService } from '../../zones/zonesService'
 import { useCustomer } from '../account/customerContext'
 import type { CartLocationState } from '../cart/CartPage'
 import { useCart } from '../cart/cartContext'
@@ -110,7 +109,7 @@ function DeliveryStep({
   const { items } = useCart()
   const navigate = useNavigate()
   const requote = (useLocation().state as CheckoutLocationState | null)?.requote
-  const zones = useFetch(zonesService.list, 'No se pudieron cargar las zonas')
+  const zones = useFetch(shopService.zones, 'No se pudieron cargar las zonas')
   const deliverable = (zones.data ?? []).filter((zone) => zone.depotLocation !== null)
 
   const [quote, setQuote] = useState<Quote | null>(null)
