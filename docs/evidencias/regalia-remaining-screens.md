@@ -4,10 +4,10 @@ All ten approved artboards have implementations. This list identifies remaining 
 
 | Priority | Screen | Route | Remaining review |
 |---|---|---|---|
-|1|Cart|`/shop/carrito`|Composition, summary, quantities and responsive/empty states.|
-|2|Customer access|`/shop/login`, `/shop/registro`|Existing restored illustration/tabs, form composition and mobile acceptance. Public captures exist but are not human approval.|
-|3|Purchase result|`/shop/confirmacion/:id`|Actual saved-order confirmation hierarchy and error/pending boundaries; no fabricated success.|
-|4|My orders|`/shop/mis-pedidos`|Existing whole-row composition, real filters and responsive readability.|
-|5|Order detail / receipt|`/shop/mis-pedidos/:id`|Delivery facts/banner/timeline, receipt and print presentation.|
+|1|Cart|`/shop/carrito`|Source refinement 2026-11-08 (1200px, contain photos, bolsa copy). Awaiting human visual acceptance.|
+|2|Customer access|`/shop/login`, `/shop/registro`|Source refinement 2026-11-08 (shared h1, artboard form titles, no clipped info). Awaiting human visual acceptance.|
+|3|Purchase result|`/shop/confirmacion/:id`|Source refinement 2026-11-08 (1200px, “Ya es un detalle nuestro.”, contain photos). Awaiting human visual acceptance.|
+|4|My orders|`/shop/mis-pedidos`|Source refinement 2026-11-08 (1200px, contain photos, empty invite). Awaiting human visual acceptance.|
+|5|Order detail / receipt|`/shop/mis-pedidos/:id`|Source refinement 2026-11-08 (contain line photos, CheckIcon payment, print label). Awaiting human visual acceptance.|
 
 References: approved backend artboards04/05/08/09/10 in `design/regalia-dual-theme/`; frontend `docs/evidencias/regalia-orders-fidelity.md`; feature task Log L21,L26,L28,L40. Discovery home/catalog/detail has received the latest human acceptance; checkout/payment recently received focused image/composition corrections and isolated presentation captures, not real payment integration approval. Recommend reviewing cart next to preserve the purchase-flow order. Full test suite/build/IT/E2E still require permission.
