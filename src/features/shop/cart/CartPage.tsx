@@ -42,15 +42,12 @@ function QuantityControl({ line }: { line: CartLine }) {
       <button
         type="button"
         className="btn btn--secondary"
-        aria-label={`Quitar una unidad de ${name}`}
+        aria-label={`Disminuir cantidad de ${name}`}
         disabled={line.quantity <= 1}
         onClick={() => setQuantity(line.productId, Math.min(line.quantity - 1, line.maximum))}
       >
         −
       </button>
-      <label className="visually-hidden" htmlFor={`qty-${line.productId}`}>
-        Cantidad de {name}
-      </label>
       <select
         id={`qty-${line.productId}`}
         className="field__input quantity__select"
@@ -104,22 +101,27 @@ function CartLineItem({ line }: { line: CartLine }) {
         ) : (
           <span className="cart-line__name">{name}</span>
         )}
-        {product && (
-          <p className="text-muted">Precio unitario actual: {formatCents(product.priceCents)}</p>
-        )}
+        {product && <p className="text-muted">{formatCents(product.priceCents)} / unidad</p>}
         {line.problem && (
           <p className="cart-line__problem" role="alert">
             {describeProblem(line.problem)}
           </p>
         )}
-        <div className="cart-line__actions">
-          <QuantityControl line={line} />
-          <Button variant="secondary" onClick={() => removeItem(line.productId)}>
-            Eliminar <span className="visually-hidden">{name}</span>
-          </Button>
-        </div>
+        {line.maximum > 0 && (
+          <label className="quantity-label" htmlFor={`qty-${line.productId}`}>
+            Cantidad · {name}
+          </label>
+        )}
+        <QuantityControl line={line} />
       </div>
-      <p className="cart-line__total">{line.problem ? '—' : formatCents(line.lineTotalCents)}</p>
+      <div className="cart-line__end">
+        <strong className="cart-line__total">
+          {line.problem ? '—' : formatCents(line.lineTotalCents)}
+        </strong>
+        <Button variant="secondary" onClick={() => removeItem(line.productId)}>
+          Quitar <span className="visually-hidden">{name}</span>
+        </Button>
+      </div>
     </li>
   )
 }
@@ -132,9 +134,9 @@ function CartHeading() {
         <span aria-hidden="true">/</span>
         <Link to={paths.shopCatalog}>Catálogo</Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page">Carrito</span>
+        <span aria-current="page">Bolsa</span>
       </nav>
-      <h1>Tu carrito</h1>
+      <h1>Tu bolsa de regalos</h1>
       <p>Revisa tus detalles, antes del siguiente paso.</p>
     </header>
   )
@@ -170,11 +172,11 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
       <p className="text-muted">El total se confirma antes de pagar.</p>
       {canCheckout ? (
         <Link to={paths.shopCheckout} className="btn btn--primary cart-summary__cta">
-          Ir al checkout
+          Continuar a la entrega <span aria-hidden="true">→</span>
         </Link>
       ) : (
         <Button disabled className="cart-summary__cta">
-          Ir al checkout
+          Continuar a la entrega
         </Button>
       )}
     </aside>
@@ -220,11 +222,9 @@ export function CartPage() {
         <CartHeading />
         <div className="cart__layout">
           <section className="card cart-empty">
-            <p className="cart__eyebrow">Un detalle por descubrir</p>
-            <h2>Tu bolsa espera un regalo.</h2>
-            <p className="empty-state">Tu carrito está vacío.</p>
+            <h2>Tu bolsa espera un detalle.</h2>
             <Link to={paths.shopCatalog} className="btn btn--primary">
-              Explorar regalos
+              Explorar el catálogo
             </Link>
           </section>
           <CartSummary
@@ -286,7 +286,9 @@ export function CartPage() {
                 <CartLineItem key={line.productId} line={line} />
               ))}
             </ul>
-            <Link to={paths.shopCatalog}>Seguir comprando</Link>
+            <Link to={paths.shopCatalog} className="cart__back">
+              ← Seguir eligiendo regalos
+            </Link>
           </section>
           <CartSummary estimate={view.estimate} canCheckout={view.canCheckout && !error} />
         </div>

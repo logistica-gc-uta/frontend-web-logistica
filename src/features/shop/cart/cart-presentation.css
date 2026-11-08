@@ -1,4 +1,8 @@
-.shop .cart-presentation {
+.shop .shop-page.cart-presentation {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  min-width: 0;
   gap: 28px;
 }
 
@@ -60,9 +64,11 @@
 
 .shop .cart-presentation .cart-line__image {
   width: 100%;
+  max-height: none;
   aspect-ratio: 1.12;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 5px;
+  background: var(--color-accent-soft);
 }
 
 .shop .cart-presentation .cart-line__name {
@@ -80,9 +86,10 @@
   font-size: 0.8125rem;
 }
 
-.shop .cart-presentation .cart-line__actions {
-  margin-top: 10px;
-  gap: 12px;
+.shop .cart-presentation .quantity-label {
+  display: block;
+  margin: 14px 0 5px;
+  font-size: 0.75rem;
 }
 
 .shop .cart-presentation .quantity {
@@ -113,8 +120,17 @@
   text-align: center;
 }
 
-.shop .cart-presentation .cart-line__actions > .btn {
+.shop .cart-presentation .cart-line__end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  text-align: right;
+}
+
+.shop .cart-presentation .cart-line__end > .btn {
   min-height: 44px;
+  min-width: 44px;
   padding-inline: 8px;
   border-color: transparent;
   background: transparent;
@@ -124,8 +140,16 @@
 }
 
 .shop .cart-presentation .cart-line__total {
+  margin: 0;
   font-variant-numeric: tabular-nums;
   color: var(--color-heading);
+}
+
+.shop .cart-presentation .cart__back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.875rem;
 }
 
 .shop .cart-presentation .cart-summary {
@@ -169,10 +193,15 @@
   font-size: 0.8125rem;
 }
 
-.shop .cart-presentation .cart-summary__cta {
+.shop .cart-presentation .cart-summary__cta,
+.shop .cart-presentation .cart-empty .btn {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: 48px;
   border-radius: 4px;
+  text-align: center;
 }
 
 .shop .cart-presentation .cart-empty {
@@ -185,10 +214,11 @@
   box-shadow: none;
 }
 
-.shop .cart-presentation .cart-empty h2,
-.shop .cart-presentation .cart-empty .empty-state {
+.shop .cart-presentation .cart-empty h2 {
   margin: 0;
   padding: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
 }
 
 .shop .cart-presentation :focus-visible {
@@ -207,8 +237,12 @@
     gap: 18px;
   }
 
-  .shop .cart-presentation .cart-line__total {
+  .shop .cart-presentation .cart-line__end {
     grid-column: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 }
 
