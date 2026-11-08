@@ -23,6 +23,34 @@ function mockCatalog() {
 
 afterEach(() => sessionStorage.clear())
 
+describe('Shop · visibilidad de contraseña', () => {
+  it.each([
+    { route: '/shop/login', field: 'Contraseña', action: 'Mostrar contraseña' },
+    { route: '/shop/registro', field: /^Contraseña \(/, action: 'Mostrar contraseña' },
+    { route: '/shop/registro', field: 'Confirmar contraseña', action: 'Mostrar confirmación' },
+  ])(
+    '$route permite revelar y ocultar $field sin enviar el formulario',
+    async ({ route, field, action }) => {
+      const login = vi.spyOn(customerService, 'login')
+      const register = vi.spyOn(customerService, 'register')
+      const { user } = renderShop(route)
+      const input = screen.getByLabelText(field)
+      await user.type(input, 'Clave12345')
+      expect(input).toHaveAttribute('type', 'password')
+      const toggle = screen.getByRole('button', { name: action })
+      await user.click(toggle)
+      expect(input).toHaveAttribute('type', 'text')
+      expect(input).toHaveValue('Clave12345')
+      expect(toggle).toHaveAttribute('aria-pressed', 'true')
+      await user.click(toggle)
+      expect(input).toHaveAttribute('type', 'password')
+      expect(toggle).toHaveAttribute('aria-pressed', 'false')
+      expect(login).not.toHaveBeenCalled()
+      expect(register).not.toHaveBeenCalled()
+    },
+  )
+})
+
 describe('Shop · registro CLIENT', () => {
   it('valida cada campo antes de enviar', async () => {
     const register = vi.spyOn(customerService, 'register')
@@ -67,7 +95,7 @@ describe('Shop · registro CLIENT', () => {
     cartStorage.save([{ productId: 'p-rosas', quantity: 1 }])
     await user.type(screen.getByLabelText('Contraseña'), 'Clave12345')
     await user.click(screen.getByRole('button', { name: 'Ingresar' }))
-    expect(await screen.findByRole('heading', { name: /Checkout/ })).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'Datos de entrega' })).toBeInTheDocument()
   })
 
   it('un correo ya registrado se informa sin revelar más datos', async () => {
