@@ -1,5 +1,5 @@
 import { act, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatchService } from '../features/dispatch/dispatchService'
 import { monitorService } from '../features/monitor/monitorService'
 import { createFakeSocket } from '../test/fakeSocket'
@@ -11,8 +11,11 @@ import { zonesService } from '../features/zones/zonesService'
 import { authStorage } from '../lib/auth/authStorage'
 import { handleResponseError } from '../lib/http/apiClient'
 import { adminSession } from '../test/fixtures'
+import { mockDashboardServices } from '../test/dashboardMocks'
 import { createHttpError } from '../test/http'
 import { renderWithProviders } from '../test/renderWithProviders'
+import { shopService } from '../features/shop/shopService'
+import { productPage } from '../test/shopFixtures'
 import { App } from './App'
 import { paths } from './paths'
 
@@ -26,6 +29,8 @@ const homeHeading = () => screen.queryByRole('heading', { name: 'Sistema de Log�
 const loginHeading = () => screen.queryByRole('heading', { name: 'Iniciar sesión' })
 
 describe('App', () => {
+  beforeEach(mockDashboardServices)
+
   it('redirige al login cuando no hay sesión', () => {
     renderWithProviders(<App />, { route: paths.home })
 
@@ -100,8 +105,17 @@ describe('App', () => {
   )
 
   it('muestra la página 404 en rutas desconocidas', () => {
+    vi.spyOn(shopService, 'categories').mockResolvedValue([])
     renderWithProviders(<App />, { route: '/ruta-inexistente' })
 
     expect(screen.getByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument()
+  })
+
+  it('la tienda vive en / y /shop redirige ahí', async () => {
+    vi.spyOn(shopService, 'categories').mockResolvedValue([])
+    vi.spyOn(shopService, 'products').mockResolvedValue(productPage([]))
+    renderWithProviders(<App />, { route: '/shop' })
+
+    expect(await screen.findByRole('link', { name: 'REGALÍA' })).toBeInTheDocument()
   })
 })

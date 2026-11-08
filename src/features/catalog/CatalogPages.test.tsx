@@ -83,7 +83,7 @@ describe('ADMIN-01 · listado de productos', () => {
         155,
       ),
     )
-    renderAdmin('/productos')
+    renderAdmin('/admin/productos')
 
     const table = await screen.findByRole('table', { name: 'Productos del catálogo' })
     expect(screen.getByText('155 productos')).toBeInTheDocument()
@@ -96,7 +96,7 @@ describe('ADMIN-01 · listado de productos', () => {
     expect(within(rows[3]).getByText('Publicado')).toBeInTheDocument()
     expect(within(rows[1]).getByRole('link', { name: /Editar/ })).toHaveAttribute(
       'href',
-      '/productos/prod-1',
+      '/admin/productos/prod-1',
     )
   })
 
@@ -105,7 +105,7 @@ describe('ADMIN-01 · listado de productos', () => {
     const list = vi
       .spyOn(catalogService, 'listProducts')
       .mockResolvedValue(page([adminProduct()], 45))
-    const { user } = renderAdmin('/productos')
+    const { user } = renderAdmin('/admin/productos')
     await screen.findByRole('table')
 
     const filters = screen.getByRole('form', { name: 'Filtrar productos' })
@@ -135,7 +135,7 @@ describe('ADMIN-01 · listado de productos', () => {
       .spyOn(catalogService, 'setPublication')
       .mockRejectedValueOnce(shopError(409, 'PRODUCT_PUBLICATION_INVALID'))
       .mockResolvedValueOnce(adminProduct({ isPublished: true }))
-    const { user } = renderAdmin('/productos')
+    const { user } = renderAdmin('/admin/productos')
 
     await user.click(await screen.findByRole('button', { name: 'Publicar Ramo de rosas' }))
     expect(screen.getByText('¿Mostrarlo en el Shop?')).toBeInTheDocument()
@@ -157,7 +157,7 @@ describe('ADMIN-01 · listado de productos', () => {
       .spyOn(catalogService, 'listProducts')
       .mockRejectedValueOnce(createHttpError(500))
       .mockResolvedValueOnce(page([]))
-    const { user } = renderAdmin('/productos')
+    const { user } = renderAdmin('/admin/productos')
 
     await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
     expect(await screen.findByText('No hay productos con esos criterios.')).toBeInTheDocument()
@@ -172,7 +172,7 @@ describe('ADMIN-02 · alta y edición', () => {
       .spyOn(catalogService, 'createProduct')
       .mockResolvedValue(adminProduct({ id: 'p-nuevo' }))
     vi.spyOn(catalogService, 'getProduct').mockResolvedValue(adminProduct({ id: 'p-nuevo' }))
-    const { user } = renderAdmin('/productos/nuevo')
+    const { user } = renderAdmin('/admin/productos/nuevo')
 
     const form = within(await screen.findByRole('form', { name: 'Datos del producto' }))
     await user.click(form.getByRole('button', { name: 'Crear producto' }))
@@ -207,7 +207,7 @@ describe('ADMIN-02 · alta y edición', () => {
     vi.spyOn(catalogService, 'createProduct').mockRejectedValue(
       shopError(409, 'SKU_ALREADY_EXISTS'),
     )
-    const { user } = renderAdmin('/productos/nuevo')
+    const { user } = renderAdmin('/admin/productos/nuevo')
     const form = within(await screen.findByRole('form', { name: 'Datos del producto' }))
     await user.type(form.getByLabelText('SKU'), 'ROSAS-12')
     await user.type(form.getByLabelText('Nombre'), 'Ramo')
@@ -229,7 +229,7 @@ describe('ADMIN-02 · alta y edición', () => {
     const update = vi
       .spyOn(catalogService, 'updateProduct')
       .mockResolvedValue(adminProduct({ priceCents: 2990 }))
-    const { user } = renderAdmin('/productos/prod-1')
+    const { user } = renderAdmin('/admin/productos/prod-1')
 
     const form = within(await screen.findByRole('form', { name: 'Datos del producto' }))
     expect(form.getByLabelText('SKU')).toHaveAttribute('readonly')
@@ -256,7 +256,7 @@ describe('ADMIN-02 · alta y edición', () => {
     const publish = vi
       .spyOn(catalogService, 'setPublication')
       .mockResolvedValue({ ...ready, isPublished: true })
-    const { user } = renderAdmin('/productos/prod-1')
+    const { user } = renderAdmin('/admin/productos/prod-1')
 
     const publication = within(await screen.findByRole('region', { name: 'Publicación' }))
     expect(publication.queryByRole('note')).not.toBeInTheDocument()
@@ -275,7 +275,7 @@ describe('ADMIN-02 · alta y edición', () => {
     vi.spyOn(catalogService, 'getProduct')
       .mockResolvedValueOnce(adminProduct())
       .mockResolvedValue(adminProduct({ isPublished: true, images: [adminImage('a', 0, true)] }))
-    renderAdmin('/productos/prod-1')
+    renderAdmin('/admin/productos/prod-1')
 
     const publication = await screen.findByRole('region', { name: 'Publicación' })
     expect(within(publication).getByRole('note')).toHaveTextContent(
@@ -288,7 +288,7 @@ describe('ADMIN-04 · imágenes', () => {
   async function openEditor(product = adminProduct()) {
     vi.spyOn(catalogService, 'listCategories').mockResolvedValue(CATEGORIES)
     const get = vi.spyOn(catalogService, 'getProduct').mockResolvedValue(product)
-    const view = renderAdmin('/productos/prod-1')
+    const view = renderAdmin('/admin/productos/prod-1')
     const region = within(await screen.findByRole('region', { name: 'Imágenes' }))
     return { ...view, region, get }
   }

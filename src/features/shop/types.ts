@@ -31,7 +31,7 @@ export interface ShopProduct {
   primaryImageUrl: string | null
 }
 
-export type CatalogSort = 'featured' | 'recent' | 'price_asc' | 'price_desc'
+export type CatalogSort = 'featured' | 'recent' | 'price_asc' | 'price_desc' | 'best_selling'
 
 /** Consulta del catálogo tal como la recibe la API (precios ya convertidos a centavos). */
 export interface CatalogApiQuery {

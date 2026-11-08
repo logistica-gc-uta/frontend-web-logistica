@@ -5,10 +5,12 @@
   gap: 16px;
 }
 
+/* El amarillo señal del panel se reserva para lo urgente. */
 .urgency {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border-left: 4px solid var(--color-signal);
 }
 
 .urgency__header {
@@ -32,8 +34,7 @@
 
 .urgency__meta dt {
   font-size: 0.8125rem;
-  color: var(--color-text);
-  opacity: 0.8;
+  color: var(--color-muted);
 }
 
 .urgency__meta dd {
@@ -67,7 +68,7 @@
 .dispatch-audit__item {
   padding: 12px 16px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .dispatch-audit__item p {

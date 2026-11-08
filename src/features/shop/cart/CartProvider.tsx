@@ -8,18 +8,21 @@ interface OwnedCart {
   items: CartItem[]
 }
 
-/** Carrito al cambiar de sesión: al cerrarla se vacía; al ingresar se adopta el del visitante. */
+/** Carrito al cambiar de sesión: al cerrarla sigue como visitante; al ingresar se adopta el del visitante. */
 function cartFor(previous: OwnedCart, ownerId: string | null): OwnedCart {
   const loggedOut = previous.ownerId !== null && ownerId === null
-  if (loggedOut) cartStorage.clear()
-  return { ownerId, items: loggedOut ? [] : cartStorage.load(ownerId) }
+  if (loggedOut) {
+    cartStorage.save(previous.items, null)
+    return { ownerId: null, items: previous.items }
+  }
+  return { ownerId, items: cartStorage.load(ownerId) }
 }
 
 /**
  * Carrito compartido del Shop. Es la única fuente del contador y de `addItem(productId, quantity)`.
  * Pertenece a la sesión: el de un visitante pasa a su cuenta al ingresar, el de otra cuenta no se
- * muestra y al cerrar sesión se vacía. Los productos viajan siempre junto a su dueño, así nunca se
- * guardan los de una cuenta a nombre de otra.
+ * muestra y al cerrar sesión el mismo carrito queda como visitante. Los productos viajan siempre
+ * junto a su dueño, así nunca se guardan los de una cuenta a nombre de otra.
  */
 export function CartProvider({ children }: { children: ReactNode }) {
   const { customer } = useCustomer()

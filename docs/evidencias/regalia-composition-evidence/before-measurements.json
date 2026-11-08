@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-11-08T13:48:46.348Z",
+  "records": [
+    {
+      "screen": "home",
+      "width": 2551,
+      "main": 2240,
+      "hero": 2240,
+      "occasionRows": 2,
+      "occasionCount": 5,
+      "cardImage": {
+        "width": 406.796875,
+        "height": 170,
+        "naturalWidth": 800,
+        "naturalHeight": 800,
+        "fit": "cover"
+      }
+    },
+    {
+      "screen": "detail",
+      "width": 2551,
+      "layout": 2240,
+      "image": {
+        "width": 1120.171875,
+        "height": 380,
+        "naturalWidth": 800,
+        "naturalHeight": 800,
+        "fit": "cover"
+      }
+    }
+  ]
+}

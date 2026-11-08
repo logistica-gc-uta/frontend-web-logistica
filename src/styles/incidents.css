@@ -33,8 +33,7 @@
 
 .incident__meta dt {
   font-size: 0.8125rem;
-  color: var(--color-text);
-  opacity: 0.8;
+  color: var(--color-muted);
 }
 
 .incident__meta dd {
@@ -65,7 +64,7 @@
   margin: 0;
   padding: 12px 16px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .incident__contact legend {

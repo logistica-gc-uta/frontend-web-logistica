@@ -9,6 +9,7 @@ export const SORT_OPTIONS: { value: CatalogSort; label: string }[] = [
   { value: 'recent', label: 'Más recientes' },
   { value: 'price_asc', label: 'Precio: menor a mayor' },
   { value: 'price_desc', label: 'Precio: mayor a menor' },
+  { value: 'best_selling', label: 'Más vendidos' },
 ]
 
 /** Filtros tal como los escribe el visitante (los precios en dólares, como texto). */

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiClient } from '../../lib/http/apiClient'
+import { shopPublicClient } from '../../lib/http/shopPublicClient'
 import { createHttpError, createHttpResponse } from '../../test/http'
 import { cartStorage } from './cart/cartStorage'
 import {
@@ -71,7 +71,7 @@ describe('consulta del catálogo en la URL', () => {
   })
 
   it('ignora un orden o una página que no existen y no escribe los valores por defecto', () => {
-    const parsed = parseCatalogParams(new URLSearchParams('orden=best_selling&pagina=-2'))
+    const parsed = parseCatalogParams(new URLSearchParams('orden=no-existe&pagina=-2'))
 
     expect(parsed.sort).toBe('featured')
     expect(parsed.page).toBe(1)
@@ -151,7 +151,7 @@ describe('shopService', () => {
   }
 
   it('consulta el catálogo con los parámetros de la API y copia solo lo que se muestra', async () => {
-    const get = vi.spyOn(apiClient, 'get').mockResolvedValue(
+    const get = vi.spyOn(shopPublicClient, 'get').mockResolvedValue(
       createHttpResponse({
         items: [rawProduct],
         total: 1,
@@ -189,7 +189,7 @@ describe('shopService', () => {
   })
 
   it('traduce un regalo inexistente (404) o un ID mal formado (400)', async () => {
-    vi.spyOn(apiClient, 'get').mockRejectedValueOnce(
+    vi.spyOn(shopPublicClient, 'get').mockRejectedValueOnce(
       createHttpError(404, {
         data: { error: { code: 'PRODUCT_NOT_FOUND', message: 'Product not found' } },
       }),
@@ -198,7 +198,7 @@ describe('shopService', () => {
       'Este regalo no existe o ya no está disponible.',
     )
 
-    vi.spyOn(apiClient, 'get').mockRejectedValueOnce(createHttpError(400))
+    vi.spyOn(shopPublicClient, 'get').mockRejectedValueOnce(createHttpError(400))
     await expect(shopService.product('no-es-uuid')).rejects.toThrow(
       'Este regalo no existe o ya no está disponible.',
     )
@@ -206,7 +206,7 @@ describe('shopService', () => {
 
   it('deja pasar los demás errores tal cual', async () => {
     const serverError = createHttpError(500)
-    vi.spyOn(apiClient, 'get').mockRejectedValue(serverError)
+    vi.spyOn(shopPublicClient, 'get').mockRejectedValue(serverError)
 
     await expect(shopService.products({ page: 1, pageSize: 12, sort: 'featured' })).rejects.toBe(
       serverError,
@@ -214,7 +214,7 @@ describe('shopService', () => {
   })
 
   it('lee las categorías y el límite vigente por SKU', async () => {
-    vi.spyOn(apiClient, 'get').mockImplementation(async (url: string) =>
+    vi.spyOn(shopPublicClient, 'get').mockImplementation(async (url: string) =>
       url === '/shop/categories'
         ? createHttpResponse({ items: [{ id: 'c1', name: 'Tazas', productCount: 2 }] })
         : createHttpResponse({

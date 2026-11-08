@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import './orders-presentation.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { paths, shopOrderPath, shopReceiptPath } from '../../../app/paths'
+import { paths, shopOrderPath, shopProductPath, shopReceiptPath } from '../../../app/paths'
 import { AsyncContent } from '../../../components/ui/AsyncContent'
 import { Button } from '../../../components/ui/Button'
 import { Pagination } from '../../../components/ui/Pagination'
 import { useFetch } from '../../../hooks/useFetch'
 import { formatDateTime } from '../../../lib/format/formatDateTime'
 import { useCart } from '../cart/cartContext'
+import { loadCheckoutProducts } from '../checkout/checkoutProducts'
+import { checkoutStorage } from '../checkout/checkoutStorage'
 import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { customerOrdersService, type CustomerOrderDetail } from './customerOrdersService'
@@ -18,20 +21,127 @@ const useOrder = (id: string) => {
   return useFetch(load, 'No se pudo cargar el pedido')
 }
 
-function OrderItems({ order }: { order: CustomerOrderDetail }) {
+function CheckIcon({ className = 'icon' }: { className?: string }) {
   return (
-    <ul className="order-items">
+    <svg className={className} aria-hidden="true" viewBox="0 0 32 32">
+      <path
+        d="m6 16 7 7L26 9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function DeliveryVanIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 48 48">
+      <path
+        d="M4 11h25v26H4zM29 21h8l7 8v8H29M4 29h25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="13" cy="37" r="4" fill="var(--color-surface-sunken)" stroke="currentColor" strokeWidth="2" />
+      <circle cx="36" cy="37" r="4" fill="var(--color-surface-sunken)" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  )
+}
+
+function OrderStatusIcon({ status }: { status: keyof typeof CUSTOMER_ORDER_STATUS }) {
+  switch (status) {
+    case 'PENDING':
+      return (
+        <svg aria-hidden="true" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M10 6v4l3 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      )
+    case 'ASSIGNED':
+      return (
+        <svg aria-hidden="true" viewBox="0 0 20 20">
+          <circle cx="10" cy="7" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M4 17v-1.5a4.5 4.5 0 0 1 9 0V17" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
+      )
+    case 'IN_TRANSIT':
+      return (
+        <svg aria-hidden="true" viewBox="0 0 20 20">
+          <path
+            d="M2 4h10v10H2zM12 8h4l3 4v2h-7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="5" cy="15" r="2" />
+          <circle cx="15" cy="15" r="2" />
+        </svg>
+      )
+    case 'DELIVERED':
+      return (
+        <svg aria-hidden="true" viewBox="0 0 20 20">
+          <path
+            d="m4 10 4 4 8-8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'CANCELLED':
+    default:
+      return (
+        <svg aria-hidden="true" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="m7 7 6 6M13 7l-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      )
+  }
+}
+
+function OrderItems({ order }: { order: CustomerOrderDetail }) {
+  const missingPhotoIds = useMemo(
+    () => order.items.filter((item) => !item.imageUrl).map((item) => item.productId),
+    [order.items],
+  )
+  const loadPhotos = useCallback(
+    () =>
+      missingPhotoIds.length > 0
+        ? loadCheckoutProducts(missingPhotoIds)
+        : Promise.resolve(new Map()),
+    [missingPhotoIds],
+  )
+  const catalogPhotos = useFetch(loadPhotos)
+
+  return (
+    <ul className="order-items items">
       {order.items.map((item) => (
-        <li key={item.productId}>
-          <ProductImage src={item.imageUrl} alt={item.name} className="order-items__image" />
-          <span>
-            {item.quantity} × {item.name}
-            <small className="text-muted">
-              {' '}
-              ({formatCents(item.unitPriceCents)} c/u al comprar)
-            </small>
-          </span>
-          <strong>{formatCents(item.lineTotalCents)}</strong>
+        <li key={item.productId} className="item">
+          <Link to={shopProductPath(item.productId)} aria-label={`Ver ${item.name}`}>
+            <ProductImage
+              src={item.imageUrl ?? catalogPhotos.data?.get(item.productId)?.primaryImageUrl ?? null}
+              alt={item.name}
+              className="order-items__image"
+            />
+          </Link>
+          <div className="item-info">
+            <strong className="item-name">
+              <Link to={shopProductPath(item.productId)}>{item.name}</Link>
+            </strong>
+            <p className="item-details text-muted small">
+              {item.quantity} × <span className="money">{formatCents(item.unitPriceCents)} c/u al comprar</span>
+            </p>
+          </div>
+          <b className="item-total money">{formatCents(item.lineTotalCents)}</b>
         </li>
       ))}
     </ul>
@@ -40,36 +150,31 @@ function OrderItems({ order }: { order: CustomerOrderDetail }) {
 
 function DeliveryFacts({ order }: { order: CustomerOrderDetail }) {
   return (
-    <dl className="order-facts">
-      <div>
-        <dt>Entrega programada</dt>
-        <dd>{formatDateTime(order.delivery.scheduledDeliveryDate)} (hora de Ecuador)</dd>
-      </div>
-      <div>
-        <dt>Recibe</dt>
-        <dd>
-          {order.recipient.name} · {order.recipient.phone}
-        </dd>
-      </div>
-      <div>
-        <dt>Dirección</dt>
-        <dd>
-          {order.delivery.address} · {order.delivery.zoneName}
-        </dd>
-      </div>
-      <div>
-        <dt>Ubicación confirmada</dt>
-        <dd>
-          {order.delivery.location.lat.toFixed(5)}, {order.delivery.location.lng.toFixed(5)}
-        </dd>
-      </div>
-      {order.delivery.notes && (
+    <>
+      <div className="delivery-info">
         <div>
-          <dt>Indicaciones</dt>
-          <dd>{order.delivery.notes}</dd>
+          <h3>Para quién</h3>
+          <p>
+            {order.recipient.name} · {order.recipient.phone}
+          </p>
         </div>
+        <div>
+          <h3>Dónde</h3>
+          <p>
+            {order.delivery.address} · {order.delivery.zoneName}
+          </p>
+          {order.delivery.notes && <p className="delivery-notes">{order.delivery.notes}</p>}
+        </div>
+      </div>
+      {order.delivery.location && (
+        <details className="delivery-coordinates-disclosure">
+          <summary>Ubicación confirmada</summary>
+          <p>
+            {order.delivery.location.lat.toFixed(5)}, {order.delivery.location.lng.toFixed(5)}
+          </p>
+        </details>
       )}
-    </dl>
+    </>
   )
 }
 
@@ -79,7 +184,7 @@ export interface ConfirmationLocationState {
 }
 
 /**
- * 12 · Compra confirmada. Solo muestra éxito con el pedido que devuelve el servidor para esta
+ * 08-result · Compra confirmada. Solo muestra éxito con el pedido que devuelve el servidor para esta
  * cuenta: abrir la ruta a mano con un ID ajeno o inventado no muestra ninguna confirmación.
  */
 export function ConfirmationPage() {
@@ -95,39 +200,65 @@ export function ConfirmationPage() {
   // se quita la marca del historial para que recargar no vacíe un carrito nuevo.
   useEffect(() => {
     if (!justPaid || !confirmed) return
+    checkoutStorage.clear()
     clearCart()
     navigate(pathname, { replace: true, state: null })
   }, [justPaid, confirmed, clearCart, navigate, pathname])
 
   return (
-    <div className="shop-page order-page">
+    <div className="shop-page order-page order-result-page">
       <AsyncContent {...order} onRetry={order.reload} loadingText="Confirmando tu compra...">
         {(data) => (
           <>
-            <section className="confirmation" aria-labelledby="confirmation-title">
-              <h1 id="confirmation-title">¡Compra confirmada!</h1>
-              <p>
-                Pedido <strong>{data.number}</strong> · pago ficticio{' '}
-                <strong>
-                  {data.paymentStatus === 'APPROVED' ? 'aprobado' : data.paymentStatus}
-                </strong>
-              </p>
-              <p className="confirmation__total">
-                Total pagado (incluye IVA simulado): {formatCents(data.totalCents)}
-              </p>
-            </section>
-            <DeliveryFacts order={data} />
-            <h2>Productos</h2>
-            <OrderItems order={data} />
-            <OrderAmounts amounts={data} />
-            <p className="order-page__links">
-              <Link to={shopReceiptPath(data.id)} className="btn btn--primary">
-                Ver comprobante
-              </Link>
-              <Link to={paths.shopOrders} className="btn btn--secondary">
-                Ir a mis pedidos
-              </Link>
-            </p>
+            <ol className="order-result-steps" aria-label="Pasos de la compra">
+              <li>Entrega</li>
+              <li>Pago</li>
+              <li aria-current="step">Resultado</li>
+            </ol>
+            <div className="layout">
+              <section className="result order-panel" aria-labelledby="confirmation-title">
+                <div className="status-art" aria-hidden="true">
+                  <CheckIcon className="icon-check" />
+                </div>
+                <p className="eyebrow order-eyebrow">Resultado del pago</p>
+                <h1 id="confirmation-title">Ya es un detalle nuestro.</h1>
+                <p className="copy">Consulta el resumen y el comprobante de tu pedido.</p>
+                <div className="sample-refs">
+                  <p>
+                    Pedido: <b>{data.number}</b>
+                  </p>
+                  <p>
+                    Pago:{' '}
+                    <b>{data.paymentStatus === 'APPROVED' ? 'aprobado' : data.paymentStatus}</b>
+                  </p>
+                  <p className="confirmation__total">
+                    Total pagado: {formatCents(data.totalCents)}
+                  </p>
+                </div>
+                <DeliveryFacts order={data} />
+                <div className="confirmation-actions links">
+                  <Link
+                    to={shopReceiptPath(data.id)}
+                    className="button primary btn btn--primary"
+                    aria-label="Ver comprobante"
+                  >
+                    Ver comprobante <span aria-hidden="true">→</span>
+                  </Link>
+                  <Link to={paths.shopOrders} className="button btn btn--secondary">
+                    Ir a mis pedidos
+                  </Link>
+                  <Link to={paths.shopCatalog} className="button btn btn--ghost">
+                    Explorar más regalos
+                  </Link>
+                </div>
+              </section>
+              <aside className="summary order-panel" aria-labelledby="confirmation-items-title">
+                <p className="eyebrow order-eyebrow">Tu pedido</p>
+                <h2 id="confirmation-items-title">Tus detalles</h2>
+                <OrderItems order={data} />
+                <OrderAmounts amounts={data} />
+              </aside>
+            </div>
           </>
         )}
       </AsyncContent>
@@ -136,56 +267,139 @@ export function ConfirmationPage() {
   )
 }
 
-/** 08 · Historial de pedidos del cliente, paginado en el servidor. */
+/** 09 · Historial de pedidos del cliente, paginado en el servidor, fila completa de 5 columnas. */
 export function MyOrdersPage() {
   const [page, setPage] = useState(1)
-  const load = useCallback(() => customerOrdersService.list(page), [page])
+  const [status, setStatus] = useState<keyof typeof CUSTOMER_ORDER_STATUS | ''>('')
+  const load = useCallback(
+    () => customerOrdersService.list(page, 10, status || undefined),
+    [page, status],
+  )
   const orders = useFetch(load, 'No se pudieron cargar tus pedidos')
+  const missingPhotoIds = useMemo(
+    () =>
+      (orders.data?.items ?? [])
+        .filter((order) => !order.primaryImageUrl && order.primaryProductId)
+        .map((order) => order.primaryProductId as string),
+    [orders.data],
+  )
+  const loadPhotos = useCallback(
+    () =>
+      missingPhotoIds.length > 0
+        ? loadCheckoutProducts(missingPhotoIds)
+        : Promise.resolve(new Map()),
+    [missingPhotoIds],
+  )
+  const catalogPhotos = useFetch(loadPhotos)
+
+  const handleReset = () => {
+    setStatus('')
+    setPage(1)
+  }
 
   return (
-    <div className="shop-page order-page">
-      <h1>Mis pedidos</h1>
+    <div className="shop-page order-page order-history-page">
+      <nav aria-label="Ruta de navegación" className="breadcrumb">
+        <Link to={paths.shopCatalog}>Inicio</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Mis pedidos</span>
+      </nav>
+      <header className="intro order-page-heading">
+        <p className="eyebrow order-eyebrow">Tu cuenta</p>
+        <h1>Mis pedidos</h1>
+        <p>Tus detalles, desde que los eliges hasta que llegan.</p>
+      </header>
+      <div className="filter-bar">
+        <label htmlFor="order-status">
+          Estado del pedido
+          <select
+            id="order-status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as typeof status)
+              setPage(1)
+            }}
+          >
+            <option value="">Todos los estados</option>
+            {Object.entries(CUSTOMER_ORDER_STATUS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="button" id="reset" type="button" onClick={handleReset}>
+          Limpiar filtros
+        </button>
+      </div>
       <AsyncContent {...orders} onRetry={orders.reload} loadingText="Cargando tus pedidos...">
         {(data) =>
           data.items.length === 0 ? (
-            <div className="cart-empty card">
-              <p className="empty-state">Todavía no tienes pedidos.</p>
-              <Link to={paths.shopCatalog} className="btn btn--primary">
-                Explorar regalos
-              </Link>
+            <div className="empty" id="empty">
+              <h2 id="empty-title">
+                {status ? 'No encontramos pedidos con ese estado' : 'Tu próximo detalle empieza aquí'}
+              </h2>
+              <p id="empty-copy">
+                {status
+                  ? 'Prueba con otro estado o limpia los filtros.'
+                  : 'Aún no tienes pedidos registrados. Encuentra un regalo para una ocasión especial.'}
+              </p>
+              <div className="empty-actions">
+                {status ? (
+                  <Button onClick={handleReset}>Mostrar todos los pedidos</Button>
+                ) : (
+                  <Link to={paths.shopCatalog} className="btn btn--primary">
+                    Explorar regalos
+                  </Link>
+                )}
+              </div>
             </div>
           ) : (
-            <>
-              <ul className="orders-list">
+            <section aria-labelledby="results-heading">
+              <div className="results-bar">
+                <h2 id="results-heading" role="status" aria-live="polite" aria-atomic="true">
+                  {data.total} {data.total === 1 ? 'pedido' : 'pedidos'}
+                </h2>
+                <p>Más recientes primero</p>
+              </div>
+              <ul className="orders" id="orders">
                 {data.items.map((order) => (
-                  <li
-                    key={order.id}
-                    className="card order-card"
-                    aria-label={`Pedido ${order.number}`}
-                  >
-                    <ProductImage
-                      src={order.primaryImageUrl}
-                      alt=""
-                      className="order-card__image"
-                    />
-                    <div className="order-card__body">
-                      <p className="order-card__number">{order.number}</p>
-                      <span className={statusBadgeClass(order.status)}>
+                  <li key={order.id} className="order-item">
+                    <Link
+                      to={shopOrderPath(order.id)}
+                      className="order"
+                      aria-label={`Pedido ${order.number}`}
+                    >
+                      <span className="art">
+                        <ProductImage
+                          src={
+                            order.primaryImageUrl ??
+                            catalogPhotos.data?.get(order.primaryProductId ?? '')?.primaryImageUrl ??
+                            null
+                          }
+                          alt=""
+                          className="order-card__image"
+                        />
+                      </span>
+                      <span className="order-info">
+                        <span className="order-id">{order.number}</span>
+                        <time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time>
+                        <span className="items">
+                          {order.itemsCount} {order.itemsCount === 1 ? 'producto' : 'productos'}
+                        </span>
+                      </span>
+                      <span className={`state ${statusBadgeClass(order.status)}`}>
+                        <OrderStatusIcon status={order.status} />
                         {CUSTOMER_ORDER_STATUS[order.status]}
                       </span>
-                      <p className="text-muted">
-                        Comprado el {formatDateTime(order.createdAt)} · entrega prevista{' '}
-                        {formatDateTime(order.scheduledDeliveryDate)}
-                      </p>
-                      <p>
-                        {order.itemsCount} {order.itemsCount === 1 ? 'producto' : 'productos'} ·{' '}
+                      <span className="amount">
+                        <small>Total · USD</small>
                         <strong>{formatCents(order.totalCents)}</strong>
-                      </p>
-                      <p className="order-page__links">
-                        <Link to={shopOrderPath(order.id)}>Ver detalle y seguimiento</Link>
-                        <Link to={shopReceiptPath(order.id)}>Comprobante</Link>
-                      </p>
-                    </div>
+                      </span>
+                      <span className="arrow" aria-hidden="true">
+                        →
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -195,7 +409,7 @@ export function MyOrdersPage() {
                 total={data.total}
                 onPageChange={setPage}
               />
-            </>
+            </section>
           )
         }
       </AsyncContent>
@@ -203,47 +417,88 @@ export function MyOrdersPage() {
   )
 }
 
-/** 14 · Detalle y seguimiento: solo estados y fechas registrados por el backend, sin GPS. */
+/** 10 · Detalle y seguimiento: banner de entrega, Para quién/Dónde, timeline verificado sin GPS. */
 export function OrderDetailPage() {
   const { id = '' } = useParams()
   const order = useOrder(id)
 
   return (
-    <div className="shop-page order-page">
+    <div className="shop-page order-page order-detail-page">
       <nav aria-label="Ruta de navegación" className="breadcrumb">
-        <ol>
-          <li>
-            <Link to={paths.shopOrders}>Mis pedidos</Link>
-          </li>
-          {order.data && <li aria-current="page">{order.data.number}</li>}
-        </ol>
+        <Link to={paths.shopOrders} className="back">
+          ← Volver a mis pedidos
+        </Link>
       </nav>
       <AsyncContent {...order} onRetry={order.reload} loadingText="Cargando el pedido...">
         {(data) => (
           <>
-            <h1>Pedido {data.number}</h1>
-            <span className={statusBadgeClass(data.status)}>
-              {CUSTOMER_ORDER_STATUS[data.status]}
-            </span>
-            <section aria-labelledby="timeline-title">
-              <h2 id="timeline-title">Seguimiento</h2>
-              <ol className="timeline">
-                {data.timeline.map((entry) => (
-                  <li key={`${entry.code}-${entry.at}`}>
-                    <strong>{entry.label}</strong>
-                    <span className="text-muted"> · {formatDateTime(entry.at)}</span>
-                  </li>
-                ))}
-              </ol>
-              <p className="text-muted">
-                Muestra los cambios registrados por la tienda y el repartidor. No incluye ubicación
-                en tiempo real.
-              </p>
-            </section>
-            <DeliveryFacts order={data} />
-            <h2>Productos</h2>
-            <OrderItems order={data} />
-            <OrderAmounts amounts={data} />
+            <div className="intro order-detail-heading">
+              <div>
+                <p className="eyebrow order-eyebrow">Detalle del pedido</p>
+                <h1 id="order-title" tabIndex={-1}>
+                  Pedido {data.number}
+                </h1>
+                <p className="small">Comprado el {formatDateTime(data.createdAt)}</p>
+              </div>
+              <span className={`badge ${statusBadgeClass(data.status)}`}>
+                <OrderStatusIcon status={data.status} />
+                {CUSTOMER_ORDER_STATUS[data.status]}
+              </span>
+            </div>
+            <div className="layout">
+              <section className="panel order-panel" aria-labelledby="delivery-title">
+                <h2 id="delivery-title">
+                  {data.status === 'DELIVERED'
+                    ? 'Un detalle entregado'
+                    : data.status === 'PENDING'
+                      ? 'Tu detalle se prepara'
+                      : 'Un detalle en camino'}
+                </h2>
+                <div className="delivery-banner" role="region" aria-label="Entrega programada">
+                  <DeliveryVanIcon />
+                  <div>
+                    <strong>
+                      {data.status === 'DELIVERED' ? 'Horario programado' : 'Entrega programada'} ·{' '}
+                      {formatDateTime(data.delivery.scheduledDeliveryDate)}
+                    </strong>
+                    <p className="small">Horario de Ecuador (UTC−05:00)</p>
+                  </div>
+                </div>
+                <DeliveryFacts order={data} />
+                <section aria-labelledby="timeline-heading" role="region">
+                  <h3 id="timeline-heading">Recorrido del pedido</h3>
+                  <ol className="timeline" aria-label="Historial del pedido">
+                    {data.timeline.map((entry, index) => (
+                      <li
+                        key={`${entry.code}-${entry.at}`}
+                        aria-current={index === data.timeline.length - 1 ? 'step' : undefined}
+                      >
+                        <strong>{entry.label}</strong>
+                        <time className="text-muted" dateTime={entry.at}>
+                          {formatDateTime(entry.at)}
+                        </time>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="text-muted small">
+                    Muestra los cambios registrados por la tienda y el repartidor. No incluye
+                    ubicación en tiempo real.
+                  </p>
+                </section>
+                <p className="payment">
+                  <strong>
+                    <CheckIcon className="icon" /> Pago{' '}
+                    {data.paymentStatus === 'APPROVED' ? 'aprobado' : data.paymentStatus}
+                  </strong>
+                  <span>Estado del pago · independiente de la entrega</span>
+                </p>
+              </section>
+              <aside className="panel order-panel" aria-labelledby="order-items-title">
+                <h2 id="order-items-title">Tus detalles</h2>
+                <OrderItems order={data} />
+                <OrderAmounts amounts={data} />
+              </aside>
+            </div>
             <p className="order-page__links">
               <Link to={shopReceiptPath(data.id)} className="btn btn--primary">
                 Ver comprobante
@@ -259,7 +514,7 @@ export function OrderDetailPage() {
   )
 }
 
-/** 13 · Comprobante de demostración, sin validez tributaria; se imprime desde el navegador. */
+/** Comprobante histórico; la decisión de presentación no modifica el snapshot de la API. */
 export function ReceiptPage() {
   const { id = '' } = useParams()
   const loadReceipt = useCallback(() => customerOrdersService.receipt(id), [id])
@@ -267,71 +522,85 @@ export function ReceiptPage() {
   const order = useOrder(id)
 
   return (
-    <div className="shop-page order-page">
+    <div className="shop-page order-page order-receipt-page">
+      <nav aria-label="Ruta de navegación" className="breadcrumb no-print">
+        <Link to={order.data ? shopOrderPath(order.data.id) : paths.shopOrders} className="back">
+          ← Volver al pedido
+        </Link>
+      </nav>
       <AsyncContent {...receipt} onRetry={receipt.reload} loadingText="Cargando el comprobante...">
         {(data) => (
           <article className="receipt" aria-labelledby="receipt-title">
-            <p className="receipt__disclaimer" role="note">
-              {data.disclaimer}
-            </p>
-            <h1 id="receipt-title">Comprobante {data.number}</h1>
-            <dl className="order-facts">
+            <div className="receipt-heading">
               <div>
-                <dt>Emitido</dt>
-                <dd>{formatDateTime(data.issuedAt)}</dd>
+                <p className="eyebrow order-eyebrow">{data.merchantName}</p>
+                <h1 id="receipt-title">Comprobante de compra</h1>
+                <p className="small receipt-id">{data.number}</p>
+                <p className="small">
+                  Emitido el {formatDateTime(data.issuedAt)} · Pago aprobado
+                </p>
+              </div>
+            </div>
+            <div className="delivery-info">
+              <div>
+                <h3>Comercio</h3>
+                <p>{data.merchantName}</p>
               </div>
               <div>
-                <dt>Comercio</dt>
-                <dd>{data.merchantName}</dd>
-              </div>
-              <div>
-                <dt>Comprador</dt>
-                <dd>
+                <h3>Comprador</h3>
+                <p>
                   {data.buyer.name} · {data.buyer.email}
-                </dd>
+                </p>
               </div>
               <div>
-                <dt>Destinatario</dt>
-                <dd>{data.recipient.name}</dd>
+                <h3>Destinatario</h3>
+                <p>{data.recipient.name}</p>
               </div>
               {order.data && (
                 <div>
-                  <dt>Entrega</dt>
-                  <dd>
+                  <h3>Entrega</h3>
+                  <p>
                     {formatDateTime(order.data.delivery.scheduledDeliveryDate)} ·{' '}
                     {order.data.delivery.address}
-                  </dd>
+                  </p>
                 </div>
               )}
               <div>
-                <dt>Pago simulado</dt>
-                <dd>
+                <h3>Pago</h3>
+                <p>
                   {data.payment.reference} · tarjeta terminada en {data.payment.cardLast4}
-                </dd>
+                </p>
               </div>
-            </dl>
-            <table className="table receipt__items">
-              <caption className="visually-hidden">Productos comprados</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Producto</th>
-                  <th scope="col">Cantidad</th>
-                  <th scope="col">Precio unitario</th>
-                  <th scope="col">Importe</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((item) => (
-                  <tr key={item.sku}>
-                    <td>{item.name}</td>
-                    <td>{item.quantity}</td>
-                    <td>{formatCents(item.unitPriceCents)}</td>
-                    <td>{formatCents(item.lineTotalCents)}</td>
+            </div>
+            <div
+              className="receipt-table-scroll"
+              role="region"
+              aria-label="Productos comprados"
+              tabIndex={0}
+            >
+              <table className="table receipt__items">
+                <caption className="visually-hidden">Productos comprados</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Detalle</th>
+                    <th scope="col">Cantidad</th>
+                    <th scope="col">Precio unitario</th>
+                    <th scope="col">Importe</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <dl className="order-amounts">
+                </thead>
+                <tbody>
+                  {data.items.map((item) => (
+                    <tr key={item.sku}>
+                      <td>{item.name}</td>
+                      <td data-label="Cantidad">{item.quantity}</td>
+                      <td data-label="Precio unitario">{formatCents(item.unitPriceCents)}</td>
+                      <td data-label="Importe">{formatCents(item.lineTotalCents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <dl className="order-amounts receipt-totals">
               <div>
                 <dt>Subtotal</dt>
                 <dd>{formatCents(data.subtotalCents)}</dd>
@@ -339,8 +608,8 @@ export function ReceiptPage() {
               <div>
                 <dt>
                   {data.tax.enabled
-                    ? `IVA simulado ${data.tax.ratePercent} % (tasa al comprar)`
-                    : 'IVA simulado desactivado'}
+                    ? `IVA ${data.tax.ratePercent} % (tasa al comprar)`
+                    : 'IVA no aplicado'}
                 </dt>
                 <dd>{formatCents(data.tax.amountCents)}</dd>
               </div>
@@ -348,13 +617,13 @@ export function ReceiptPage() {
                 <dt>Envío</dt>
                 <dd>{formatCents(data.shipping.amountCents)}</dd>
               </div>
-              <div className="cart-summary__total">
+              <div className="cart-summary__total total">
                 <dt>Total</dt>
                 <dd>{formatCents(data.totalCents)}</dd>
               </div>
             </dl>
-            <p className="order-page__links receipt__actions">
-              <Button onClick={() => window.print()}>Imprimir</Button>
+            <p className="order-page__links receipt__actions no-print">
+              <Button onClick={() => window.print()}>Imprimir comprobante</Button>
               <Link to={shopOrderPath(data.orderId)} className="btn btn--secondary">
                 Volver al pedido
               </Link>

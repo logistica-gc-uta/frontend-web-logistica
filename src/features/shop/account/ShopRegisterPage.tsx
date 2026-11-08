@@ -1,4 +1,5 @@
-import { Link, Navigate, useLocation, useNavigate } from 'react-router'
+import { useState } from 'react'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { paths } from '../../../app/paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
@@ -13,17 +14,26 @@ import {
 import { useCustomer } from './customerContext'
 import { customerService } from './customerService'
 import type { CustomerRedirectState } from './RequireCustomer'
+import { safeShopNext } from './shopNext'
+import { AccountGiftArt } from './AccountGiftArt'
+import './account-presentation.css'
 
 const INITIAL: RegisterForm = { name: '', email: '', password: '', confirmation: '' }
 
 /**
  * Registro público del Shop. Envía solo nombre, correo y contraseña (sin rol): el backend crea
- * la cuenta CLIENT. Después lleva al login conservando el paso de compra pendiente.
+ * la cuenta CLIENT. Después inicia sesión y vuelve al paso de compra pendiente.
  */
 export function ShopRegisterPage() {
-  const { customer } = useCustomer()
+  const { customer, login } = useCustomer()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const navigate = useNavigate()
-  const from = (useLocation().state as CustomerRedirectState | null)?.from
+  const [params] = useSearchParams()
+  const location = useLocation()
+  const from = safeShopNext(
+    params.get('next') ?? (location.state as CustomerRedirectState | null)?.from,
+  )
 
   const { values, fieldErrors, submitError, isSubmitting, handleChange, handleSubmit } = useForm({
     initialValues: INITIAL,
@@ -32,67 +42,112 @@ export function ShopRegisterPage() {
     onSubmit: async ({ name, email, password }) => {
       const normalizedEmail = email.trim()
       await customerService.register({ name: name.trim(), email: normalizedEmail, password })
-      const state: CustomerRedirectState = { from, email: normalizedEmail, registered: true }
-      navigate(paths.shopLogin, { replace: true, state })
+      await login({ email: normalizedEmail, password })
+      navigate(from, { replace: true })
     },
   })
 
-  if (customer) return <Navigate to={from ?? paths.shop} replace />
+  if (customer) return <Navigate to={from} replace />
 
   return (
-    <div className="shop-page account-page">
-      <section className="card account-card" aria-labelledby="shop-register-title">
-        <h1 id="shop-register-title">Crear una cuenta</h1>
-        {submitError && <Alert>{submitError}</Alert>}
+    <div className="shop-page account-page account-presentation">
+      <Link to={paths.shopCatalog} className="account__back">
+        ← Volver al catálogo
+      </Link>
+      <div className="account__access">
+        <aside className="account__context" aria-labelledby="account-context-title">
+          <p className="account__eyebrow">Mi cuenta · REGALÍA</p>
+          <h1 id="account-context-title">Un detalle empieza contigo.</h1>
+          <p>Vuelve a tus regalos y continúa con ese detalle especial.</p>
+          <AccountGiftArt />
+          <div className="account__info">
+            <p>Tu carrito te acompaña al iniciar sesión.</p>
+            <p>Consulta tus pedidos y sus detalles desde tu cuenta.</p>
+          </div>
+        </aside>
+        <section className="card account-card" aria-labelledby="shop-register-title">
+          <nav className="account__tabs" aria-label="Acceso de cliente">
+            <Link to={`${paths.shopLogin}${params.toString() ? `?${params}` : ''}`}>Iniciar sesión</Link>
+            <Link to={`${paths.shopRegister}${params.toString() ? `?${params}` : ''}`} aria-current="page">
+              Crear cuenta
+            </Link>
+          </nav>
+          <h2 id="shop-register-title">Tu primer detalle.</h2>
+          <p className="account__lead">Todos los campos son obligatorios.</p>
+          {submitError && <Alert>{submitError}</Alert>}
 
-        <form className="form" onSubmit={handleSubmit} noValidate aria-label="Crear una cuenta">
-          <TextField
-            label="Nombre completo"
-            name="name"
-            autoComplete="name"
-            value={values.name}
-            onChange={handleChange}
-            error={fieldErrors.name}
-          />
-          <TextField
-            label="Correo electrónico"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={values.email}
-            onChange={handleChange}
-            error={fieldErrors.email}
-          />
-          <TextField
-            label={`Contraseña (${PASSWORD_MIN} a ${PASSWORD_MAX} caracteres)`}
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            value={values.password}
-            onChange={handleChange}
-            error={fieldErrors.password}
-          />
-          <TextField
-            label="Confirmar contraseña"
-            name="confirmation"
-            type="password"
-            autoComplete="new-password"
-            value={values.confirmation}
-            onChange={handleChange}
-            error={fieldErrors.confirmation}
-          />
-          <Button type="submit" isLoading={isSubmitting} loadingText="Creando cuenta...">
-            Crear cuenta
-          </Button>
-        </form>
-
-        <p>
-          ¿Ya tienes cuenta?{' '}
-          <Link to={paths.shopLogin} state={{ from } satisfies CustomerRedirectState}>
-            Iniciar sesión
-          </Link>
-        </p>
-      </section>
+          <form className="form" onSubmit={handleSubmit} noValidate aria-label="Crear una cuenta">
+            <TextField
+              label="Nombre completo"
+              name="name"
+              autoComplete="name"
+              required
+              value={values.name}
+              onChange={handleChange}
+              error={fieldErrors.name}
+            />
+            <TextField
+              label="Correo electrónico"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={values.email}
+              onChange={handleChange}
+              error={fieldErrors.email}
+            />
+            <div className="account__password">
+              <TextField
+                id="shop-register-password"
+                label={`Contraseña (${PASSWORD_MIN} a ${PASSWORD_MAX} caracteres)`}
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                value={values.password}
+                onChange={handleChange}
+                error={fieldErrors.password}
+              />
+              <button
+                className="account__reveal"
+                type="button"
+                aria-controls="shop-register-password"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+            <div className="account__password">
+              <TextField
+                id="shop-register-confirmation"
+                label="Confirmar contraseña"
+                name="confirmation"
+                type={showConfirmation ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                value={values.confirmation}
+                onChange={handleChange}
+                error={fieldErrors.confirmation}
+              />
+              <button
+                className="account__reveal"
+                type="button"
+                aria-controls="shop-register-confirmation"
+                aria-label={showConfirmation ? 'Ocultar confirmación' : 'Mostrar confirmación'}
+                aria-pressed={showConfirmation}
+                onClick={() => setShowConfirmation((visible) => !visible)}
+              >
+                {showConfirmation ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+            <Button type="submit" isLoading={isSubmitting} loadingText="Creando cuenta...">
+              Crear cuenta
+            </Button>
+          </form>
+        </section>
+      </div>
     </div>
   )
 }

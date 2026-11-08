@@ -92,6 +92,7 @@ export const orderSummary = (
   status: 'PENDING',
   itemsCount: 2,
   primaryImageUrl: null,
+  primaryProductId: 'p-rosas',
   receiptId: 'comprobante-1',
   ...amounts,
   ...overrides,

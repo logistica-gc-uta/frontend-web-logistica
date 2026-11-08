@@ -25,7 +25,7 @@ function mockApi(
   })
 }
 
-const renderCart = () => renderWithProviders(<App />, { route: '/shop/carrito' })
+const renderCart = () => renderWithProviders(<App />, { route: '/carrito' })
 
 afterEach(() => sessionStorage.clear())
 
@@ -88,16 +88,28 @@ describe('cálculo del resumen estimado', () => {
 })
 
 describe('Shop · carrito', () => {
-  it('06A · vacío: sin líneas, resumen en cero y sin checkout', async () => {
+  it('usa la copia de bolsa del boceto aprobado', async () => {
+    cartStorage.save([{ productId: 'p-rosas', quantity: 1 }])
+    mockApi({ 'p-rosas': ROSES })
+    renderCart()
+
+    expect(await screen.findByRole('heading', { name: 'Tu bolsa de regalos' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Continuar a la entrega/ })).toHaveAttribute(
+      'href',
+      '/checkout',
+    )
+    expect(screen.getByRole('button', { name: 'Quitar Ramo de rosas' })).toBeInTheDocument()
+  })
+
+  it('06A · vacío: sin líneas, sin total en cero y sin checkout', async () => {
     vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
     const { user } = renderCart()
 
-    expect(screen.getByText('Tu carrito está vacío.')).toBeInTheDocument()
-    const summary = screen.getByRole('complementary', { name: 'Resumen estimado' })
-    expect(within(summary).getAllByText(/0,00/)).toHaveLength(4)
-    expect(within(summary).getByRole('button', { name: 'Ir al checkout' })).toBeDisabled()
+    expect(screen.getByRole('heading', { name: 'Tu bolsa espera un detalle.' })).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Resumen estimado' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/0,00/)).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('link', { name: 'Explorar regalos' }))
+    await user.click(screen.getByRole('link', { name: 'Explorar el catálogo' }))
     expect(await screen.findByRole('heading', { name: 'Catálogo de regalos' })).toBeInTheDocument()
   })
 
@@ -110,29 +122,45 @@ describe('Shop · carrito', () => {
     const { user } = renderCart()
 
     const roses = await screen.findByRole('listitem', { name: 'Ramo de rosas' })
-    expect(within(roses).getByText(/Precio unitario actual: \$36,50/)).toBeInTheDocument()
+    expect(within(roses).getByText(/\$36,50 \/ unidad/)).toBeInTheDocument()
     expect(product).toHaveBeenCalledWith('p-rosas')
     const summary = screen.getByRole('complementary', { name: 'Resumen estimado' })
     expect(within(summary).getByText('3')).toBeInTheDocument()
     expect(within(summary).getByText('$83,00')).toBeInTheDocument()
-    expect(within(summary).getByText('IVA simulado 15 %')).toBeInTheDocument()
+    expect(within(summary).getByText('IVA 15 %')).toBeInTheDocument()
+    expect(within(summary).queryByText(/simulado|servidor|checkout\./i)).not.toBeInTheDocument()
     expect(within(summary).getByText('$12,45')).toBeInTheDocument()
     expect(within(summary).getByText('$95,45')).toBeInTheDocument()
-    expect(within(summary).getByText(/Es una estimación/)).toBeInTheDocument()
-    expect(within(summary).getByRole('link', { name: 'Ir al checkout' })).toHaveAttribute(
+    expect(within(summary).getByText(/El total se confirma antes de pagar/)).toBeInTheDocument()
+    expect(within(summary).getByRole('link', { name: /Continuar a la entrega/ })).toHaveAttribute(
       'href',
-      '/shop/checkout',
+      '/checkout',
     )
 
     // La taza tiene 2 en stock: el selector no deja pedir más.
     const mug = screen.getByRole('listitem', { name: 'Taza' })
     await user.click(within(mug).getByRole('button', { name: 'Agregar una unidad de Taza' }))
     expect(within(mug).getByRole('button', { name: 'Agregar una unidad de Taza' })).toBeDisabled()
-    expect(within(mug).getByLabelText('Cantidad de Taza', { selector: 'select' })).toHaveValue('2')
+    expect(within(mug).getByLabelText('Cantidad · Taza', { selector: 'select' })).toHaveValue('2')
 
-    await user.click(within(roses).getByRole('button', { name: /Eliminar/ }))
+    await user.click(within(roses).getByRole('button', { name: 'Quitar Ramo de rosas' }))
     expect(screen.queryByRole('listitem', { name: 'Ramo de rosas' })).not.toBeInTheDocument()
     expect(cartStorage.load()).toEqual([{ productId: 'p-taza', quantity: 2 }])
+  })
+
+  it.each([
+    { enabled: true, rateBps: 1200, ratePercent: 12, label: 'IVA 12 %', amount: '$4,38' },
+    { enabled: false, rateBps: 1500, ratePercent: 15, label: 'IVA', amount: '$0,00' },
+  ])('presenta la configuración real del impuesto: $label', async ({ label, amount, ...tax }) => {
+    cartStorage.save([{ productId: 'p-rosas', quantity: 1 }])
+    mockApi({ 'p-rosas': ROSES }, shopSettings({ tax }))
+    renderCart()
+
+    await screen.findByRole('listitem', { name: 'Ramo de rosas' })
+    const summary = screen.getByRole('complementary', { name: 'Resumen estimado' })
+    const row = within(summary).getByText(label).closest('div')!
+    expect(within(row).getByText(amount)).toBeInTheDocument()
+    expect(within(summary).queryByText(/simulado/)).not.toBeInTheDocument()
   })
 
   it('06B · un regalo agotado o con poco stock se marca, conserva el resto y bloquea el checkout', async () => {
@@ -155,15 +183,15 @@ describe('Shop · carrito', () => {
       'Solo quedan 2 unidades: ajusta la cantidad.',
     )
     expect(screen.getByRole('note')).toHaveTextContent('Corrige o elimina las líneas marcadas')
-    expect(screen.getByRole('button', { name: 'Ir al checkout' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Continuar a la entrega' })).toBeDisabled()
 
     await user.selectOptions(
-      within(mug).getByLabelText('Cantidad de Taza', { selector: 'select' }),
+      within(mug).getByLabelText('Cantidad · Taza', { selector: 'select' }),
       '2',
     )
-    await user.click(within(soldOut).getByRole('button', { name: /Eliminar/ }))
+    await user.click(within(soldOut).getByRole('button', { name: 'Quitar Peluche' }))
 
-    expect(screen.getByRole('link', { name: 'Ir al checkout' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Continuar a la entrega/ })).toBeInTheDocument()
     expect(screen.getByRole('listitem', { name: 'Ramo de rosas' })).toBeInTheDocument()
   })
 
@@ -174,7 +202,7 @@ describe('Shop · carrito', () => {
 
     const line = await screen.findByRole('listitem', { name: 'Regalo no disponible' })
     expect(within(line).getByRole('alert')).toHaveTextContent('ya no está disponible')
-    expect(screen.getByRole('button', { name: 'Ir al checkout' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Continuar a la entrega' })).toBeDisabled()
   })
 
   it('un límite por SKU más bajo, configurado por el ADMIN, se aplica a la línea', async () => {
@@ -196,10 +224,10 @@ describe('Shop · carrito', () => {
     expect(
       await screen.findByText(/No se pudieron revisar los regalos del carrito/),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Ir al checkout' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Continuar a la entrega/ })).not.toBeInTheDocument()
 
     product.mockResolvedValue(ROSES)
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
-    expect(await screen.findByRole('link', { name: 'Ir al checkout' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Continuar a la entrega/ })).toBeInTheDocument()
   })
 })

@@ -10,6 +10,7 @@ import { ProductNotFoundError, shopService } from '../shopService'
 import type { ShopProduct } from '../types'
 import { useCart } from './cartContext'
 import { buildCartView, describeProblem, type CartEstimate, type CartLine } from './cartView'
+import './cart-presentation.css'
 
 /** Viene del checkout o del pago cuando el servidor rechazó por stock (`STOCK_UNAVAILABLE`). */
 export interface CartLocationState {
@@ -41,15 +42,12 @@ function QuantityControl({ line }: { line: CartLine }) {
       <button
         type="button"
         className="btn btn--secondary"
-        aria-label={`Quitar una unidad de ${name}`}
+        aria-label={`Disminuir cantidad de ${name}`}
         disabled={line.quantity <= 1}
         onClick={() => setQuantity(line.productId, Math.min(line.quantity - 1, line.maximum))}
       >
         −
       </button>
-      <label className="visually-hidden" htmlFor={`qty-${line.productId}`}>
-        Cantidad de {name}
-      </label>
       <select
         id={`qty-${line.productId}`}
         className="field__input quantity__select"
@@ -84,11 +82,17 @@ function CartLineItem({ line }: { line: CartLine }) {
 
   return (
     <li className={`cart-line${line.problem ? ' cart-line--problem' : ''}`} aria-label={name}>
-      <ProductImage
-        src={product?.primaryImageUrl ?? null}
-        alt={name}
-        className="cart-line__image"
-      />
+      {product ? (
+        <Link
+          to={shopProductPath(product.id)}
+          className="cart-line__picture"
+          aria-label={`Ver ${name}`}
+        >
+          <ProductImage src={product.primaryImageUrl} alt={name} className="cart-line__image" />
+        </Link>
+      ) : (
+        <ProductImage src={null} alt={name} className="cart-line__image" />
+      )}
       <div className="cart-line__info">
         {product ? (
           <Link to={shopProductPath(product.id)} className="cart-line__name">
@@ -97,29 +101,51 @@ function CartLineItem({ line }: { line: CartLine }) {
         ) : (
           <span className="cart-line__name">{name}</span>
         )}
-        {product && (
-          <p className="text-muted">Precio unitario actual: {formatCents(product.priceCents)}</p>
-        )}
+        {product && <p className="text-muted">{formatCents(product.priceCents)} / unidad</p>}
         {line.problem && (
           <p className="cart-line__problem" role="alert">
             {describeProblem(line.problem)}
           </p>
         )}
-        <div className="cart-line__actions">
-          <QuantityControl line={line} />
-          <Button variant="secondary" onClick={() => removeItem(line.productId)}>
-            Eliminar <span className="visually-hidden">{name}</span>
-          </Button>
-        </div>
+        {line.maximum > 0 && (
+          <label className="quantity-label" htmlFor={`qty-${line.productId}`}>
+            Cantidad · {name}
+          </label>
+        )}
+        <QuantityControl line={line} />
       </div>
-      <p className="cart-line__total">{line.problem ? '—' : formatCents(line.lineTotalCents)}</p>
+      <div className="cart-line__end">
+        <strong className="cart-line__total">
+          {line.problem ? '—' : formatCents(line.lineTotalCents)}
+        </strong>
+        <Button variant="secondary" onClick={() => removeItem(line.productId)}>
+          Quitar <span className="visually-hidden">{name}</span>
+        </Button>
+      </div>
     </li>
+  )
+}
+
+function CartHeading() {
+  return (
+    <header className="cart__heading">
+      <nav aria-label="Ruta de navegación" className="cart__breadcrumb">
+        <Link to={paths.shop}>Inicio</Link>
+        <span aria-hidden="true">/</span>
+        <Link to={paths.shopCatalog}>Catálogo</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Bolsa</span>
+      </nav>
+      <h1>Tu bolsa de regalos</h1>
+      <p>Revisa tus detalles, antes del siguiente paso.</p>
+    </header>
   )
 }
 
 function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canCheckout: boolean }) {
   return (
     <aside className="cart-summary" aria-labelledby="cart-summary-title">
+      <p className="cart__eyebrow">Un vistazo a tus regalos</p>
       <h2 id="cart-summary-title">Resumen estimado</h2>
       <dl>
         <div>
@@ -131,15 +157,11 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
           <dd>{formatCents(estimate.subtotalCents)}</dd>
         </div>
         <div>
-          <dt>Envío</dt>
-          <dd>Envío gratis {formatCents(estimate.shippingCents)}</dd>
+          <dt>Envío incluido</dt>
+          <dd>{formatCents(estimate.shippingCents)}</dd>
         </div>
         <div>
-          <dt>
-            {estimate.taxEnabled
-              ? `IVA simulado ${estimate.taxPercent} %`
-              : 'IVA simulado desactivado'}
-          </dt>
+          <dt>{estimate.taxEnabled ? `IVA ${estimate.taxPercent} %` : 'IVA'}</dt>
           <dd>{formatCents(estimate.taxCents)}</dd>
         </div>
         <div className="cart-summary__total">
@@ -147,31 +169,18 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
           <dd>{formatCents(estimate.totalCents)}</dd>
         </div>
       </dl>
-      <p className="text-muted">
-        Es una estimación con los precios de hoy. El total definitivo lo calcula el servidor al
-        cotizar en el checkout.
-      </p>
+      <p className="text-muted">El total se confirma antes de pagar.</p>
       {canCheckout ? (
         <Link to={paths.shopCheckout} className="btn btn--primary cart-summary__cta">
-          Ir al checkout
+          Continuar a la entrega <span aria-hidden="true">→</span>
         </Link>
       ) : (
         <Button disabled className="cart-summary__cta">
-          Ir al checkout
+          Continuar a la entrega
         </Button>
       )}
     </aside>
   )
-}
-
-const EMPTY_ESTIMATE: CartEstimate = {
-  units: 0,
-  subtotalCents: 0,
-  taxEnabled: true,
-  taxPercent: 0,
-  taxCents: 0,
-  shippingCents: 0,
-  totalCents: 0,
 }
 
 /** Carrito: revalida precio, stock y límite con la API cada vez que se abre. */
@@ -199,20 +208,14 @@ export function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="shop-page cart">
-        <h1>Tu carrito</h1>
-        <div className="cart__layout">
-          <section className="card cart-empty">
-            <p className="empty-state">Tu carrito está vacío.</p>
-            <Link to={paths.shopCatalog} className="btn btn--primary">
-              Explorar regalos
-            </Link>
-          </section>
-          <CartSummary
-            estimate={{ ...EMPTY_ESTIMATE, taxPercent: settings.data?.tax.ratePercent ?? 0 }}
-            canCheckout={false}
-          />
-        </div>
+      <div className="shop-page cart cart-presentation">
+        <CartHeading />
+        <section className="card cart-empty">
+          <h2>Tu bolsa espera un detalle.</h2>
+          <Link to={paths.shopCatalog} className="btn btn--primary">
+            Explorar el catálogo
+          </Link>
+        </section>
       </div>
     )
   }
@@ -220,8 +223,8 @@ export function CartPage() {
   const error = products.error ?? settings.error
 
   return (
-    <div className="shop-page cart">
-      <h1>Tu carrito</h1>
+    <div className="shop-page cart cart-presentation">
+      <CartHeading />
       {stockChanged && (
         <Alert>
           Algunos regalos ya no tienen stock suficiente. Revisa las líneas marcadas antes de
@@ -263,7 +266,9 @@ export function CartPage() {
                 <CartLineItem key={line.productId} line={line} />
               ))}
             </ul>
-            <Link to={paths.shopCatalog}>Seguir comprando</Link>
+            <Link to={paths.shopCatalog} className="cart__back">
+              ← Seguir eligiendo regalos
+            </Link>
           </section>
           <CartSummary estimate={view.estimate} canCheckout={view.canCheckout && !error} />
         </div>

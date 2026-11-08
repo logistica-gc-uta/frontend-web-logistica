@@ -1,0 +1,253 @@
+.shop .account-presentation {
+  align-items: stretch;
+  gap: 16px;
+}
+
+.shop .account-presentation .account__back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 44px;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  text-underline-offset: 4px;
+}
+
+.shop .account-presentation .account__access {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  width: 100%;
+  max-width: 980px;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.shop .account-presentation .account__access > * {
+  min-width: 0;
+}
+
+.shop .account-presentation .account__context {
+  padding: 42px;
+  background: var(--color-accent-soft);
+}
+
+.shop .account-presentation .account__eyebrow {
+  margin: 0 0 14px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.shop .account-presentation .account__context h1 {
+  max-width: 13ch;
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 2.375rem);
+  line-height: 1.2;
+  color: var(--color-heading);
+}
+
+.shop .account-presentation .account__context > p:not(.account__eyebrow) {
+  max-width: 32ch;
+  color: var(--color-muted);
+}
+
+.shop .account-presentation .account__illustration {
+  display: block;
+  width: 100%;
+  max-width: 255px;
+  height: auto;
+  margin: 24px auto;
+}
+
+.shop .account-presentation .account__tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.shop .account-presentation .account__tabs a {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.shop .account-presentation .account__tabs a[aria-current='page'] {
+  border-color: var(--color-muted);
+  background: var(--color-accent-soft);
+  font-weight: 650;
+  color: var(--color-heading);
+}
+
+.shop .account-presentation .account__info {
+  margin-top: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.shop .account-presentation .account__info p {
+  overflow-wrap: anywhere;
+}
+
+.shop .account-presentation .account__info p:last-child {
+  margin-bottom: 0;
+}
+
+.shop .account-presentation .account-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  padding: 32px 38px;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.shop .account-presentation .account-card h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.shop .account-presentation .account__lead {
+  margin: 0 0 24px;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+
+.shop .account-presentation .form {
+  gap: 18px;
+}
+
+.shop .account-presentation .field__label {
+  font-size: 0.875rem;
+}
+
+.shop .account-presentation .field__input {
+  min-width: 0;
+  min-height: 46px;
+  border-color: var(--color-muted);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.shop .account-presentation .field__input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.shop .account-presentation .account__password {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.shop .account-presentation .account__password .field {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+  min-width: 0;
+}
+
+.shop .account-presentation .account__reveal {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: stretch;
+  min-width: 76px;
+  min-height: 46px;
+  padding: 8px;
+  border: 1px solid var(--color-muted);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.shop .account-presentation .account__reveal:hover {
+  background: var(--color-accent-soft);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.shop .account-presentation .form > .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 4px;
+}
+
+.shop .account-presentation :focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 850px) {
+  .shop .account-presentation .account__context,
+  .shop .account-presentation .account-card {
+    padding: 28px;
+  }
+}
+
+@media (max-width: 650px) {
+  .shop .account-presentation .account__access {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shop .account-presentation .account__context,
+  .shop .account-presentation .account-card {
+    padding: 24px;
+  }
+
+  .shop .account-presentation .account__context h1,
+  .shop .account-presentation .account__context > p:not(.account__eyebrow) {
+    max-width: none;
+  }
+
+  .shop .account-presentation .account__illustration {
+    width: 132px;
+    margin: 12px auto;
+  }
+
+  .shop .account-presentation .account__info {
+    margin-top: 0;
+    padding-top: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .shop .account-presentation .account__password {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shop .account-presentation .account__reveal {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: end;
+  }
+}

@@ -1,18 +1,42 @@
-import { useState, type FormEvent } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
-import { Button } from '../../../components/ui/Button'
+import { useFetch } from '../../../hooks/useFetch'
 import { CustomerProvider } from '../account/CustomerProvider'
 import { useCustomer } from '../account/customerContext'
 import { CartProvider } from '../cart/CartProvider'
 import { useCart } from '../cart/cartContext'
 import { catalogSearch } from '../catalogQuery'
+import { shopService } from '../shopService'
+import { shopDocumentTitle } from '../shopTitles'
+import { ShopThemeToggle } from './ShopThemeToggle'
 
 function CartCounter() {
   const { count } = useCart()
+  const label =
+    count === 0 ? 'Carrito' : `Carrito: ${count} ${count === 1 ? 'unidad' : 'unidades'}`
+
   return (
-    <Link to={paths.shopCart} className="shop-header__cart" aria-live="polite">
-      <span aria-hidden="true">🛒</span> Carrito: {count} {count === 1 ? 'unidad' : 'unidades'}
+    <Link to={paths.shopCart} className="shop-header__cart" aria-label={label} aria-live="polite">
+      <svg
+        className="icon"
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        aria-hidden="true"
+      >
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+      {count > 0 ? (
+        <span className="shop-header__cart-count" aria-hidden="true">
+          {count}
+        </span>
+      ) : null}
     </Link>
   )
 }
@@ -21,29 +45,85 @@ function CartCounter() {
 function AccountMenu() {
   const { customer, logout } = useCustomer()
   const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
 
   if (!customer) {
     return (
       <nav aria-label="Cuenta" className="shop-header__account">
-        <Link to={paths.shopLogin}>Ingresar</Link>
-        <Link to={paths.shopRegister}>Crear cuenta</Link>
+        <Link to={paths.shopLogin} className="shop-header__account-link" aria-label="Ingresar a Mi cuenta">
+          <svg
+            className="icon"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            aria-hidden="true"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <span>Mi cuenta</span>
+        </Link>
       </nav>
     )
   }
 
   return (
-    <nav aria-label="Cuenta" className="shop-header__account">
-      <span className="shop-header__customer">Hola, {customer.name}</span>
-      <NavLink to={paths.shopOrders}>Mis pedidos</NavLink>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          logout()
-          navigate(paths.shop)
-        }}
-      >
-        Cerrar sesión
-      </Button>
+    <nav ref={menuRef} aria-label="Cuenta" className="shop-header__account">
+      <div className="shop-header__account-menu">
+        <button
+          type="button"
+          className="shop-header__customer"
+          aria-expanded={open}
+          aria-controls="shop-account-menu"
+          onClick={() => setOpen((current) => !current)}
+        >
+          Hola, {customer.name}
+          <svg className="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        {open ? (
+          <div id="shop-account-menu" className="shop-header__account-panel">
+            <NavLink to={paths.shopAccount} className="shop-header__account-link" onClick={() => setOpen(false)}>
+              Mi cuenta
+            </NavLink>
+            <NavLink to={paths.shopOrders} className="shop-header__account-link" onClick={() => setOpen(false)}>
+              Mis pedidos
+            </NavLink>
+            <button
+              type="button"
+              className="shop-header__account-link shop-header__logout"
+              onClick={() => {
+                setOpen(false)
+                logout()
+                navigate(paths.shop)
+              }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        ) : null}
+      </div>
     </nav>
   )
 }
@@ -63,16 +143,43 @@ function HeaderSearch() {
       <label htmlFor="shop-search-term" className="visually-hidden">
         Buscar regalos
       </label>
+      <svg
+        className="icon shop-search__icon"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </svg>
       <input
         id="shop-search-term"
         type="search"
-        className="field__input"
-        placeholder="Buscar regalos"
+        className="shop-search__input field__input"
+        placeholder="Busca un detalle especial…"
         maxLength={100}
         value={term}
         onChange={(event) => setTerm(event.target.value)}
       />
-      <Button type="submit">Buscar</Button>
+      <button type="submit" className="btn btn--primary shop-search__submit" aria-label="Buscar" title="Buscar">
+        <span className="shop-search__submit-text">Buscar</span>
+        <svg
+          className="icon shop-search__submit-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <path d="M5 12h14m-7-7 7 7-7 7" />
+        </svg>
+      </button>
     </form>
   )
 }
@@ -82,34 +189,85 @@ function HeaderSearch() {
  * accesos ADMIN. La sesión del cliente (CLIENT) es propia del Shop y no abre el panel.
  */
 export function ShopLayout() {
+  const [dark, setDark] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+  const categories = useFetch(shopService.categories, 'No se pudieron cargar las categorías')
+
+  useEffect(() => {
+    document.title = shopDocumentTitle(location.pathname)
+    setMenuOpen(false)
+  }, [location.pathname])
+
   return (
     <CustomerProvider>
       <CartProvider>
-        <div className="shop">
+        <div className="shop" data-theme={dark ? 'dark' : 'light'}>
           <a href="#shop-main" className="skip-link">
             Saltar al contenido
           </a>
           <header className="shop-header">
-            <Link to={paths.shop} className="shop-header__brand">
-              REGALÍA
-            </Link>
-            <nav aria-label="Tienda" className="shop-header__nav">
-              <NavLink to={paths.shop} end className="shop-header__link">
-                Inicio
-              </NavLink>
-              <NavLink to={paths.shopCatalog} className="shop-header__link">
-                Catálogo
-              </NavLink>
-            </nav>
-            <HeaderSearch />
-            <CartCounter />
-            <AccountMenu />
+            <div className="shop-wrap shop-header__top">
+              <Link to={paths.shop} className="shop-header__brand" aria-label="REGALÍA">
+                REGALÍA
+              </Link>
+              <HeaderSearch />
+              <button
+                type="button"
+                className="shop-header__menu-toggle"
+                aria-expanded={menuOpen}
+                aria-controls="shop-occasions"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                {menuOpen ? 'Cerrar menú' : 'Menú'}
+              </button>
+              <ShopThemeToggle dark={dark} onToggle={() => setDark((current) => !current)} />
+              <div className="shop-tools">
+                <AccountMenu />
+                <CartCounter />
+              </div>
+            </div>
+            <div className={`shop-nav-row${menuOpen ? ' is-open' : ''}`}>
+              <div className="shop-wrap shop-nav">
+                <nav id="shop-occasions" aria-label="Ocasiones" className="shop-occasions-nav">
+                  <NavLink to={paths.shop} end className="shop-header__link">
+                    Inicio
+                  </NavLink>
+                  <NavLink to={paths.shopCatalog} end className="shop-header__link">
+                    Todos los regalos
+                  </NavLink>
+                  {categories.data &&
+                    categories.data
+                      .filter((category) => category.productCount > 0)
+                      .slice(0, 5)
+                      .map((category) => (
+                        <NavLink
+                          key={category.id}
+                          to={`${paths.shopCatalog}${catalogSearch({ categoryId: category.id })}`}
+                          className="shop-header__link"
+                        >
+                          {category.name}
+                        </NavLink>
+                      ))}
+                </nav>
+              </div>
+            </div>
           </header>
           <main id="shop-main" className="shop-main">
             <Outlet />
           </main>
           <footer className="shop-footer">
-            <p>Envío gratis — incluido en el precio de cada regalo.</p>
+            <div className="shop-wrap shop-footer__content">
+              <span>REGALÍA · El arte de tener un detalle.</span>
+              <nav aria-label="Pie de página">
+                <Link to={paths.shop}>Inicio</Link>
+                {' · '}
+                <Link to={paths.shopCatalog}>Catálogo</Link>
+                {' · '}
+                <Link to={paths.shopAccount}>Mi cuenta</Link>
+              </nav>
+              <span>Envío gratis incluido en el precio de cada regalo.</span>
+            </div>
           </footer>
         </div>
       </CartProvider>

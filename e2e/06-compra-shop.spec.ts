@@ -35,7 +35,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => admin?.dispose())
 
 async function addToCart(page: Page, quantity = 1) {
-  await page.goto(`/shop/productos/${product.id}`)
+  await page.goto(`/productos/${product.id}`)
   await expect(page.getByRole('heading', { name: product.name, level: 1 })).toBeVisible()
   for (let extra = 1; extra < quantity; extra += 1) {
     await page.getByRole('button', { name: 'Agregar una unidad' }).click()
@@ -80,10 +80,10 @@ test('un visitante compra: se registra, cotiza, un pago se rechaza y el siguient
 
   await test.step('el visitante arma su carrito y al ir a pagar se le pide una cuenta', async () => {
     await addToCart(page, 2)
-    await page.getByRole('link', { name: /Carrito:/ }).click()
+    await page.getByRole('link', { name: /^Carrito/ }).click()
     await expect(page.getByRole('listitem', { name: product.name })).toBeVisible()
     await evidence(page.locator('.cart__layout'), 'e2e-01-carrito', FOLDER)
-    await page.getByRole('link', { name: 'Ir al checkout' }).click()
+    await page.getByRole('link', { name: /Continuar a la entrega/ }).click()
     await expect(page.getByRole('note')).toHaveText(/Inicia sesión o crea una cuenta/)
   })
 
@@ -104,13 +104,11 @@ test('un visitante compra: se registra, cotiza, un pago se rechaza y el siguient
   const form = page.getByRole('form', { name: 'Datos de entrega' })
   await test.step('la hora 17:01 se rechaza; con 17:00 el servidor cotiza', async () => {
     await fillDelivery(form, '17:01')
-    await form.getByRole('button', { name: 'Calcular total' }).click()
     await expect(
       form.getByText('La entrega debe ser entre 07:00 y 17:00 (hora de Ecuador)'),
     ).toBeVisible()
 
     await form.getByLabel('Hora de entrega').fill('17:00')
-    await form.getByRole('button', { name: 'Calcular total' }).click()
     const summary = page.getByRole('region', { name: 'Total a pagar' })
     await expect(summary).toContainText('IVA simulado')
     await expect(summary).toContainText('Envío gratis $0,00')
@@ -147,6 +145,7 @@ test('un visitante compra: se registra, cotiza, un pago se rechaza y el siguient
     await expect(page.getByText(/tarjeta terminada en 0001/)).toBeVisible()
     await evidence(page.locator('.receipt'), 'e2e-05-comprobante', FOLDER)
 
+    await page.getByRole('button', { name: /^Hola,/ }).click()
     await page.getByRole('link', { name: 'Mis pedidos' }).click()
     await expect(page.getByRole('listitem', { name: /^Pedido / })).toHaveCount(1)
     await evidence(page, 'e2e-06-mis-pedidos', FOLDER)
@@ -179,10 +178,9 @@ test('[simulada] 07B · si la respuesta del pago se pierde, verifica el mismo in
   })
 
   await addToCart(page)
-  await page.goto('/shop/checkout')
+  await page.goto('/checkout')
   const form = page.getByRole('form', { name: 'Datos de entrega' })
   await fillDelivery(form, '10:00')
-  await form.getByRole('button', { name: 'Calcular total' }).click()
   await page.getByRole('button', { name: /Continuar al pago/ }).click()
   const payment = page.getByRole('form', { name: 'Pago con tarjeta ficticia' })
   await fillCard(payment, CARDS.approved)

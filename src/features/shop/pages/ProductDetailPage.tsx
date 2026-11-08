@@ -5,6 +5,7 @@ import { AsyncContent } from '../../../components/ui/AsyncContent'
 import { useFetch } from '../../../hooks/useFetch'
 import { catalogSearch } from '../catalogQuery'
 import { AddToCart } from '../components/AddToCart'
+import { ProductCard } from '../components/ProductCard'
 import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { shopService } from '../shopService'
@@ -19,19 +20,23 @@ function Gallery({ product }: { product: ShopProduct }) {
 
   return (
     <div className="gallery">
-      <ProductImage
-        src={selected?.secureUrl ?? product.primaryImageUrl}
-        alt={selected?.altText || product.name}
-        className="gallery__main"
-        eager
-      />
+      <figure className="stage-figure">
+        <div className="stage">
+          <ProductImage
+            src={selected?.secureUrl ?? product.primaryImageUrl}
+            alt={selected?.altText || product.name}
+            className="gallery__main"
+            eager
+          />
+        </div>
+      </figure>
       {product.images.length > 1 && (
-        <ul className="gallery__thumbs" aria-label="Imágenes del regalo">
+        <ul className="thumbnails gallery__thumbs" aria-label="Imágenes del regalo">
           {product.images.map((image, index) => (
             <li key={image.id}>
               <button
                 type="button"
-                className="gallery__thumb"
+                className="thumb gallery__thumb"
                 aria-label={`Ver imagen ${index + 1} de ${product.images.length}`}
                 aria-pressed={image.id === selected?.id}
                 onClick={() => setSelectedId(image.id)}
@@ -48,34 +53,65 @@ function Gallery({ product }: { product: ShopProduct }) {
 
 function ProductDetail({ product }: { product: ShopProduct }) {
   return (
-    <article className="product-detail" aria-labelledby="product-title">
-      <Gallery product={product} />
-      <div className="product-detail__info">
+    <article className="product-layout product-detail" aria-labelledby="product-title">
+      <section aria-label="Galería del regalo">
+        <Gallery product={product} />
+      </section>
+      <div className="product-info product-detail__info">
         {product.category && (
-          <Link
-            className="product-detail__category"
-            to={`${paths.shopCatalog}${catalogSearch({ categoryId: product.category.id })}`}
-          >
-            {product.category.name}
-          </Link>
+          <p className="eyebrow">
+            <Link
+              className="product-detail__category"
+              to={`${paths.shopCatalog}${catalogSearch({ categoryId: product.category.id })}`}
+            >
+              {product.category.name}
+            </Link>
+          </p>
         )}
         <h1 id="product-title">{product.name}</h1>
-        <p className="product-detail__price">{formatCents(product.priceCents)}</p>
-        <p className="product-card__shipping">Envío gratis — incluido en el precio</p>
-        <p className={`badge${product.isAvailable ? ' badge--success' : ' badge--danger'}`}>
+        <p className="description product-detail__description">{product.description}</p>
+        <p className="price product-detail__price">{formatCents(product.priceCents)}</p>
+        <p className="small product-card__shipping">Envío gratis — incluido en el precio</p>
+        <p className={`stock-status badge${product.isAvailable ? ' badge--success' : ' badge--danger'}`}>
           {product.isAvailable ? `Disponible · ${product.stock} en stock` : 'Agotado'}
         </p>
 
         <AddToCart product={product} />
-        <p className="text-muted">
+        <p className="small text-muted">
           El precio y la disponibilidad se confirman al pagar. El IVA se desglosa en el checkout.
         </p>
-
-        <h2>Descripción</h2>
-        {/* Texto plano: React lo escapa, así que una descripción con HTML no se ejecuta. */}
-        <p className="product-detail__description">{product.description}</p>
       </div>
     </article>
+  )
+}
+
+function RelatedProducts({ product, fromSearch }: { product: ShopProduct; fromSearch: string }) {
+  const categoryId = product.category?.id
+  const load = useCallback(
+    () =>
+      shopService.products({
+        page: 1,
+        pageSize: 8,
+        sort: 'featured',
+        categoryId,
+      }),
+    [categoryId],
+  )
+  const related = useFetch(load, 'No se pudieron cargar regalos relacionados')
+  const items = related.data?.items.filter((item) => item.id !== product.id).slice(0, 4) ?? []
+  if (items.length === 0) return null
+
+  return (
+    <section className="related-products" aria-labelledby="related-title">
+      <h2 id="related-title">También te puede gustar</h2>
+      <ul className="products product-grid">
+        {items.map((item) => (
+          <li key={item.id}>
+            <ProductCard product={item} fromSearch={fromSearch} />
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -94,7 +130,7 @@ export function ProductDetailPage() {
   const product = useFetch(loadProduct, 'No se pudo cargar el regalo')
 
   return (
-    <div className="shop-page">
+    <div className="shop-page product-detail-page">
       <nav aria-label="Ruta de navegación" className="breadcrumb">
         <ol>
           <li>
@@ -107,8 +143,21 @@ export function ProductDetailPage() {
         </ol>
       </nav>
 
-      <AsyncContent {...product} onRetry={product.reload} loadingText="Cargando regalo...">
-        {(data) => <ProductDetail product={data} />}
+      <AsyncContent
+        {...product}
+        onRetry={product.reload}
+        loadingText="Cargando regalo..."
+        loading={<div className="shop-skeleton" role="status" aria-label="Cargando regalo" />}
+      >
+        {(data) => (
+          <>
+            <ProductDetail product={data} />
+            {data.category && <RelatedProducts product={data} fromSearch={fromSearch} />}
+            <div className="endnote">
+              <Link to={catalogLink}>← Seguir explorando el catálogo</Link>
+            </div>
+          </>
+        )}
       </AsyncContent>
 
       {product.error && (

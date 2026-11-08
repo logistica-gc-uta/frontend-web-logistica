@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
 import { LocationPicker } from '../../../components/map/LocationPicker'
@@ -10,19 +10,21 @@ import { useFetch } from '../../../hooks/useFetch'
 import { useForm, type FieldErrors } from '../../../hooks/useForm'
 import { todayInGuayaquil } from '../../../lib/time/guayaquil'
 import type { GeoPoint } from '../../../types/geo'
-import { zonesService } from '../../zones/zonesService'
 import { useCustomer } from '../account/customerContext'
 import type { CartLocationState } from '../cart/CartPage'
 import { useCart } from '../cart/cartContext'
+import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { shopService } from '../shopService'
 import type { DeliverySchedule } from '../types'
 import { describeCheckoutError, type CheckoutProblem } from './checkoutErrors'
 import { checkoutService } from './checkoutService'
-import { checkoutStorage, type CheckoutDraft } from './checkoutStorage'
+import { checkoutStorage, sameItems, type CheckoutDraft } from './checkoutStorage'
 import type { DeliveryInput, Quote } from './checkoutTypes'
 import { deliveryInstant, validateDeliverySchedule } from './deliverySchedule'
 import { QuoteSummary } from './QuoteSummary'
+import { loadCheckoutProducts } from './checkoutProducts'
+import './checkout-presentation.css'
 
 /** Llega aquí desde el pago cuando el servidor pidió volver a cotizar. */
 export interface CheckoutLocationState {
@@ -54,6 +56,7 @@ const EMPTY_FORM: DeliveryForm = {
 }
 
 const DEFAULT_MAP_CENTER: GeoPoint = { lat: -1.2417, lng: -78.6197 }
+const QUOTE_DEBOUNCE_MS = 300
 
 /** Formulario a partir de una entrega ya cotizada (para corregirla o volver a cotizar). */
 const formFromDelivery = (delivery: DeliveryInput): DeliveryForm => ({
@@ -106,33 +109,44 @@ function DeliveryStep({
   const { items } = useCart()
   const navigate = useNavigate()
   const requote = (useLocation().state as CheckoutLocationState | null)?.requote
-  const zones = useFetch(zonesService.list, 'No se pudieron cargar las zonas')
+  const zones = useFetch(shopService.zones, 'No se pudieron cargar las zonas')
   const deliverable = (zones.data ?? []).filter((zone) => zone.depotLocation !== null)
 
   const [quote, setQuote] = useState<Quote | null>(null)
+  const [quoting, setQuoting] = useState(false)
   const [problem, setProblem] = useState<CheckoutProblem | null>(requote ?? null)
   const [acceptedChange, setAcceptedChange] = useState(false)
-  // Total aceptado antes (si se vuelve a cotizar, un total distinto exige aceptarlo de nuevo).
-  const previousTotal = draft?.acceptedTotalCents
+  const [liveErrors, setLiveErrors] = useState<FieldErrors<DeliveryForm>>({})
+  const quotedFor = useRef<string | null>(null)
+  // Solo si es la misma bolsa: un pedido nuevo no hereda el total del borrador anterior.
+  const previousTotal =
+    draft && sameItems(draft.items, items) ? draft.acceptedTotalCents : undefined
+
+  const itemIdsKey = useMemo(() => items.map((i) => i.productId).sort().join(','), [items])
+  const fetchProducts = useCallback(
+    () => loadCheckoutProducts(items.map((i) => i.productId)),
+    [itemIdsKey, items],
+  )
+  const productsQuery = useFetch(fetchProducts)
+  const products = productsQuery.data
+
+  const estimatedSubtotal = useMemo(() => {
+    if (!products) return 0
+    return items.reduce((sum, item) => {
+      const price = products.get(item.productId)?.priceCents ?? 0
+      return sum + price * item.quantity
+    }, 0)
+  }, [items, products])
+  const hasSubtotal =
+    products !== undefined &&
+    items.length > 0 &&
+    items.every((i) => products.get(i.productId)?.priceCents !== undefined)
 
   const form = useForm({
     initialValues: draft ? formFromDelivery(draft.delivery) : EMPTY_FORM,
     validate: (values) => validate(values, schedule),
     errorMessage: 'No se pudo calcular el total',
-    onSubmit: async (values) => {
-      setProblem(null)
-      setAcceptedChange(false)
-      try {
-        setQuote(await checkoutService.quote(items, toDelivery(values)))
-      } catch (error) {
-        const found = describeCheckoutError(error)
-        if (found.action === 'cart') {
-          navigate(paths.shopCart, { state: { stockChanged: true } satisfies CartLocationState })
-          return
-        }
-        setProblem(found)
-      }
-    },
+    onSubmit: async () => undefined,
   })
 
   // Cualquier cambio en la entrega invalida la cotización: hay que volver a calcular.
@@ -146,6 +160,7 @@ function DeliveryStep({
   }
 
   const { values, fieldErrors } = form
+  const shownErrors: FieldErrors<DeliveryForm> = { ...liveErrors, ...fieldErrors }
   const depot = deliverable.find((zone) => zone.id === values.zoneId)?.depotLocation ?? null
   const unavailable = quote?.items.some((line) => !line.available) ?? false
   const totalChanged =
@@ -172,6 +187,56 @@ function DeliveryStep({
     navigate(paths.shopPayment)
   }
 
+  useEffect(() => {
+    const errors = validate(values, schedule)
+    const started = Boolean(
+      values.recipientName.trim() ||
+        values.zoneId ||
+        values.address.trim() ||
+        values.date ||
+        values.time ||
+        values.location,
+    )
+    if (Object.keys(errors).length > 0) {
+      quotedFor.current = null
+      setQuoting(false)
+      setLiveErrors(started && (values.date !== '' || values.time !== '') ? errors : {})
+      return
+    }
+    setLiveErrors({})
+    const payloadKey = JSON.stringify({ items, delivery: toDelivery(values) })
+    if (quotedFor.current === payloadKey) return
+
+    let cancelled = false
+    setQuoting(true)
+    const timer = window.setTimeout(async () => {
+      setProblem(null)
+      setAcceptedChange(false)
+      try {
+        const next = await checkoutService.quote(items, toDelivery(values))
+        if (cancelled) return
+        quotedFor.current = payloadKey
+        setQuote(next)
+      } catch (error) {
+        if (cancelled) return
+        quotedFor.current = null
+        setQuote(null)
+        const found = describeCheckoutError(error)
+        if (found.action === 'cart') {
+          navigate(paths.shopCart, { state: { stockChanged: true } satisfies CartLocationState })
+          return
+        }
+        setProblem(found)
+      } finally {
+        if (!cancelled) setQuoting(false)
+      }
+    }, QUOTE_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [values, items, schedule, navigate])
+
   return (
     <div className="checkout__layout">
       <form
@@ -183,15 +248,15 @@ function DeliveryStep({
         {problem && <Alert>{problem.message}</Alert>}
         {form.submitError && <Alert>{form.submitError}</Alert>}
 
-        <fieldset className="items-editor">
-          <legend>Quién recibe</legend>
+        <fieldset className="items-editor checkout-form__recipient">
+          <legend>¿Quién recibe?</legend>
           <TextField
             label="Nombre de quien recibe"
             name="recipientName"
             autoComplete="name"
             value={values.recipientName}
             onChange={handleChange}
-            error={fieldErrors.recipientName}
+            error={shownErrors.recipientName}
           />
           <TextField
             label="Teléfono de contacto"
@@ -200,17 +265,17 @@ function DeliveryStep({
             autoComplete="tel"
             value={values.recipientPhone}
             onChange={handleChange}
-            error={fieldErrors.recipientPhone}
+            error={shownErrors.recipientPhone}
           />
         </fieldset>
 
         <fieldset className="items-editor">
-          <legend>Dónde</legend>
+          <legend>Dirección de entrega</legend>
           <SelectField
             label="Zona"
             name="zoneId"
             value={values.zoneId}
-            error={fieldErrors.zoneId ?? zones.error ?? undefined}
+            error={shownErrors.zoneId ?? zones.error ?? undefined}
             // La ubicación confirmada pertenece a la zona anterior: hay que ubicarla de nuevo.
             onChange={(event) =>
               change({ zoneId: event.target.value, location: null, locationConfirmed: false })
@@ -229,7 +294,7 @@ function DeliveryStep({
             autoComplete="street-address"
             value={values.address}
             onChange={handleChange}
-            error={fieldErrors.address}
+            error={shownErrors.address}
           />
           <LocationPicker
             center={depot ?? DEFAULT_MAP_CENTER}
@@ -238,15 +303,14 @@ function DeliveryStep({
             isConfirmed={values.locationConfirmed}
             onChange={(location) => change({ location, locationConfirmed: false })}
             onConfirm={() => change({ locationConfirmed: true })}
-            error={fieldErrors.location}
+            error={shownErrors.location}
           />
         </fieldset>
 
         <fieldset className="items-editor">
-          <legend>Cuándo · Horario de Ecuador (Ambato)</legend>
+          <legend>¿Cuándo entregamos?</legend>
           <p className="text-muted">
-            Entregas de {schedule.startTime} a {schedule.endTime}, hora de Ecuador, sin importar el
-            huso horario de tu equipo.
+            Entregas de {schedule.startTime} a {schedule.endTime} · hora de Ecuador.
           </p>
           <div className="checkout-form__when">
             <TextField
@@ -256,7 +320,7 @@ function DeliveryStep({
               min={todayInGuayaquil()}
               value={values.date}
               onChange={handleChange}
-              error={fieldErrors.date}
+              error={shownErrors.date}
             />
             <TextField
               label="Hora de entrega"
@@ -266,7 +330,7 @@ function DeliveryStep({
               max={schedule.endTime}
               value={values.time}
               onChange={handleChange}
-              error={fieldErrors.time}
+              error={shownErrors.time}
             />
           </div>
           <TextField
@@ -274,19 +338,16 @@ function DeliveryStep({
             name="notes"
             value={values.notes}
             onChange={handleChange}
-            error={fieldErrors.notes}
+            error={shownErrors.notes}
           />
         </fieldset>
 
-        <Button type="submit" isLoading={form.isSubmitting} loadingText="Calculando...">
-          Calcular total
-        </Button>
       </form>
 
       <div className="checkout__aside">
         {quote ? (
           <>
-            <QuoteSummary quote={quote} />
+            <QuoteSummary quote={quote} products={products} />
             {unavailable && (
               <Alert>
                 Algún regalo ya no tiene stock suficiente.{' '}
@@ -314,10 +375,62 @@ function DeliveryStep({
             </Button>
           </>
         ) : (
-          <p className="cart-summary text-muted">
-            Completa la entrega y pulsa «Calcular total»: el servidor calcula el subtotal, el IVA
-            simulado y el total definitivo.
-          </p>
+          <aside className="cart-summary checkout__unquoted" aria-label="Resumen del pedido">
+            <p className="checkout__eyebrow">Tu pedido</p>
+            <h2>Resumen de compra</h2>
+            <ul className="checkout__unquoted-items">
+              {items.map((item) => {
+                const product = products?.get(item.productId)
+                const name = product?.name ?? 'Regalo en tu selección'
+                const price = product?.priceCents
+                return (
+                  <li key={item.productId} className="checkout__unquoted-item">
+                    <ProductImage
+                      src={product?.primaryImageUrl ?? null}
+                      alt={name}
+                      className="checkout__unquoted-image"
+                    />
+                    <div className="checkout__unquoted-details">
+                      <strong>{name}</strong>
+                      <span className="text-muted">
+                        Cantidad {item.quantity}
+                        {price !== undefined && price > 0 ? ` · ${formatCents(price)} c/u` : ''}
+                      </span>
+                    </div>
+                    {price !== undefined && price > 0 ? (
+                      <b className="money">{formatCents(price * item.quantity)}</b>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+            <dl>
+              <div>
+                <dt>Subtotal estimado</dt>
+                <dd>{hasSubtotal ? formatCents(estimatedSubtotal) : 'Por calcular'}</dd>
+              </div>
+              <div>
+                <dt>Envío</dt>
+                <dd>Incluido en el precio</dd>
+              </div>
+              <div className="cart-summary__total">
+                <dt>Total</dt>
+                <dd>Total al confirmar la entrega</dd>
+              </div>
+            </dl>
+            {quoting ? (
+              <p role="status">Calculando el total...</p>
+            ) : (
+              <p className="text-muted">Completa la entrega para consultar el total de tu pedido.</p>
+            )}
+            <div className="checkout__actions">
+              <Link to={paths.shopCart} className="btn btn--secondary">
+                ← Ver bolsa
+              </Link>
+            </div>
+          </aside>
         )}
       </div>
     </div>
@@ -334,8 +447,22 @@ export function CheckoutPage() {
   if (items.length === 0) return <Navigate to={paths.shopCart} replace />
 
   return (
-    <div className="shop-page checkout">
-      <h1>Checkout: datos de entrega</h1>
+    <div className="shop-page checkout checkout-presentation checkout-presentation--delivery">
+      <nav aria-label="Pasos de compra">
+        <ol className="checkout__steps steps">
+          <li aria-current="step">
+            <span className="step-number" aria-hidden="true">1</span>Entrega
+          </li>
+          <li>
+            <span className="step-number" aria-hidden="true">2</span>Pago
+          </li>
+          <li>
+            <span className="step-number" aria-hidden="true">3</span>Resultado
+          </li>
+        </ol>
+      </nav>
+      <h1>Un lugar para la sorpresa.</h1>
+      <p className="checkout__intro">Cuéntanos dónde y cuándo entregar tu detalle.</p>
       {settings.error && (
         <Alert>
           <span>{settings.error}.</span>{' '}

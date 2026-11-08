@@ -8,6 +8,7 @@ interface AsyncContentProps<T> {
   error: string | null
   onRetry: () => void
   loadingText?: string
+  loading?: ReactNode
   children: (data: T) => ReactNode
 }
 
@@ -21,6 +22,7 @@ export function AsyncContent<T>({
   error,
   onRetry,
   loadingText = 'Cargando...',
+  loading,
   children,
 }: AsyncContentProps<T>) {
   if (error) {
@@ -36,9 +38,11 @@ export function AsyncContent<T>({
 
   if (data === undefined) {
     return isLoading ? (
-      <p role="status" className="empty-state">
-        {loadingText}
-      </p>
+      (loading ?? (
+        <p role="status" className="empty-state">
+          {loadingText}
+        </p>
+      ))
     ) : null
   }
 
