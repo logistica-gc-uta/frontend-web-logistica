@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../../app/App'
 import {
@@ -10,8 +10,10 @@ import {
 } from '../../../test/checkoutFixtures'
 import { createHttpError, createHttpResponse } from '../../../test/http'
 import { renderWithProviders } from '../../../test/renderWithProviders'
+import { shopProduct } from '../../../test/shopFixtures'
 import { customerApiClient } from '../account/customerApiClient'
 import { cartStorage } from '../cart/cartStorage'
+import { shopService } from '../shopService'
 import { customerOrdersService, ORDER_NOT_FOUND_MESSAGE } from './customerOrdersService'
 
 const renderShop = (route: string) => renderWithProviders(<App />, { route })
@@ -48,7 +50,7 @@ describe('Shop · confirmación', () => {
     renderShop('/shop/confirmacion/ajeno')
 
     expect(await screen.findByText('No se pudo cargar el pedido')).toBeInTheDocument()
-    expect(screen.queryByText('¡Compra confirmada!')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ya es un detalle nuestro.')).not.toBeInTheDocument()
     expect(cartStorage.load(customer.id)).toHaveLength(1)
   })
 
@@ -56,7 +58,7 @@ describe('Shop · confirmación', () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
     renderShop('/shop/confirmacion/pedido-1')
 
-    expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
     expect(screen.getByText('RG-2030-0001')).toBeInTheDocument()
     expect(screen.getByText('aprobado')).toBeInTheDocument()
     expect(screen.getByText(/Total pagado: \$83,95/)).toBeInTheDocument()
@@ -68,6 +70,20 @@ describe('Shop · confirmación', () => {
       '/shop/mis-pedidos/pedido-1/comprobante',
     )
     expect(screen.queryByText(/9000/)).not.toBeInTheDocument()
+  })
+
+  it('si el pedido no congeló foto, muestra la del catálogo dentro del recuadro', async () => {
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
+    vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
+    renderShop('/shop/confirmacion/pedido-1')
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'Ramo de rosas' })).toHaveAttribute(
+        'src',
+        shopProduct().primaryImageUrl,
+      )
+    })
+    expect(screen.queryByText('Imagen no disponible')).not.toBeInTheDocument()
   })
 })
 
@@ -97,6 +113,24 @@ describe('Shop · mis pedidos', () => {
     expect(secondLink).toHaveAttribute('href', '/shop/mis-pedidos/pedido-2')
     expect(within(secondLink).getByText('En camino')).toBeInTheDocument()
     expect(within(secondLink).getByText('$11,49')).toBeInTheDocument()
+  })
+
+  it('si el listado no trae foto, muestra la del catálogo en la miniatura', async () => {
+    vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
+      items: [orderSummary()],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+    })
+    vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
+    renderShop('/shop/mis-pedidos')
+
+    const row = await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
+    await waitFor(() => {
+      expect(row.querySelector('img')).toHaveAttribute('src', shopProduct().primaryImageUrl)
+    })
+    expect(within(row).queryByText('Imagen no disponible')).not.toBeInTheDocument()
   })
 
   it('filtro horizontal con botón para limpiar filtros que reinicia estado y página', async () => {
@@ -234,7 +268,7 @@ describe('Shop · comprobante de compra', () => {
     expect(screen.getByText(/PAY-DEMO-1 · tarjeta terminada en 0001/)).toBeInTheDocument()
     expect(await screen.findByText(/Av. Cevallos y Montalvo/)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Imprimir' }))
+    await user.click(screen.getByRole('button', { name: 'Imprimir comprobante' }))
     expect(print).toHaveBeenCalled()
     expect(screen.queryByText(receipt().disclaimer)).not.toBeInTheDocument()
   })

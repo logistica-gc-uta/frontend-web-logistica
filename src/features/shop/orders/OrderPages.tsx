@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import './orders-presentation.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { paths, shopOrderPath, shopProductPath, shopReceiptPath } from '../../../app/paths'
@@ -8,6 +8,8 @@ import { Pagination } from '../../../components/ui/Pagination'
 import { useFetch } from '../../../hooks/useFetch'
 import { formatDateTime } from '../../../lib/format/formatDateTime'
 import { useCart } from '../cart/cartContext'
+import { loadCheckoutProducts } from '../checkout/checkoutProducts'
+import { checkoutStorage } from '../checkout/checkoutStorage'
 import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { customerOrdersService, type CustomerOrderDetail } from './customerOrdersService'
@@ -107,12 +109,29 @@ function OrderStatusIcon({ status }: { status: keyof typeof CUSTOMER_ORDER_STATU
 }
 
 function OrderItems({ order }: { order: CustomerOrderDetail }) {
+  const missingPhotoIds = useMemo(
+    () => order.items.filter((item) => !item.imageUrl).map((item) => item.productId),
+    [order.items],
+  )
+  const loadPhotos = useCallback(
+    () =>
+      missingPhotoIds.length > 0
+        ? loadCheckoutProducts(missingPhotoIds)
+        : Promise.resolve(new Map()),
+    [missingPhotoIds],
+  )
+  const catalogPhotos = useFetch(loadPhotos)
+
   return (
     <ul className="order-items items">
       {order.items.map((item) => (
         <li key={item.productId} className="item">
           <Link to={shopProductPath(item.productId)} aria-label={`Ver ${item.name}`}>
-            <ProductImage src={item.imageUrl} alt="" className="order-items__image" />
+            <ProductImage
+              src={item.imageUrl ?? catalogPhotos.data?.get(item.productId)?.primaryImageUrl ?? null}
+              alt={item.name}
+              className="order-items__image"
+            />
           </Link>
           <div className="item-info">
             <strong className="item-name">
@@ -181,6 +200,7 @@ export function ConfirmationPage() {
   // se quita la marca del historial para que recargar no vacíe un carrito nuevo.
   useEffect(() => {
     if (!justPaid || !confirmed) return
+    checkoutStorage.clear()
     clearCart()
     navigate(pathname, { replace: true, state: null })
   }, [justPaid, confirmed, clearCart, navigate, pathname])
@@ -190,13 +210,18 @@ export function ConfirmationPage() {
       <AsyncContent {...order} onRetry={order.reload} loadingText="Confirmando tu compra...">
         {(data) => (
           <>
+            <ol className="order-result-steps" aria-label="Pasos de la compra">
+              <li>Entrega</li>
+              <li>Pago</li>
+              <li aria-current="step">Resultado</li>
+            </ol>
             <div className="layout">
               <section className="result order-panel" aria-labelledby="confirmation-title">
                 <div className="status-art" aria-hidden="true">
                   <CheckIcon className="icon-check" />
                 </div>
                 <p className="eyebrow order-eyebrow">Resultado del pago</p>
-                <h1 id="confirmation-title">¡Compra confirmada!</h1>
+                <h1 id="confirmation-title">Ya es un detalle nuestro.</h1>
                 <p className="copy">Consulta el resumen y el comprobante de tu pedido.</p>
                 <div className="sample-refs">
                   <p>
@@ -251,6 +276,21 @@ export function MyOrdersPage() {
     [page, status],
   )
   const orders = useFetch(load, 'No se pudieron cargar tus pedidos')
+  const missingPhotoIds = useMemo(
+    () =>
+      (orders.data?.items ?? [])
+        .filter((order) => !order.primaryImageUrl && order.primaryProductId)
+        .map((order) => order.primaryProductId as string),
+    [orders.data],
+  )
+  const loadPhotos = useCallback(
+    () =>
+      missingPhotoIds.length > 0
+        ? loadCheckoutProducts(missingPhotoIds)
+        : Promise.resolve(new Map()),
+    [missingPhotoIds],
+  )
+  const catalogPhotos = useFetch(loadPhotos)
 
   const handleReset = () => {
     setStatus('')
@@ -332,7 +372,11 @@ export function MyOrdersPage() {
                     >
                       <span className="art">
                         <ProductImage
-                          src={order.primaryImageUrl}
+                          src={
+                            order.primaryImageUrl ??
+                            catalogPhotos.data?.get(order.primaryProductId ?? '')?.primaryImageUrl ??
+                            null
+                          }
                           alt=""
                           className="order-card__image"
                         />
@@ -443,7 +487,7 @@ export function OrderDetailPage() {
                 </section>
                 <p className="payment">
                   <strong>
-                    ✓ Pago{' '}
+                    <CheckIcon className="icon" /> Pago{' '}
                     {data.paymentStatus === 'APPROVED' ? 'aprobado' : data.paymentStatus}
                   </strong>
                   <span>Estado del pago · independiente de la entrega</span>
@@ -579,7 +623,7 @@ export function ReceiptPage() {
               </div>
             </dl>
             <p className="order-page__links receipt__actions no-print">
-              <Button onClick={() => window.print()}>Imprimir</Button>
+              <Button onClick={() => window.print()}>Imprimir comprobante</Button>
               <Link to={shopOrderPath(data.orderId)} className="btn btn--secondary">
                 Volver al pedido
               </Link>

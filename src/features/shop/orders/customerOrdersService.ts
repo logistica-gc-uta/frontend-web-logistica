@@ -21,6 +21,7 @@ export interface CustomerOrderSummary extends OrderAmounts {
   status: OrderStatus
   itemsCount: number
   primaryImageUrl: string | null
+  primaryProductId: string | null
   receiptId: string
 }
 
