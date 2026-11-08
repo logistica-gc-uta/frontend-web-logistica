@@ -115,10 +115,11 @@ describe('Shop · carrito', () => {
     const summary = screen.getByRole('complementary', { name: 'Resumen estimado' })
     expect(within(summary).getByText('3')).toBeInTheDocument()
     expect(within(summary).getByText('$83,00')).toBeInTheDocument()
-    expect(within(summary).getByText('IVA simulado 15 %')).toBeInTheDocument()
+    expect(within(summary).getByText('IVA 15 %')).toBeInTheDocument()
+    expect(within(summary).queryByText(/simulado|servidor|checkout\./i)).not.toBeInTheDocument()
     expect(within(summary).getByText('$12,45')).toBeInTheDocument()
     expect(within(summary).getByText('$95,45')).toBeInTheDocument()
-    expect(within(summary).getByText(/Es una estimación/)).toBeInTheDocument()
+    expect(within(summary).getByText(/El total se confirma antes de pagar/)).toBeInTheDocument()
     expect(within(summary).getByRole('link', { name: 'Ir al checkout' })).toHaveAttribute(
       'href',
       '/shop/checkout',
@@ -133,6 +134,21 @@ describe('Shop · carrito', () => {
     await user.click(within(roses).getByRole('button', { name: /Eliminar/ }))
     expect(screen.queryByRole('listitem', { name: 'Ramo de rosas' })).not.toBeInTheDocument()
     expect(cartStorage.load()).toEqual([{ productId: 'p-taza', quantity: 2 }])
+  })
+
+  it.each([
+    { enabled: true, rateBps: 1200, ratePercent: 12, label: 'IVA 12 %', amount: '$4,38' },
+    { enabled: false, rateBps: 1500, ratePercent: 15, label: 'IVA', amount: '$0,00' },
+  ])('presenta la configuración real del impuesto: $label', async ({ label, amount, ...tax }) => {
+    cartStorage.save([{ productId: 'p-rosas', quantity: 1 }])
+    mockApi({ 'p-rosas': ROSES }, shopSettings({ tax }))
+    renderCart()
+
+    await screen.findByRole('listitem', { name: 'Ramo de rosas' })
+    const summary = screen.getByRole('complementary', { name: 'Resumen estimado' })
+    const row = within(summary).getByText(label).closest('div')!
+    expect(within(row).getByText(amount)).toBeInTheDocument()
+    expect(within(summary).queryByText(/simulado/)).not.toBeInTheDocument()
   })
 
   it('06B · un regalo agotado o con poco stock se marca, conserva el resto y bloquea el checkout', async () => {
