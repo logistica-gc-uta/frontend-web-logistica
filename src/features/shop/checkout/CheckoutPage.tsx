@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
 import { LocationPicker } from '../../../components/map/LocationPicker'
@@ -14,6 +14,7 @@ import { zonesService } from '../../zones/zonesService'
 import { useCustomer } from '../account/customerContext'
 import type { CartLocationState } from '../cart/CartPage'
 import { useCart } from '../cart/cartContext'
+import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { shopService } from '../shopService'
 import type { DeliverySchedule } from '../types'
@@ -23,6 +24,8 @@ import { checkoutStorage, type CheckoutDraft } from './checkoutStorage'
 import type { DeliveryInput, Quote } from './checkoutTypes'
 import { deliveryInstant, validateDeliverySchedule } from './deliverySchedule'
 import { QuoteSummary } from './QuoteSummary'
+import { loadCheckoutProducts } from './checkoutProducts'
+import './checkout-presentation.css'
 
 /** Llega aquí desde el pago cuando el servidor pidió volver a cotizar. */
 export interface CheckoutLocationState {
@@ -115,6 +118,26 @@ function DeliveryStep({
   // Total aceptado antes (si se vuelve a cotizar, un total distinto exige aceptarlo de nuevo).
   const previousTotal = draft?.acceptedTotalCents
 
+  const itemIdsKey = useMemo(() => items.map((i) => i.productId).sort().join(','), [items])
+  const fetchProducts = useCallback(
+    () => loadCheckoutProducts(items.map((i) => i.productId)),
+    [itemIdsKey, items],
+  )
+  const productsQuery = useFetch(fetchProducts)
+  const products = productsQuery.data
+
+  const estimatedSubtotal = useMemo(() => {
+    if (!products) return 0
+    return items.reduce((sum, item) => {
+      const price = products.get(item.productId)?.priceCents ?? 0
+      return sum + price * item.quantity
+    }, 0)
+  }, [items, products])
+  const hasSubtotal =
+    products !== undefined &&
+    items.length > 0 &&
+    items.every((i) => products.get(i.productId)?.priceCents !== undefined)
+
   const form = useForm({
     initialValues: draft ? formFromDelivery(draft.delivery) : EMPTY_FORM,
     validate: (values) => validate(values, schedule),
@@ -183,8 +206,8 @@ function DeliveryStep({
         {problem && <Alert>{problem.message}</Alert>}
         {form.submitError && <Alert>{form.submitError}</Alert>}
 
-        <fieldset className="items-editor">
-          <legend>Quién recibe</legend>
+        <fieldset className="items-editor checkout-form__recipient">
+          <legend>¿Quién recibe?</legend>
           <TextField
             label="Nombre de quien recibe"
             name="recipientName"
@@ -205,7 +228,7 @@ function DeliveryStep({
         </fieldset>
 
         <fieldset className="items-editor">
-          <legend>Dónde</legend>
+          <legend>Dirección de entrega</legend>
           <SelectField
             label="Zona"
             name="zoneId"
@@ -243,10 +266,9 @@ function DeliveryStep({
         </fieldset>
 
         <fieldset className="items-editor">
-          <legend>Cuándo · Horario de Ecuador (Ambato)</legend>
+          <legend>¿Cuándo entregamos?</legend>
           <p className="text-muted">
-            Entregas de {schedule.startTime} a {schedule.endTime}, hora de Ecuador, sin importar el
-            huso horario de tu equipo.
+            Entregas de {schedule.startTime} a {schedule.endTime} · hora de Ecuador.
           </p>
           <div className="checkout-form__when">
             <TextField
@@ -286,7 +308,7 @@ function DeliveryStep({
       <div className="checkout__aside">
         {quote ? (
           <>
-            <QuoteSummary quote={quote} />
+            <QuoteSummary quote={quote} products={products} />
             {unavailable && (
               <Alert>
                 Algún regalo ya no tiene stock suficiente.{' '}
@@ -314,10 +336,58 @@ function DeliveryStep({
             </Button>
           </>
         ) : (
-          <p className="cart-summary text-muted">
-            Completa la entrega y pulsa «Calcular total»: el servidor calcula el subtotal, el IVA
-            simulado y el total definitivo.
-          </p>
+          <aside className="cart-summary checkout__unquoted" aria-label="Resumen del pedido">
+            <p className="checkout__eyebrow">Tu pedido</p>
+            <h2>Resumen de compra</h2>
+            <ul className="checkout__unquoted-items">
+              {items.map((item) => {
+                const product = products?.get(item.productId)
+                const name = product?.name ?? 'Regalo en tu selección'
+                const price = product?.priceCents
+                return (
+                  <li key={item.productId} className="checkout__unquoted-item">
+                    <ProductImage
+                      src={product?.primaryImageUrl ?? null}
+                      alt={name}
+                      className="checkout__unquoted-image"
+                    />
+                    <div className="checkout__unquoted-details">
+                      <strong>{name}</strong>
+                      <span className="text-muted">
+                        Cantidad {item.quantity}
+                        {price !== undefined && price > 0 ? ` · ${formatCents(price)} c/u` : ''}
+                      </span>
+                    </div>
+                    {price !== undefined && price > 0 ? (
+                      <b className="money">{formatCents(price * item.quantity)}</b>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+            <dl>
+              <div>
+                <dt>Subtotal estimado</dt>
+                <dd>{hasSubtotal ? formatCents(estimatedSubtotal) : 'Por calcular'}</dd>
+              </div>
+              <div>
+                <dt>Envío</dt>
+                <dd>Incluido en el precio</dd>
+              </div>
+              <div className="cart-summary__total">
+                <dt>Total</dt>
+                <dd>Total al confirmar la entrega</dd>
+              </div>
+            </dl>
+            <p className="text-muted">Completa la entrega para consultar el total de tu pedido.</p>
+            <div className="checkout__actions">
+              <Link to={paths.shopCart} className="btn btn--secondary">
+                ← Ver bolsa
+              </Link>
+            </div>
+          </aside>
         )}
       </div>
     </div>
@@ -334,8 +404,22 @@ export function CheckoutPage() {
   if (items.length === 0) return <Navigate to={paths.shopCart} replace />
 
   return (
-    <div className="shop-page checkout">
-      <h1>Checkout: datos de entrega</h1>
+    <div className="shop-page checkout checkout-presentation checkout-presentation--delivery">
+      <nav aria-label="Pasos de compra">
+        <ol className="checkout__steps steps">
+          <li aria-current="step">
+            <span className="step-number" aria-hidden="true">1</span>Entrega
+          </li>
+          <li>
+            <span className="step-number" aria-hidden="true">2</span>Pago
+          </li>
+          <li>
+            <span className="step-number" aria-hidden="true">3</span>Resultado
+          </li>
+        </ol>
+      </nav>
+      <h1>Un lugar para la sorpresa.</h1>
+      <p className="checkout__intro">Cuéntanos dónde y cuándo entregar tu detalle.</p>
       {settings.error && (
         <Alert>
           <span>{settings.error}.</span>{' '}

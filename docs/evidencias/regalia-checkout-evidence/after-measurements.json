@@ -1,0 +1,321 @@
+{
+  "mode": "isolated API doubles; public catalog photo data",
+  "records": [
+    {
+      "screen": "delivery",
+      "viewport": 2551,
+      "pageWidth": 2551,
+      "checkoutWidth": 1280,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "TotalTotal al confirmar la entrega"
+    },
+    {
+      "screen": "quoted",
+      "viewport": 2551,
+      "pageWidth": 2551,
+      "checkoutWidth": 1280,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "payment",
+      "viewport": 2551,
+      "pageWidth": 2551,
+      "checkoutWidth": 1280,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "delivery",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "checkoutWidth": 1280,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "TotalTotal al confirmar la entrega"
+    },
+    {
+      "screen": "quoted",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "checkoutWidth": 1280,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "payment",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "checkoutWidth": 1280,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "delivery",
+      "viewport": 768,
+      "pageWidth": 768,
+      "checkoutWidth": 704,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "TotalTotal al confirmar la entrega"
+    },
+    {
+      "screen": "quoted",
+      "viewport": 768,
+      "pageWidth": 768,
+      "checkoutWidth": 704,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "payment",
+      "viewport": 768,
+      "pageWidth": 768,
+      "checkoutWidth": 704,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "delivery",
+      "viewport": 390,
+      "pageWidth": 390,
+      "checkoutWidth": 358,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "TotalTotal al confirmar la entrega"
+    },
+    {
+      "screen": "quoted",
+      "viewport": 390,
+      "pageWidth": 390,
+      "checkoutWidth": 358,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "payment",
+      "viewport": 390,
+      "pageWidth": 390,
+      "checkoutWidth": 358,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "delivery",
+      "viewport": 320,
+      "pageWidth": 320,
+      "checkoutWidth": 288,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "TotalTotal al confirmar la entrega"
+    },
+    {
+      "screen": "quoted",
+      "viewport": 320,
+      "pageWidth": 320,
+      "checkoutWidth": 288,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    },
+    {
+      "screen": "payment",
+      "viewport": 320,
+      "pageWidth": 320,
+      "checkoutWidth": 288,
+      "photos": [
+        {
+          "src": "https://picsum.photos/seed/regalia1/800/800",
+          "alt": "Caja navideña deluxe",
+          "fit": "contain",
+          "loaded": true
+        },
+        {
+          "src": "https://picsum.photos/seed/regalia2/800/800",
+          "alt": "Set de regalo navideño",
+          "fit": "contain",
+          "loaded": true
+        }
+      ],
+      "total": "Total$89,70"
+    }
+  ],
+  "unexpected": []
+}

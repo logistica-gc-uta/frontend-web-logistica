@@ -51,6 +51,7 @@ beforeEach(() => {
   signInCustomer()
   cartStorage.save([{ productId: 'p-rosas', quantity: 2 }], customer.id)
   vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
+  vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
   vi.spyOn(zonesService, 'list').mockResolvedValue(zones)
 })
 
@@ -117,6 +118,36 @@ describe('horario de entrega (Ecuador)', () => {
 })
 
 describe('Shop · checkout', () => {
+  it('conserva la foto real al calcular sin cambiar los importes de la cotización', async () => {
+    const quoted = quote()
+    vi.spyOn(checkoutService, 'quote').mockResolvedValue(quoted)
+    const beforeDraft = checkoutStorage.load(customer.id)
+    const { user, form } = await openCheckout()
+    const original = await screen.findByRole('img', { name: 'Ramo de rosas' })
+    expect(original).toHaveAttribute('src', shopProduct().primaryImageUrl)
+    await fillDelivery(form, user)
+    await user.click(form.getByRole('button', { name: 'Calcular total' }))
+
+    const summary = await screen.findByRole('region', { name: 'Total a pagar' })
+    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
+      .toHaveAttribute('src', shopProduct().primaryImageUrl)
+    expect(within(summary).getByText('$83,95')).toBeInTheDocument()
+    expect(within(summary).getAllByText('$73,00')).toHaveLength(2)
+    expect(within(summary).getByText('$10,95')).toBeInTheDocument()
+    expect(cartStorage.load(customer.id)).toEqual([{ productId: 'p-rosas', quantity: 2 }])
+    expect(checkoutStorage.load(customer.id)).toEqual(beforeDraft)
+  })
+
+  it('presenta la entrega como primer paso sin explicaciones técnicas en el resumen vacío', async () => {
+    await openCheckout()
+
+    expect(screen.getByRole('heading', { name: 'Un lugar para la sorpresa.' })).toBeInTheDocument()
+    const steps = screen.getByRole('navigation', { name: 'Pasos de compra' })
+    expect(within(steps).getByText('Entrega')).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByText('Completa la entrega para consultar el total de tu pedido.')).toBeInTheDocument()
+    expect(screen.queryByText(/IVA simulado/)).not.toBeInTheDocument()
+  })
+
   it('pide los datos de entrega y no cotiza si faltan', async () => {
     const quoteCall = vi.spyOn(checkoutService, 'quote')
     const { user, form } = await openCheckout()
@@ -153,7 +184,9 @@ describe('Shop · checkout', () => {
     const summary = await screen.findByRole('region', { name: 'Total a pagar' })
     // Línea y subtotal: $73,00 cada uno.
     expect(within(summary).getAllByText('$73,00')).toHaveLength(2)
-    expect(within(summary).getByText('IVA simulado 15 %')).toBeInTheDocument()
+    expect(within(summary).getByText('IVA 15 %')).toBeInTheDocument()
+    expect(within(summary).queryByText(/ficticio|simulado|impuesto oficial/)).not.toBeInTheDocument()
+    expect(within(summary).getByText(/Total vigente hasta las/)).toBeInTheDocument()
     expect(within(summary).getByText('$10,95')).toBeInTheDocument()
     expect(within(summary).getByText('Envío gratis $0,00')).toBeInTheDocument()
     expect(within(summary).getByText('$83,95')).toBeInTheDocument()
@@ -161,7 +194,9 @@ describe('Shop · checkout', () => {
     vi.spyOn(checkoutService, 'attempt')
     await user.click(screen.getByRole('button', { name: 'Continuar al pago · $83,95' }))
 
-    expect(await screen.findByRole('heading', { name: 'Pago', level: 1 })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: /El último paso|Pago/, level: 1 }),
+    ).toBeInTheDocument()
     expect(checkoutStorage.load(customer.id)).toEqual(
       expect.objectContaining({ acceptedTotalCents: 8395, quote: quote() }),
     )
@@ -270,5 +305,19 @@ describe('Shop · checkout', () => {
     cartStorage.save([], customer.id)
     renderCheckout()
     expect(await screen.findByText('Tu carrito está vacío.')).toBeInTheDocument()
+  })
+
+  it('muestra el resumen no cotizado con los productos reales del carrito y la leyenda aprobada', async () => {
+    await openCheckout()
+
+    expect(screen.getByRole('group', { name: '¿Cuándo entregamos?' })).toBeInTheDocument()
+    const aside = screen.getByRole('complementary', { name: 'Resumen del pedido' })
+    expect(within(aside).getByText('Ramo de rosas')).toBeInTheDocument()
+    expect(within(aside).getByText(/Cantidad 2/)).toBeInTheDocument()
+    expect(within(aside).getByText('Total al confirmar la entrega')).toBeInTheDocument()
+    expect(within(aside).getByRole('link', { name: '← Ver bolsa' })).toHaveAttribute(
+      'href',
+      '/shop/carrito',
+    )
   })
 })

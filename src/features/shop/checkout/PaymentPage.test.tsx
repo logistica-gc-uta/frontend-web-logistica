@@ -39,7 +39,7 @@ afterEach(() => {
 
 async function openPayment() {
   const view = renderWithProviders(<App />, { route: '/shop/pago' })
-  const form = within(await screen.findByRole('form', { name: 'Pago con tarjeta ficticia' }))
+  const form = within(await screen.findByRole('form', { name: 'Pago con tarjeta' }))
   return { ...view, form }
 }
 
@@ -68,23 +68,92 @@ const allStoredText = () =>
   ].join('|')
 
 describe('Shop · pago ficticio', () => {
-  it('advierte que son tarjetas de demostración y muestra el total del servidor', async () => {
+  it('recupera las fotos por ID al abrir pago con una cotización guardada', async () => {
+    const lookup = vi.mocked(shopService.product).mockResolvedValue(shopProduct({
+      name: 'Nombre actual del catálogo',
+      priceCents: 99999,
+    }))
     await openPayment()
+    const summary = screen.getByRole('region', { name: 'Resumen del pago' })
+    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
+      .toHaveAttribute('src', shopProduct().primaryImageUrl)
+    expect(lookup).toHaveBeenCalledWith('p-rosas')
+    expect(within(summary).getByText('$83,95')).toBeInTheDocument()
+    expect(within(summary).queryByText('Nombre actual del catálogo')).not.toBeInTheDocument()
+    expect(checkoutStorage.load(customer.id)).toEqual(checkoutDraft())
+  })
 
+  it('la falta de metadatos de imagen no bloquea una cotización válida', async () => {
+    vi.mocked(shopService.product).mockRejectedValue(new Error('Imagen no disponible'))
+    await openPayment()
+    const summary = screen.getByRole('region', { name: 'Resumen del pago' })
+    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
+      .toHaveTextContent('Imagen no disponible')
+    expect(within(summary).getByText('$83,95')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar pago · $83,95' })).toBeEnabled()
+    expect(checkoutStorage.load(customer.id)).toEqual(checkoutDraft())
+  })
+
+  it('simulador deshabilitado: conserva pedido y cotización sin fingir aprobación', async () => {
+    const pay = vi.spyOn(checkoutService, 'pay')
+      .mockRejectedValue(shopError(503, 'PAYMENT_SIMULATION_DISABLED'))
+    const attempt = vi.spyOn(checkoutService, 'attempt')
+    const { user, form } = await openPayment()
+    await fillCard(form, user)
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'El simulador de pagos no está habilitado en este momento. No se hizo ningún cobro.',
+    )
+    expect(pay).toHaveBeenCalledTimes(1)
+    expect(attempt).not.toHaveBeenCalled()
+    expect(cartStorage.load(customer.id)).toEqual([{ productId: 'p-rosas', quantity: 2 }])
+    expect(checkoutStorage.load(customer.id)).toEqual(checkoutDraft())
+    expect(screen.queryByText('¡Compra confirmada!')).not.toBeInTheDocument()
+    expect(form.getByLabelText('CVV')).toHaveValue('')
+  })
+
+  it('presenta el pago y conserva la ayuda de tarjetas dentro del desplegable', async () => {
+    const { user } = await openPayment()
+
+    expect(screen.getByRole('heading', { name: 'Tarjeta', level: 2 })).toBeInTheDocument()
+    const steps = screen.getByRole('navigation', { name: 'Pasos de compra' })
+    expect(within(steps).getByText('Pago')).toHaveAttribute('aria-current', 'step')
+    const help = screen.getByText('Ayuda con tarjetas de prueba')
+    expect(help.closest('details')).not.toHaveAttribute('open')
+    await user.click(help)
     expect(screen.getByRole('note')).toHaveTextContent(
       'Solo tarjetas ficticias de demostración. No ingreses datos bancarios reales.',
     )
     const summary = screen.getByRole('region', { name: 'Resumen del pago' })
     expect(within(summary).getByText('$83,95')).toBeInTheDocument()
-    expect(within(summary).getByText('IVA simulado 15 %')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Pagar $83,95' })).toBeEnabled()
+    expect(within(summary).getByText('IVA 15 %')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar pago · $83,95' })).toBeEnabled()
+  })
+
+  it('muestra la entrega y los importes actuales de la cotización, incluso sin IVA', async () => {
+    const draft = checkoutDraft()
+    draft.quote = {
+      ...draft.quote,
+      tax: { enabled: false, rateBps: 0, ratePercent: 0, amountCents: 0 },
+      totalCents: 7300,
+      settingsVersion: 9,
+    }
+    checkoutStorage.save(draft)
+    await openPayment()
+
+    expect(screen.getByText(draft.delivery.recipient.name)).toBeInTheDocument()
+    expect(screen.getByText(draft.delivery.deliveryAddress)).toBeInTheDocument()
+    const summary = screen.getByRole('region', { name: 'Resumen del pago' })
+    expect(within(summary).getByText('IVA no aplicado')).toBeInTheDocument()
+    expect(within(summary).getByText(/Total vigente hasta las/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar pago · $73,00' })).toBeEnabled()
   })
 
   it('valida la tarjeta antes de enviar', async () => {
     const pay = vi.spyOn(checkoutService, 'pay')
     const { user, form } = await openPayment()
     await user.type(form.getByLabelText('Número de tarjeta'), '1234')
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
     expect(
       form.getByText('Escribe los 16 dígitos de la tarjeta de demostración'),
@@ -101,7 +170,7 @@ describe('Shop · pago ficticio', () => {
     const { user, form } = await openPayment()
     await fillCard(form, user)
 
-    await user.dblClick(form.getByRole('button', { name: /Pagar/ }))
+    await user.dblClick(form.getByRole('button', { name: /Confirmar pago/ }))
     expect(pay).toHaveBeenCalledTimes(1)
     const [key, body] = pay.mock.calls[0]
     expect(key).toMatch(/^[0-9a-f-]{36}$/)
@@ -138,7 +207,7 @@ describe('Shop · pago ficticio', () => {
       .mockResolvedValueOnce(checkoutSuccess)
     const { user, form } = await openPayment()
     await fillCard(form, user, '9000 0000 0000 0003', '333')
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
     expect(
       await screen.findByText(
@@ -152,7 +221,7 @@ describe('Shop · pago ficticio', () => {
     expect(screen.queryByText('¡Compra confirmada!')).not.toBeInTheDocument()
 
     await fillCard(form, user)
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
     expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
     expect(pay.mock.calls[1][0]).not.toBe(pay.mock.calls[0][0])
   })
@@ -164,7 +233,7 @@ describe('Shop · pago ficticio', () => {
     vi.spyOn(checkoutService, 'pay').mockRejectedValue(shopError(422, code))
     const { user, form } = await openPayment()
     await fillCard(form, user)
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
     expect(await screen.findByText(message)).toBeInTheDocument()
   })
 
@@ -174,10 +243,10 @@ describe('Shop · pago ficticio', () => {
       vi.spyOn(checkoutService, 'pay').mockRejectedValue(shopError(409, code))
       const { user, form } = await openPayment()
       await fillCard(form, user)
-      await user.click(form.getByRole('button', { name: /Pagar/ }))
+      await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
       expect(
-        await screen.findByRole('heading', { name: 'Checkout: datos de entrega' }),
+        await screen.findByRole('heading', { name: 'Un lugar para la sorpresa.' }),
       ).toBeInTheDocument()
       expect(await screen.findByRole('alert')).toHaveTextContent(/total/)
     },
@@ -187,7 +256,7 @@ describe('Shop · pago ficticio', () => {
     vi.spyOn(checkoutService, 'pay').mockRejectedValue(shopError(409, 'STOCK_UNAVAILABLE'))
     const { user, form } = await openPayment()
     await fillCard(form, user)
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
     expect(await screen.findByText(/no se hizo ningún cobro/)).toBeInTheDocument()
     expect(cartStorage.load(customer.id)).toHaveLength(1)
@@ -202,7 +271,7 @@ describe('Shop · pago ficticio', () => {
     })
     const { user, form } = await openPayment()
     await fillCard(form, user)
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
     expect(await screen.findByRole('heading', { name: '¡Compra confirmada!' })).toBeInTheDocument()
     expect(attempt).toHaveBeenCalledWith(pay.mock.calls[0][0])
@@ -219,10 +288,12 @@ describe('Shop · pago ficticio', () => {
     })
     const { user, form } = await openPayment()
     await fillCard(form, user)
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
     expect(await screen.findByText('Verificando el resultado del pago...')).toBeInTheDocument()
-    expect(form.getByRole('button', { name: /Pagar/ })).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('No vuelvas a pagar')
+    expect(screen.queryByRole('link', { name: 'Volver a entrega' })).not.toBeInTheDocument()
+    expect(form.getByRole('button', { name: /Confirmar pago/ })).toBeDisabled()
     expect(screen.queryByText(/rechazado/)).not.toBeInTheDocument()
     await vi.advanceTimersByTimeAsync(12_000)
     const again = await screen.findByRole('button', { name: 'Consultar de nuevo' })
@@ -231,7 +302,7 @@ describe('Shop · pago ficticio', () => {
     attempt.mockResolvedValue({ status: 'REJECTED', orderId: null, errorCode: 'CARD_EXPIRED' })
     await user.click(again)
     expect(await screen.findByText('Pago rechazado: la tarjeta está vencida.')).toBeInTheDocument()
-    expect(form.getByRole('button', { name: /Pagar/ })).toBeEnabled()
+    expect(form.getByRole('button', { name: /Confirmar pago/ })).toBeEnabled()
   })
 
   it('07B · si el intento no llegó a registrarse, se informa que no hubo cobro y se puede reintentar', async () => {
@@ -241,12 +312,12 @@ describe('Shop · pago ficticio', () => {
     )
     const { user, form } = await openPayment()
     await fillCard(form, user)
-    await user.click(form.getByRole('button', { name: /Pagar/ }))
+    await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
     expect(
       await screen.findByText(/no llegó a registrarse y no se hizo ningún cobro/),
     ).toBeInTheDocument()
-    expect(form.getByRole('button', { name: /Pagar/ })).toBeEnabled()
+    expect(form.getByRole('button', { name: /Confirmar pago/ })).toBeEnabled()
   })
 
   it('al recargar con un pago en curso verifica ese intento en lugar de cobrar otra vez', async () => {
@@ -272,5 +343,20 @@ describe('Shop · pago ficticio', () => {
     expect(
       await screen.findByText('El carrito cambió. Vuelve a calcular el total.'),
     ).toBeInTheDocument()
+  })
+
+  it('presenta el encabezado aprobado El último paso. y enlaces de retorno a la entrega', async () => {
+    await openPayment()
+
+    expect(screen.getByRole('heading', { name: 'El último paso.', level: 1 })).toBeInTheDocument()
+    const steps = screen.getByRole('navigation', { name: 'Pasos de compra' })
+    expect(within(steps).getByRole('link', { name: /Entrega/ })).toHaveAttribute(
+      'href',
+      '/shop/checkout',
+    )
+    expect(screen.getByRole('link', { name: '← Volver a entrega' })).toHaveAttribute(
+      'href',
+      '/shop/checkout',
+    )
   })
 })

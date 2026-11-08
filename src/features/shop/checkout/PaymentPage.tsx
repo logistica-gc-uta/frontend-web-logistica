@@ -1,11 +1,12 @@
 import axios from 'axios'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 import { paths, shopConfirmationPath } from '../../../app/paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { TextField } from '../../../components/ui/TextField'
 import type { FieldErrors } from '../../../hooks/useForm'
+import { formatDateTime } from '../../../lib/format/formatDateTime'
 import { useCustomer } from '../account/customerContext'
 import type { CartLocationState } from '../cart/CartPage'
 import { useCart } from '../cart/cartContext'
@@ -18,6 +19,7 @@ import { checkoutService } from './checkoutService'
 import { checkoutStorage, sameItems, type CheckoutDraft } from './checkoutStorage'
 import type { ConfirmationLocationState } from '../orders/OrderPages'
 import { QuoteSummary } from './QuoteSummary'
+import './checkout-presentation.css'
 
 /** Consultas automáticas mientras el intento sigue `PROCESSING`; luego se ofrece consultar a mano. */
 const AUTO_CHECKS = 5
@@ -180,10 +182,20 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
   return (
     <div className="checkout__layout">
       <section aria-labelledby="payment-title">
-        <h2 id="payment-title">Tarjeta de demostración</h2>
-        <p className="payment__warning" role="note">
-          Solo tarjetas ficticias de demostración. No ingreses datos bancarios reales.
-        </p>
+        <div className="payment__delivery">
+          <div>
+            <p className="checkout__eyebrow">Entrega</p>
+            <p>
+              <strong>{draft.delivery.recipient.name}</strong>
+            </p>
+            <p>{draft.delivery.deliveryAddress}</p>
+            <p className="text-muted">
+              {formatDateTime(draft.delivery.scheduledDeliveryDate)} · Ecuador
+            </p>
+          </div>
+          {!locked && <Link to={paths.shopCheckout}>Volver a entrega</Link>}
+        </div>
+        <h2 id="payment-title">Tarjeta</h2>
 
         {phase.kind === 'verifying' ? (
           <div className="payment__verifying" role="status">
@@ -210,7 +222,7 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
 
         <form
           className="form payment-form"
-          aria-label="Pago con tarjeta ficticia"
+          aria-label="Pago con tarjeta"
           noValidate
           onSubmit={pay}
         >
@@ -266,13 +278,17 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
               isLoading={phase.kind === 'paying'}
               loadingText="Procesando pago..."
             >
-              Pagar {formatCents(draft.quote.totalCents)}
+              Confirmar pago · {formatCents(draft.quote.totalCents)}
             </Button>
           </fieldset>
         </form>
 
         <details className="payment__demo-cards">
-          <summary>Tarjetas de demostración disponibles</summary>
+          <summary>Ayuda con tarjetas de prueba</summary>
+          <p className="payment__warning" role="note">
+            Solo tarjetas ficticias de demostración. No ingreses datos bancarios reales.
+          </p>
+          <p className="text-muted">Los saldos indicados son iniciales, no garantizan la aprobación.</p>
           <ul>
             {DEMO_CARDS.map((demo) => (
               <li key={demo.number}>
@@ -281,14 +297,16 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
             ))}
           </ul>
         </details>
+
+        {!locked && (
+          <Link to={paths.shopCheckout} className="payment__back">
+            ← Volver a entrega
+          </Link>
+        )}
       </section>
 
       <div className="checkout__aside">
         <QuoteSummary quote={draft.quote} title="Resumen del pago" />
-        <p className="text-muted">
-          Entrega para {draft.delivery.recipient.name}. El saldo de la tarjeta lo valida el
-          servidor.
-        </p>
       </div>
     </div>
   )
@@ -310,8 +328,24 @@ export function PaymentPage() {
   }
 
   return (
-    <div className="shop-page checkout">
-      <h1>Pago</h1>
+    <div className="shop-page checkout checkout-presentation checkout-presentation--payment">
+      <nav aria-label="Pasos de compra">
+        <ol className="checkout__steps steps">
+          <li>
+            <Link to={paths.shopCheckout} className="checkout__step-link">
+              <span className="step-number" aria-hidden="true">1</span>Entrega
+            </Link>
+          </li>
+          <li aria-current="step">
+            <span className="step-number" aria-hidden="true">2</span>Pago
+          </li>
+          <li>
+            <span className="step-number" aria-hidden="true">3</span>Resultado
+          </li>
+        </ol>
+      </nav>
+      <h1>El último paso.</h1>
+      <p className="checkout__intro">Revisa tu entrega y completa los datos de pago.</p>
       <PaymentStep draft={draft} />
     </div>
   )
