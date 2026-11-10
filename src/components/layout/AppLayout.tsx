@@ -4,6 +4,8 @@ import { navGroups } from '../../app/navigation'
 import { paths } from '../../app/paths'
 import { useAuth } from '../../features/auth/useAuth'
 import { Button } from '../ui/Button'
+import { AdminThemeToggle } from './AdminThemeToggle'
+import { useAdminTheme } from './adminTheme'
 
 /**
  * Estructura común de las páginas autenticadas: barra lateral con menú y usuario, y contenido.
@@ -12,25 +14,32 @@ import { Button } from '../ui/Button'
 export function AppLayout() {
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { dark, toggle } = useAdminTheme()
   const closeMenu = () => setMenuOpen(false)
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={dark ? 'dark' : 'light'}>
+      <a href="#admin-main" className="app-skip">
+        Saltar al contenido
+      </a>
       <header className="app-header" data-open={menuOpen}>
         <div className="app-header__bar">
           <Link to={paths.home} className="brand" onClick={closeMenu}>
             <span className="brand__name">REGALÍA</span>
             <span className="brand__system">Logística</span>
           </Link>
-          <Button
-            variant="secondary"
-            className="app-header__toggle"
-            aria-expanded={menuOpen}
-            aria-controls="app-menu"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? 'Cerrar menú' : 'Menú'}
-          </Button>
+          <div className="app-header__tools">
+            <AdminThemeToggle dark={dark} onToggle={toggle} />
+            <Button
+              variant="secondary"
+              className="app-header__toggle"
+              aria-expanded={menuOpen}
+              aria-controls="app-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? 'Cerrar menú' : 'Menú'}
+            </Button>
+          </div>
         </div>
         <div id="app-menu" className="app-header__panel">
           <nav aria-label="Principal" className="app-nav">
@@ -55,14 +64,14 @@ export function AppLayout() {
             })}
           </nav>
           <div className="app-header__user">
-            <span>{user?.name}</span>
+            <span>Hola, {user?.name}</span>
             <Button variant="secondary" onClick={logout}>
               Cerrar sesión
             </Button>
           </div>
         </div>
       </header>
-      <div className="app-content">
+      <div id="admin-main" className="app-content">
         <Outlet />
       </div>
     </div>

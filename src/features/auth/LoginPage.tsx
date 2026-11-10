@@ -8,12 +8,15 @@ import { RouteIllustration } from './RouteIllustration'
 import { validateLogin } from './loginValidation'
 import type { LoginRedirectState } from './ProtectedRoute'
 import type { LoginCredentials } from './types'
+import { AdminThemeToggle } from '../../components/layout/AdminThemeToggle'
+import { useAdminTheme } from '../../components/layout/adminTheme'
 import { useAuth } from './useAuth'
 
 const INITIAL_VALUES: LoginCredentials = { email: '', password: '' }
 
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth()
+  const { dark, toggle } = useAdminTheme()
   const navigate = useNavigate()
   const location = useLocation()
   const redirectTo = (location.state as LoginRedirectState | null)?.from ?? paths.home
@@ -33,7 +36,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-page" data-theme={dark ? 'dark' : 'light'}>
       <div className="auth-hero">
         <p className="brand auth-hero__brand">
           <span className="brand__name">REGALÍA</span>
@@ -45,6 +48,9 @@ export function LoginPage() {
         </p>
       </div>
       <section className="auth-card">
+        <div className="auth-card__toolbar">
+          <AdminThemeToggle dark={dark} onToggle={toggle} />
+        </div>
         <h1>Iniciar sesión</h1>
         <p className="text-muted">Panel administrativo de logística</p>
 

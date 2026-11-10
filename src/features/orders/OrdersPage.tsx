@@ -10,6 +10,7 @@ import { OrderForm } from './OrderForm'
 import { ordersService } from './ordersService'
 import { OrdersTable } from './OrdersTable'
 import type { OrdersQuery } from './types'
+import '../../styles/orders-admin.css'
 
 const PAGE_SIZE = 10
 
@@ -49,17 +50,25 @@ export function OrdersPage() {
   }
 
   return (
-    <main className="page">
-      <h1>Pedidos</h1>
-      <p className="text-muted">
-        Registra pedidos con su fecha, dirección y ubicación confirmada en el mapa, y consulta los
-        pedidos existentes.
-      </p>
+    <main className="page orders-admin">
+      <header className="orders-admin__head">
+        <p className="dashboard__eyebrow">REGALÍA · Logística</p>
+        <h1>Pedidos</h1>
+        <p className="text-muted">
+          Registra pedidos con su fecha, dirección y ubicación confirmada en el mapa, y consulta los
+          pedidos existentes.
+        </p>
+      </header>
 
       <div className="page-stack">
         <section className="card" aria-labelledby={formTitleId}>
           <h2 id={formTitleId}>Nuevo pedido</h2>
-          <AsyncContent {...options} onRetry={options.reload} loadingText="Cargando formulario...">
+          <AsyncContent
+            {...options}
+            onRetry={options.reload}
+            loadingText="Cargando formulario..."
+            loading={<div className="admin-skeleton" role="status" aria-label="Cargando formulario" />}
+          >
             {([zones, products]) => (
               <OrderForm zones={zones} products={products} onCreated={handleCreated} />
             )}
@@ -77,7 +86,12 @@ export function OrdersPage() {
             aria-busy={orders.isLoading}
             className={orders.isLoading && orders.data ? 'is-refreshing' : undefined}
           >
-            <AsyncContent {...orders} onRetry={orders.reload} loadingText="Cargando pedidos...">
+            <AsyncContent
+              {...orders}
+              onRetry={orders.reload}
+              loadingText="Cargando pedidos..."
+              loading={<div className="admin-skeleton" role="status" aria-label="Cargando pedidos" />}
+            >
               {(result) => (
                 <>
                   <OrdersTable orders={result.items} />
