@@ -164,6 +164,7 @@ export function HomePage() {
   return (
     <main className="page dashboard">
       <div className="dashboard__head">
+        <p className="dashboard__eyebrow">REGALÍA · Logística</p>
         <h1>Sistema de Logística</h1>
         <p className="text-muted">
           Hola, {user?.name}. Esta es la operación del {formatOperationalDay(todayInGuayaquil())}.

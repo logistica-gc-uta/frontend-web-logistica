@@ -3,7 +3,15 @@ import { formatCurrency } from '../../lib/format/formatCurrency'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { describePlanningReason } from '../../lib/planning/planningReasons'
 import { ORDER_STATUS_LABELS } from './orderLabels'
-import type { Order } from './types'
+import type { Order, OrderStatus } from './types'
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  PENDING: 'badge',
+  ASSIGNED: 'badge badge--accent',
+  IN_TRANSIT: 'badge badge--sand',
+  DELIVERED: 'badge badge--success',
+  CANCELLED: 'badge badge--danger',
+}
 
 const COLUMNS: Column<Order>[] = [
   { header: 'Entrega', render: (order) => formatDateTime(order.scheduledDeliveryDate) },
@@ -19,9 +27,7 @@ const COLUMNS: Column<Order>[] = [
     header: 'Estado',
     render: (order) => (
       <span
-        className={`badge${order.status === 'DELIVERED' ? ' badge--success' : ''}${
-          order.status === 'CANCELLED' ? ' badge--danger' : ''
-        }`}
+        className={STATUS_BADGE[order.status]}
       >
         {ORDER_STATUS_LABELS[order.status]}
       </span>

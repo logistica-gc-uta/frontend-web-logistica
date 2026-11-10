@@ -1,0 +1,39 @@
+.orders-admin__head {
+  margin-bottom: 8px;
+}
+
+.orders-admin__head h1 {
+  margin: 0 0 4px;
+}
+
+.orders-admin .filters {
+  gap: 12px;
+  padding-block: 16px;
+  margin-bottom: 8px;
+  border-block: 1px solid var(--color-border);
+}
+
+.orders-admin .table th {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.admin-skeleton {
+  min-height: 10rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-border) 25%,
+    var(--color-bg) 50%,
+    var(--color-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: admin-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes admin-skeleton {
+  to {
+    background-position: -200% 0;
+  }
+}

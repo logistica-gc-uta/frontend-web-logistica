@@ -43,6 +43,7 @@ describe('App', () => {
 
     expect(homeHeading()).toBeInTheDocument()
     expect(screen.getByRole('banner')).toHaveTextContent(adminSession.user.name)
+    expect(screen.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('cierra sesión desde el encabezado y vuelve al login', async () => {

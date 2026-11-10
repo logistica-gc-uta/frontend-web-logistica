@@ -1,40 +1,39 @@
 /*
- * Sistema visual de REGALÍA (tienda y panel de logística comparten marca).
- * Paleta "vino y arena": vino tinto oscuro para la marca y las acciones, arena dorada como acento,
- * marfil de fondo. El naranja óxido queda reservado para lo urgente.
- * La tienda solo cambia la tipografía de títulos y algunos detalles (ver shop.css).
+ * Sistema visual de REGALÍA: el panel toma la paleta y la jerarquía de la tienda
+ * (evergreen / crema, Georgia en marca). El cuerpo sigue en IBM Plex para tablas y formularios.
+ * El naranja queda reservado para lo urgente.
  */
 :root {
-  --color-text: #4a3b40;
-  --color-heading: #2a1e22;
-  --color-muted: #7d6e72;
-  --color-bg: #faf8f5;
+  --color-text: #234d3e;
+  --color-heading: #234d3e;
+  --color-muted: #4f6257;
+  --color-bg: #f8f6f1;
   --color-surface: #ffffff;
-  --color-surface-sunken: #f5f1ec;
-  --color-border: #e9e1d6;
-  --color-accent: #5a1a2b;
-  --color-accent-strong: #43121f;
-  --color-accent-soft: #f3e8ea;
+  --color-surface-sunken: #e9eee5;
+  --color-border: #d7ddd7;
+  --color-accent: #234d3e;
+  --color-accent-strong: #15382b;
+  --color-accent-soft: #e4ebdf;
   --color-on-accent: #ffffff;
-  --color-sand: #c9a46a;
-  --color-sand-strong: #9c7a42;
-  --color-sand-soft: #f4ecdf;
-  --color-signal: #c2410c;
+  --color-sand: #b98a54;
+  --color-sand-strong: #79562e;
+  --color-sand-soft: #f5e8d9;
+  --color-signal: #96320d;
   --color-signal-soft: #fcebe1;
   --color-danger: #b42318;
   --color-danger-soft: #fdecea;
   --color-success: #2f6b4f;
   --color-success-soft: #e5f0ea;
 
-  --sidebar-bg: #3a1220;
-  --sidebar-text: #eadfd8;
-  --sidebar-muted: #b39a9f;
-  --sidebar-line: #5a2a3a;
+  --sidebar-bg: #234d3e;
+  --sidebar-text: #ffffff;
+  --sidebar-muted: #d7ddd7;
+  --sidebar-line: #4f6257;
   --sidebar-active: #ffffff;
 
   --font-sans: 'IBM Plex Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-display: var(--font-sans);
-  --font-brand: 'Young Serif', Georgia, serif;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-brand: Georgia, 'Times New Roman', serif;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -48,32 +47,36 @@
   -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-text: #d8cbc6;
-    --color-heading: #f5ede8;
-    --color-muted: #a8979a;
-    --color-bg: #171113;
-    --color-surface: #211a1c;
-    --color-surface-sunken: #1c1517;
-    --color-border: #3a2e31;
-    --color-accent: #d9a0ad;
-    --color-accent-strong: #ebbcc6;
-    --color-accent-soft: #3a1f27;
-    --color-on-accent: #2a0d16;
-    --color-sand: #d8b77f;
-    --color-sand-strong: #e6cc9e;
-    --color-sand-soft: #33291a;
-    --color-signal: #f08a54;
-    --color-signal-soft: #3a2116;
-    --color-danger: #f28b82;
-    --color-danger-soft: #3b1d1b;
-    --color-success: #7cc4a0;
-    --color-success-soft: #18291f;
-
-    --sidebar-bg: #1f0a12;
-    --sidebar-line: #3d1a26;
-  }
+.app-shell[data-theme='dark'],
+.auth-page[data-theme='dark'] {
+  color-scheme: dark;
+  --color-text: #faeef1;
+  --color-heading: #faeef1;
+  --color-muted: #d8bdc8;
+  --color-bg: #24141c;
+  --color-surface: #36202b;
+  --color-surface-sunken: #422531;
+  --color-border: #785464;
+  --color-accent: #f0ccd8;
+  --color-accent-strong: #ffe4ed;
+  --color-accent-soft: #51303c;
+  --color-on-accent: #351d29;
+  --color-sand: #d8b77f;
+  --color-sand-strong: #e6cc9e;
+  --color-sand-soft: #503d31;
+  --color-signal: #f5af8c;
+  --color-signal-soft: #503025;
+  --color-danger: #ffaba4;
+  --color-danger-soft: #532d32;
+  --color-success: #a8d9ba;
+  --color-success-soft: #35443c;
+  --sidebar-bg: #422531;
+  --sidebar-text: #faeef1;
+  --sidebar-muted: #d8bdc8;
+  --sidebar-line: #785464;
+  --sidebar-active: #ffffff;
+  color: var(--color-text);
+  background: var(--color-bg);
 }
 
 *,
@@ -98,7 +101,7 @@ h3 {
 
 h1 {
   font-size: 1.75rem;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.01em;
 }
 
@@ -179,6 +182,7 @@ a:hover {
 
 .field__input {
   font: inherit;
+  min-height: 44px;
   padding: 9px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -216,6 +220,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 44px;
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -292,6 +297,7 @@ a:hover {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .auth-hero {
@@ -361,20 +367,20 @@ a:hover {
 }
 
 .route-art__route--done {
-  stroke: #c9a46a;
+  stroke: var(--color-sand);
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
   animation: route-draw 1.6s ease-out 0.2s both;
 }
 
 .route-art__route--pending {
-  stroke: #c9a46a;
+  stroke: var(--color-sand);
   stroke-opacity: 0.55;
   stroke-dasharray: 2 10;
 }
 
 .route-art__depot {
-  fill: #c9a46a;
+  fill: var(--color-sand);
   stroke: #ffffff;
   stroke-width: 3;
 }
@@ -386,13 +392,13 @@ a:hover {
 }
 
 .route-art__stop--done {
-  fill: #c9a46a;
+  fill: var(--color-sand);
   stroke: #ffffff;
 }
 
 .route-art__stop--truck {
   fill: #ffffff;
-  stroke: #c9a46a;
+  stroke: var(--color-sand);
   stroke-width: 5;
 }
 
@@ -413,6 +419,17 @@ a:hover {
   justify-self: center;
   width: min(380px, 100% - 32px);
   margin: 48px 0;
+}
+
+.auth-card__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.auth-card .admin-theme-toggle {
+  border-color: var(--color-border);
+  color: var(--color-heading);
 }
 
 .auth-card h1 {
@@ -487,12 +504,14 @@ a:hover {
   }
 }
 
-/* Estructura del panel: barra lateral vino con el menú y el contenido a la derecha. */
+/* Estructura del panel: barra lateral evergreen (como la marca de la tienda) y contenido a la derecha. */
 .app-shell {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   align-items: start;
   min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .app-content {
@@ -515,6 +534,12 @@ a:hover {
   justify-content: space-between;
   gap: 12px;
   padding: 24px 20px 20px;
+}
+
+.app-header__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Marca: REGALÍA en serif y, debajo, el nombre del sistema. */
@@ -545,6 +570,39 @@ a:hover {
 
 .app-header .brand__system {
   color: var(--color-sand);
+}
+
+.app-skip {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  z-index: 20;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-heading);
+}
+
+.app-skip:focus {
+  top: 8px;
+}
+
+.admin-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--sidebar-line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--sidebar-active);
+  cursor: pointer;
+}
+
+.admin-theme-toggle:hover {
+  border-color: var(--color-sand);
 }
 
 .app-header__toggle {
@@ -636,7 +694,9 @@ a:hover {
 
 .app-nav__link {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   padding: 6px 10px 6px 32px;
   border-radius: var(--radius-md);
   font-size: 0.9375rem;
@@ -830,6 +890,16 @@ a:hover {
   background: var(--color-danger-soft);
 }
 
+.badge--accent {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.badge--sand {
+  color: var(--color-sand-strong);
+  background: var(--color-sand-soft);
+}
+
 /* Filtros y paginación */
 .filters {
   display: flex;
@@ -976,6 +1046,15 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.dashboard__eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
 
 .dashboard__head h1 {
