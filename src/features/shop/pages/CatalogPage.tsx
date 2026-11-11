@@ -176,7 +176,7 @@ export function CatalogPage() {
               {...products}
               onRetry={products.reload}
               loadingText="Cargando regalos..."
-              loading={<div className="shop-skeleton shop-skeleton--grid" role="status" aria-label="Cargando regalos" />}
+              loading={<div className="shop-skeleton shop-skeleton--grid" />}
             >
               {(page) =>
                 page.items.length === 0 ? (

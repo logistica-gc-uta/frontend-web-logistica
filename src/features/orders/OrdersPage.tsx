@@ -67,7 +67,7 @@ export function OrdersPage() {
             {...options}
             onRetry={options.reload}
             loadingText="Cargando formulario..."
-            loading={<div className="admin-skeleton" role="status" aria-label="Cargando formulario" />}
+            loading={<div className="admin-skeleton" />}
           >
             {([zones, products]) => (
               <OrderForm zones={zones} products={products} onCreated={handleCreated} />
@@ -90,7 +90,7 @@ export function OrdersPage() {
               {...orders}
               onRetry={orders.reload}
               loadingText="Cargando pedidos..."
-              loading={<div className="admin-skeleton" role="status" aria-label="Cargando pedidos" />}
+              loading={<div className="admin-skeleton" />}
             >
               {(result) => (
                 <>
