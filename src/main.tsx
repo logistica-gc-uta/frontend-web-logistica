@@ -17,6 +17,7 @@ import './styles/monitor.css'
 import './styles/incidents.css'
 import './styles/shop.css'
 import './styles/catalog.css'
+import './styles/coverage.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
