@@ -147,7 +147,7 @@ export function ProductDetailPage() {
         {...product}
         onRetry={product.reload}
         loadingText="Cargando regalo..."
-        loading={<div className="shop-skeleton" role="status" aria-label="Cargando regalo" />}
+        loading={<div className="shop-skeleton" />}
       >
         {(data) => (
           <>
