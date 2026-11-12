@@ -12,13 +12,67 @@ import { loadCheckoutProducts } from '../checkout/checkoutProducts'
 import { checkoutStorage } from '../checkout/checkoutStorage'
 import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
-import { customerOrdersService, type CustomerOrderDetail } from './customerOrdersService'
+import {
+  amountsOf,
+  customerOrdersService,
+  RECEIPT_UNAVAILABLE_MESSAGE,
+  type CustomerOrderDetail,
+  type OrderSource,
+  type ReceiptPayment,
+} from './customerOrdersService'
 import { OrderAmounts } from './OrderAmounts'
 import { CUSTOMER_ORDER_STATUS, statusBadgeClass } from './orderStatus'
 
 const useOrder = (id: string) => {
   const load = useCallback(() => customerOrdersService.detail(id), [id])
   return useFetch(load, 'No se pudo cargar el pedido')
+}
+
+/** Origen comprensible para el cliente, sin hablar de cómo funciona el sistema por dentro. */
+const SOURCE_LABELS: Record<OrderSource, string> = {
+  SHOP: 'Compra en la web',
+  ADMIN: 'Registrada en tienda',
+}
+
+function OriginBadge({ source }: { source: OrderSource }) {
+  return (
+    <span className={`origin-badge origin-badge--${source.toLowerCase()}`}>
+      {SOURCE_LABELS[source]}
+    </span>
+  )
+}
+
+const METHOD_LABELS = { CASH: 'efectivo', TRANSFER: 'transferencia' } as const
+
+/**
+ * Cómo se pagó, según el origen. Una compra de tienda nunca se presenta como tarjeta ni como una
+ * transferencia verificada por el banco, aunque el backend diga `APPROVED` en el detalle.
+ */
+function paymentText(order: Pick<CustomerOrderDetail, 'source' | 'receiptAvailable'>): {
+  title: string
+  note: string
+} {
+  if (!order.receiptAvailable) {
+    return {
+      title: 'Pago sin comprobante disponible',
+      note: 'Este pedido se conserva sin comprobante: no mostramos importes ni pago.',
+    }
+  }
+  return order.source === 'ADMIN'
+    ? {
+        title: 'Pago registrado en la tienda',
+        note: 'Declarado por la tienda al registrar la compra; no es una verificación bancaria.',
+      }
+    : {
+        title: 'Pago aprobado con tarjeta de demostración',
+        note: 'Estado del pago · independiente de la entrega',
+      }
+}
+
+function receiptPaymentText(payment: ReceiptPayment): string {
+  return payment.kind === 'ADMIN_DECLARED_EXTERNAL'
+    ? `Pago declarado en la tienda: ${METHOD_LABELS[payment.method]} (${formatDateTime(payment.declaredAt)}). No es una verificación bancaria.`
+    : `${payment.reference} · tarjeta de demostración terminada en ${payment.cardLast4}`
 }
 
 function CheckIcon({ className = 'icon' }: { className?: string }) {
@@ -189,7 +243,9 @@ function DeliveryFacts({ order }: { order: CustomerOrderDetail }) {
         <div>
           <h3>Para quién</h3>
           <p>
-            {order.recipient.name} · {order.recipient.phone}
+            {order.recipient
+              ? `${order.recipient.name} · ${order.recipient.phone}`
+              : 'Datos de quien recibe no disponibles'}
           </p>
         </div>
         <div>
@@ -260,15 +316,17 @@ export function ConfirmationPage() {
                 <p className="copy">Consulta el resumen y el comprobante de tu pedido.</p>
                 <div className="sample-refs">
                   <p>
-                    Pedido: <b>{data.number}</b>
+                    Pedido: <b>{data.number ?? '—'}</b>
                   </p>
                   <p>
                     Pago:{' '}
                     <b>{data.paymentStatus === 'APPROVED' ? 'aprobado' : data.paymentStatus}</b>
                   </p>
-                  <p className="confirmation__total">
-                    Total pagado: {formatCents(data.totalCents)}
-                  </p>
+                  {data.totalCents !== null && (
+                    <p className="confirmation__total">
+                      Total pagado: {formatCents(data.totalCents)}
+                    </p>
+                  )}
                 </div>
                 <DeliveryFacts order={data} />
                 <div className="confirmation-actions links">
@@ -291,7 +349,7 @@ export function ConfirmationPage() {
                 <p className="eyebrow order-eyebrow">Tu pedido</p>
                 <h2 id="confirmation-items-title">Tus detalles</h2>
                 <OrderItems order={data} />
-                <OrderAmounts amounts={data} />
+                {amountsOf(data) && <OrderAmounts amounts={amountsOf(data)!} />}
               </aside>
             </div>
           </>
@@ -405,7 +463,7 @@ export function MyOrdersPage() {
                     <Link
                       to={shopOrderPath(order.id)}
                       className="order"
-                      aria-label={`Pedido ${order.number}`}
+                      aria-label={`Pedido ${order.number ?? 'sin comprobante'} · ${SOURCE_LABELS[order.source]}`}
                     >
                       <span className="art">
                         <ProductImage
@@ -420,10 +478,13 @@ export function MyOrdersPage() {
                         />
                       </span>
                       <span className="order-info">
-                        <span className="order-id">{order.number}</span>
+                        <span className="order-id">{order.number ?? 'Sin comprobante'}</span>
+                        <OriginBadge source={order.source} />
                         <time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time>
                         <span className="items">
-                          {order.itemsCount} {order.itemsCount === 1 ? 'producto' : 'productos'}
+                          {order.itemsCount === null
+                            ? 'Productos no disponibles'
+                            : `${order.itemsCount} ${order.itemsCount === 1 ? 'producto' : 'productos'}`}
                         </span>
                       </span>
                       <span className={`state ${statusBadgeClass(order.status)}`}>
@@ -431,8 +492,17 @@ export function MyOrdersPage() {
                         {CUSTOMER_ORDER_STATUS[order.status]}
                       </span>
                       <span className="amount">
-                        <small>Total · USD</small>
-                        <strong>{formatCents(order.totalCents)}</strong>
+                        {order.totalCents === null ? (
+                          <>
+                            <small>Total</small>
+                            <strong>Importe no disponible</strong>
+                          </>
+                        ) : (
+                          <>
+                            <small>Total · USD</small>
+                            <strong>{formatCents(order.totalCents)}</strong>
+                          </>
+                        )}
                       </span>
                       <span className="arrow" aria-hidden="true">
                         →
@@ -474,9 +544,11 @@ export function OrderDetailPage() {
               <div>
                 <p className="eyebrow order-eyebrow">Detalle del pedido</p>
                 <h1 id="order-title" tabIndex={-1}>
-                  Pedido {data.number}
+                  {data.number ? `Pedido ${data.number}` : 'Pedido sin comprobante'}
                 </h1>
-                <p className="small">Comprado el {formatDateTime(data.createdAt)}</p>
+                <p className="small">
+                  <OriginBadge source={data.source} /> Comprado el {formatDateTime(data.createdAt)}
+                </p>
               </div>
               <span className={`badge ${statusBadgeClass(data.status)}`}>
                 <OrderStatusIcon status={data.status} />
@@ -525,22 +597,32 @@ export function OrderDetailPage() {
                 </section>
                 <p className="payment">
                   <strong>
-                    <CheckIcon className="icon" /> Pago{' '}
-                    {data.paymentStatus === 'APPROVED' ? 'aprobado' : data.paymentStatus}
+                    {data.receiptAvailable && <CheckIcon className="icon" />}{' '}
+                    {paymentText(data).title}
                   </strong>
-                  <span>Estado del pago · independiente de la entrega</span>
+                  <span>{paymentText(data).note}</span>
                 </p>
               </section>
               <aside className="panel order-panel" aria-labelledby="order-items-title">
                 <h2 id="order-items-title">Tus detalles</h2>
-                <OrderItems order={data} />
-                <OrderAmounts amounts={data} />
+                {data.items.length > 0 ? (
+                  <OrderItems order={data} />
+                ) : (
+                  <p className="text-muted">
+                    El detalle de productos e importes no está disponible para este pedido.
+                  </p>
+                )}
+                {amountsOf(data) && <OrderAmounts amounts={amountsOf(data)!} />}
               </aside>
             </div>
             <p className="order-page__links">
-              <Link to={shopReceiptPath(data.id)} className="btn btn--primary">
-                Ver comprobante
-              </Link>
+              {data.receiptAvailable ? (
+                <Link to={shopReceiptPath(data.id)} className="btn btn--primary">
+                  Ver comprobante
+                </Link>
+              ) : (
+                <span className="text-muted">{RECEIPT_UNAVAILABLE_MESSAGE}</span>
+              )}
               <Link to={paths.shopOrders} className="btn btn--secondary">
                 Volver a mis pedidos
               </Link>
@@ -574,7 +656,12 @@ export function ReceiptPage() {
                 <p className="eyebrow order-eyebrow">{data.merchantName}</p>
                 <h1 id="receipt-title">Comprobante de compra</h1>
                 <p className="small receipt-id">{data.number}</p>
-                <p className="small">Emitido el {formatDateTime(data.issuedAt)} · Pago aprobado</p>
+                <p className="small">
+                  Emitido el {formatDateTime(data.issuedAt)} ·{' '}
+                  {data.payment.kind === 'ADMIN_DECLARED_EXTERNAL'
+                    ? 'Registrado en la tienda'
+                    : 'Pago aprobado'}
+                </p>
               </div>
             </div>
             <div className="delivery-info">
@@ -585,12 +672,14 @@ export function ReceiptPage() {
               <div>
                 <h3>Comprador</h3>
                 <p>
-                  {data.buyer.name} · {data.buyer.email}
+                  {[data.buyer.name, data.buyer.email, data.buyer.phone]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </p>
               </div>
               <div>
                 <h3>Destinatario</h3>
-                <p>{data.recipient.name}</p>
+                <p>{[data.recipient.name, data.recipient.phone].filter(Boolean).join(' · ')}</p>
               </div>
               {order.data && (
                 <div>
@@ -603,9 +692,7 @@ export function ReceiptPage() {
               )}
               <div>
                 <h3>Pago</h3>
-                <p>
-                  {data.payment.reference} · tarjeta terminada en {data.payment.cardLast4}
-                </p>
+                <p>{receiptPaymentText(data.payment)}</p>
               </div>
             </div>
             <div
@@ -667,7 +754,12 @@ export function ReceiptPage() {
           </article>
         )}
       </AsyncContent>
-      {receipt.error && <Link to={paths.shopOrders}>Ver mis pedidos</Link>}
+      {/* Un pedido propio sin comprobante se puede seguir consultando; uno ajeno, no. */}
+      {receipt.error === RECEIPT_UNAVAILABLE_MESSAGE ? (
+        <Link to={shopOrderPath(id)}>Ver el detalle del pedido</Link>
+      ) : (
+        receipt.error && <Link to={paths.shopOrders}>Ver mis pedidos</Link>
+      )}
     </div>
   )
 }
