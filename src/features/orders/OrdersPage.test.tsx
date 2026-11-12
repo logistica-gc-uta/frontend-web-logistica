@@ -1,11 +1,16 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
-import { adminSession, createdGuestOrder, orders, products, zones } from '../../test/fixtures'
+import { savedCoverage } from '../../test/coverageFixtures'
+import { adminSession, orders, products, zones } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
+import { adminReceipt, orderContact, purchaseResult } from '../../test/purchaseFixtures'
 import { renderWithProviders } from '../../test/renderWithProviders'
+import { shopSettings } from '../../test/shopFixtures'
 import { productsService } from '../products/productsService'
+import { shopService } from '../shop/shopService'
 import { zonesService } from '../zones/zonesService'
 import { ordersService } from './ordersService'
 import type { OrdersPage, OrdersQuery } from './types'
@@ -18,23 +23,33 @@ vi.mock('../../components/map/LocationPicker', () => ({
     onChange,
     onConfirm,
     error,
+    status,
+    canConfirm = true,
+    area,
   }: {
     value: unknown
     isConfirmed: boolean
     onChange: (point: { lat: number; lng: number }) => void
     onConfirm: () => void
     error?: string
+    status?: string
+    canConfirm?: boolean
+    area?: unknown[]
   }) => (
-    <div>
+    <div data-testid="map" data-area-points={area?.length ?? 0}>
       <button type="button" onClick={() => onChange({ lat: -1.25, lng: -78.63 })}>
         Colocar marcador
       </button>
+      <button type="button" onClick={() => onChange({ lat: -1.4, lng: -78.9 })}>
+        Colocar marcador fuera
+      </button>
       {value !== null && !isConfirmed && (
-        <button type="button" onClick={onConfirm}>
+        <button type="button" onClick={onConfirm} disabled={!canConfirm}>
           Confirmar ubicación
         </button>
       )}
       {isConfirmed && <span>Ubicación confirmada</span>}
+      {status && <p>{status}</p>}
       {error && <p>{error}</p>}
     </div>
   ),
@@ -49,7 +64,18 @@ const mockApi = (list: (query: OrdersQuery) => Promise<OrdersPage> = pageOf()) =
   const zonesList = vi.spyOn(zonesService, 'list').mockResolvedValue(zones)
   const productsList = vi.spyOn(productsService, 'list').mockResolvedValue(products)
   const ordersList = vi.spyOn(ordersService, 'list').mockImplementation(list)
-  return { zonesList, productsList, ordersList }
+  const settings = vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
+  const coverage = vi.spyOn(shopService, 'storeCoverage').mockResolvedValue(savedCoverage())
+  vi.spyOn(shopService, 'evaluateCoverage').mockImplementation(async ({ lat }) =>
+    lat === -1.4
+      ? { accepted: false, position: 'EXTERIOR' }
+      : { accepted: true, position: 'INTERIOR' },
+  )
+  // El comprobante que se abre tras una venta confirmada.
+  vi.spyOn(ordersService, 'receipt').mockResolvedValue(adminReceipt())
+  vi.spyOn(ordersService, 'contact').mockResolvedValue(orderContact())
+  vi.spyOn(ordersService, 'contactHistory').mockResolvedValue([])
+  return { zonesList, productsList, ordersList, settings, coverage }
 }
 
 const renderOrdersPage = () =>
@@ -58,26 +84,40 @@ const renderOrdersPage = () =>
 type User = ReturnType<typeof renderOrdersPage>['user']
 
 const findTable = () => screen.findByRole('table', { name: 'Pedidos registrados' })
-const getForm = () => within(screen.getByRole('form', { name: 'Nuevo pedido' }))
+const findForm = async () => within(await screen.findByRole('form', { name: 'Nueva venta' }))
+const getForm = () => within(screen.getByRole('form', { name: 'Nueva venta' }))
 const getFilters = () => within(screen.getByRole('form', { name: 'Filtros de pedidos' }))
 
 const fillValidForm = async (user: User) => {
-  const form = getForm()
-  await user.type(form.getByLabelText('Nombre del destinatario'), 'María Pérez')
-  await user.type(form.getByLabelText('Teléfono de contacto'), '0991234567')
-  await user.selectOptions(form.getByLabelText('Zona'), 'zone-1')
+  const form = await findForm()
+  await user.type(form.getByLabelText('Nombre del comprador'), 'María Pérez')
+  await user.type(form.getByLabelText('Teléfono del comprador'), '0991234567')
+  await user.click(form.getByRole('radio', { name: 'Efectivo' }))
   await user.type(form.getByLabelText('Dirección de entrega'), 'Av. Los Chasquis')
-  fireEvent.change(form.getByLabelText('Fecha y hora de entrega (hora de Guayaquil)'), {
+  fireEvent.change(form.getByLabelText('Fecha y hora aproximada de entrega (hora de Ecuador)'), {
     target: { value: '2099-01-15T10:30' },
   })
   await user.selectOptions(form.getByLabelText('Producto 1'), 'product-1')
   fireEvent.change(form.getByLabelText('Cantidad 1'), { target: { value: '2' } })
   await user.click(form.getByRole('button', { name: 'Colocar marcador' }))
+  await waitFor(() =>
+    expect(form.getByRole('button', { name: 'Confirmar ubicación' })).toBeEnabled(),
+  )
   await user.click(form.getByRole('button', { name: 'Confirmar ubicación' }))
 }
 
 const submit = (user: User) =>
-  user.click(getForm().getByRole('button', { name: 'Registrar pedido' }))
+  user.click(getForm().getByRole('button', { name: 'Registrar venta' }))
+
+const EXPECTED_BODY = {
+  buyer: { type: 'GUEST', name: 'María Pérez', contactPhone: '0991234567' },
+  payment: { method: 'CASH' },
+  deliveryAddress: 'Av. Los Chasquis',
+  items: [{ productId: 'product-1', quantity: 2 }],
+  scheduledDeliveryDate: '2099-01-15T10:30:00-05:00',
+  deliveryLat: -1.25,
+  deliveryLng: -78.63,
+}
 
 describe('OrdersPage · listado', () => {
   it('lista los pedidos persistidos con destinatario, estado, total y aptitud para planificar', async () => {
@@ -171,187 +211,274 @@ describe('OrdersPage · listado', () => {
   })
 })
 
-describe('OrdersPage · formulario', () => {
-  it('solo ofrece las zonas que tienen depósito configurado', async () => {
-    mockApi()
-    renderOrdersPage()
-    await findTable()
-
-    const options = within(getForm().getByLabelText('Zona')).getAllByRole('option')
-
-    expect(options.map((option) => option.textContent)).toEqual([
-      'Selecciona una zona',
-      'FIC-02 · Ficoa',
-    ])
-  })
-
-  it('avisa cuando ninguna zona tiene depósito', async () => {
-    mockApi()
-    vi.spyOn(zonesService, 'list').mockResolvedValue([zones[1]])
+describe('OrdersPage · listado sin zona (#42)', () => {
+  it('un pedido sin zona muestra «—» y cada fila enlaza a su comprobante', async () => {
+    mockApi(pageOf([{ ...orders[0], zoneId: null, zone: null }]))
     renderOrdersPage()
 
-    expect(await screen.findByText(/Ninguna zona tiene depósito configurado/)).toBeInTheDocument()
-  })
-
-  it('muestra el error si no se pueden cargar las zonas y los productos', async () => {
-    mockApi()
-    vi.spyOn(zonesService, 'list').mockRejectedValueOnce(createHttpError(500))
-    const { user } = renderOrdersPage()
-
+    const [, row] = within(await findTable()).getAllByRole('row')
+    expect(within(row).getByText('—')).toBeInTheDocument()
     expect(
-      await screen.findByText('No se pudieron cargar las zonas y los productos'),
-    ).toBeInTheDocument()
-    await user.click(screen.getAllByRole('button', { name: 'Reintentar' })[0])
+      within(row).getByRole('link', { name: 'Comprobante y contacto del pedido de María Pérez' }),
+    ).toHaveAttribute('href', `/admin/pedidos/${orders[0].id}/comprobante`)
+  })
+})
 
-    expect(await screen.findByRole('form', { name: 'Nuevo pedido' })).toBeInTheDocument()
+describe('OrdersPage · nueva venta', () => {
+  it('pide comprador, quién recibe, pago declarado y entrega; sin zona ni tarjeta', async () => {
+    mockApi()
+    renderOrdersPage()
+    const form = await findForm()
+
+    expect(form.queryByLabelText('Zona')).not.toBeInTheDocument()
+    expect(form.getByRole('radio', { name: 'Invitado (sin cuenta)' })).toBeChecked()
+    expect(form.getByRole('radio', { name: 'Cliente con cuenta' })).toBeDisabled()
+    expect(form.getByText(/falta el buscador de clientes en el backend/)).toBeInTheDocument()
+    expect(form.getByRole('note')).toHaveTextContent(
+      'Se registra el pago que declara el cliente. No se valida en el banco ni se cobra con tarjeta.',
+    )
+    expect(form.queryByLabelText(/tarjeta/i)).not.toBeInTheDocument()
+    expect(form.getByTestId('map')).toHaveAttribute('data-area-points', '4')
+    expect(form.getByText(/La hora es aproximada/)).toBeInTheDocument()
+  })
+
+  it('sin cobertura configurada no muestra el formulario y lleva a configurarla', async () => {
+    mockApi().coverage.mockResolvedValue({ configured: false })
+    renderOrdersPage()
+
+    expect(await screen.findByText(/no se pueden registrar ventas/)).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Nueva venta' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Configurar tienda y cobertura' })).toHaveAttribute(
+      'href',
+      paths.storeCoverage,
+    )
   })
 
   it('valida los campos obligatorios sin llamar al backend', async () => {
     mockApi()
-    const create = vi.spyOn(ordersService, 'createAsAdmin')
+    const create = vi.spyOn(ordersService, 'createPurchase')
     const { user } = renderOrdersPage()
-    await findTable()
+    await findForm()
 
     await submit(user)
 
-    for (const message of [
-      'El nombre del destinatario es obligatorio',
-      'El teléfono de contacto es obligatorio',
-      'Selecciona una zona',
-      'La dirección de entrega es obligatoria',
-      'La fecha y hora de entrega son obligatorias',
-      'Producto 1: selecciona un producto',
-      'Coloca el marcador en el mapa',
-    ]) {
-      // `selector: 'p'` evita confundir un error con la opción vacía de una lista del mismo texto.
-      expect(getForm().getByText(message, { selector: 'p' })).toBeInTheDocument()
-    }
+    const form = getForm()
+    expect(form.getByText('Escribe el nombre del comprador')).toBeInTheDocument()
+    expect(form.getByText('El teléfono del comprador es obligatorio')).toBeInTheDocument()
+    expect(form.getByText('Elige cómo pagó: efectivo o transferencia')).toBeInTheDocument()
+    expect(form.getByText('La dirección de entrega es obligatoria')).toBeInTheDocument()
+    expect(form.getByText('Coloca el marcador en el mapa')).toBeInTheDocument()
     expect(create).not.toHaveBeenCalled()
   })
 
-  it('exige una fecha futura y confirmar la ubicación antes de enviar', async () => {
+  it('un punto fuera de la cobertura no se puede confirmar ni registrar', async () => {
     mockApi()
-    const create = vi.spyOn(ordersService, 'createAsAdmin')
+    const create = vi.spyOn(ordersService, 'createPurchase')
     const { user } = renderOrdersPage()
-    await findTable()
-    await fillValidForm(user)
-    fireEvent.change(getForm().getByLabelText('Fecha y hora de entrega (hora de Guayaquil)'), {
-      target: { value: '2001-01-01T10:00' },
-    })
-    await user.click(getForm().getByRole('button', { name: 'Colocar marcador' }))
+    const form = await findForm()
 
-    await submit(user)
+    await user.click(form.getByRole('button', { name: 'Colocar marcador fuera' }))
 
     expect(
-      screen.getByText('La entrega debe programarse para una fecha y hora futuras'),
+      await form.findByText(
+        'Ese punto está fuera de la zona de entrega. Coloca el marcador dentro del área marcada.',
+      ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Confirma la ubicación en el mapa')).toBeInTheDocument()
-    expect(create).not.toHaveBeenCalled()
-  })
-
-  it('al cambiar de zona descarta la ubicación confirmada y exige ubicarla de nuevo', async () => {
-    mockApi()
-    const otherZone = { ...zones[0], id: 'zone-3', name: 'Centro', code: 'CEN-01' }
-    vi.spyOn(zonesService, 'list').mockResolvedValue([...zones, otherZone])
-    const create = vi.spyOn(ordersService, 'createAsAdmin')
-    const { user } = renderOrdersPage()
-    await findTable()
-    await fillValidForm(user)
-    expect(getForm().getByText('Ubicación confirmada')).toBeInTheDocument()
-
-    await user.selectOptions(getForm().getByLabelText('Zona'), 'zone-3')
-
-    expect(getForm().queryByText('Ubicación confirmada')).not.toBeInTheDocument()
-    expect(getForm().queryByRole('button', { name: 'Confirmar ubicación' })).not.toBeInTheDocument()
+    expect(form.getByRole('button', { name: 'Confirmar ubicación' })).toBeDisabled()
     await submit(user)
-    expect(screen.getByText('Coloca el marcador en el mapa')).toBeInTheDocument()
     expect(create).not.toHaveBeenCalled()
   })
 
-  it('muestra el total estimado según los productos elegidos', async () => {
+  it('registra la venta de un invitado con Idempotency-Key y abre su comprobante', async () => {
     mockApi()
+    const create = vi.spyOn(ordersService, 'createPurchase').mockResolvedValue(purchaseResult())
     const { user } = renderOrdersPage()
-    await findTable()
-
-    await user.selectOptions(getForm().getByLabelText('Producto 1'), 'product-2')
-    fireEvent.change(getForm().getByLabelText('Cantidad 1'), { target: { value: '4' } })
-
-    expect(screen.getByText(/Total estimado:/)).toHaveTextContent(/102,00/)
-  })
-
-  it('permite agregar y quitar líneas de producto', async () => {
-    mockApi()
-    const { user } = renderOrdersPage()
-    await findTable()
-
-    await user.click(getForm().getByRole('button', { name: 'Agregar producto' }))
-    expect(getForm().getByLabelText('Producto 2')).toBeInTheDocument()
-
-    await user.click(getForm().getByRole('button', { name: 'Quitar producto 2' }))
-    expect(getForm().queryByLabelText('Producto 2')).not.toBeInTheDocument()
-  })
-
-  it('registra el pedido con la hora de Guayaquil y el punto confirmado, y actualiza los datos', async () => {
-    const { zonesList, ordersList } = mockApi()
-    const create = vi.spyOn(ordersService, 'createAsAdmin').mockResolvedValue(createdGuestOrder)
-    const { user } = renderOrdersPage()
-    await findTable()
     await fillValidForm(user)
 
     await submit(user)
 
-    expect(create).toHaveBeenCalledWith({
-      recipient: { type: 'GUEST', name: 'María Pérez', contactPhone: '0991234567' },
-      zoneId: 'zone-1',
-      deliveryAddress: 'Av. Los Chasquis',
-      items: [{ productId: 'product-1', quantity: 2 }],
-      scheduledDeliveryDate: '2099-01-15T10:30:00-05:00',
-      deliveryLat: -1.25,
-      deliveryLng: -78.63,
-    })
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
+    const [body, key] = create.mock.calls[0]
+    expect(body).toEqual(EXPECTED_BODY)
+    expect(key).toMatch(/^[0-9a-f-]{36}$/)
+    expect(await screen.findByText('Venta registrada. Este es su comprobante.')).toBeInTheDocument()
     expect(
-      await screen.findByText(/Pedido registrado correctamente\. Total: .*801,00/),
+      await screen.findByRole('heading', { name: 'Comprobante RG-2030-0007' }),
     ).toBeInTheDocument()
-    expect(getForm().getByLabelText('Nombre del destinatario')).toHaveValue('')
-    expect(getForm().queryByText('Ubicación confirmada')).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(ordersList).toHaveBeenCalledTimes(2)
-      expect(zonesList).toHaveBeenCalledTimes(2)
-    })
   })
 
-  it('oculta el aviso de éxito en cuanto se intenta registrar otro pedido', async () => {
+  it('con regalo para otra persona envía su contacto aparte del comprador', async () => {
     mockApi()
-    vi.spyOn(ordersService, 'createAsAdmin').mockResolvedValue(createdGuestOrder)
+    const create = vi.spyOn(ordersService, 'createPurchase').mockResolvedValue(purchaseResult())
     const { user } = renderOrdersPage()
-    await findTable()
     await fillValidForm(user)
-    await submit(user)
-    const notice = await screen.findByText(/Pedido registrado correctamente/)
+    const form = getForm()
+    await user.click(form.getByLabelText('El regalo lo recibe otra persona'))
+    await user.type(form.getByLabelText('Nombre de quien recibe'), 'Ana Regalo')
+    await user.type(form.getByLabelText('Teléfono de quien recibe'), '0987654321')
 
     await submit(user)
 
-    expect(notice).not.toBeInTheDocument()
-    expect(screen.getByText('El nombre del destinatario es obligatorio')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(create).toHaveBeenCalledWith(
+        {
+          ...EXPECTED_BODY,
+          giftRecipient: { name: 'Ana Regalo', contactPhone: '0987654321' },
+        },
+        expect.any(String),
+      ),
+    )
   })
 
-  it('muestra el error del backend y conserva lo escrito', async () => {
+  it('un rechazo del servidor (stock) no muestra comprobante y conserva lo escrito', async () => {
     mockApi()
-    vi.spyOn(ordersService, 'createAsAdmin').mockRejectedValue(
+    vi.spyOn(ordersService, 'createPurchase').mockRejectedValue(
       createHttpError(400, {
         data: { message: "Stock insuficiente para el producto 'Laptop HP Pavilion 15'" },
       }),
     )
     const { user } = renderOrdersPage()
-    await findTable()
     await fillValidForm(user)
 
     await submit(user)
 
-    expect(await getForm().findByRole('alert')).toHaveTextContent(
-      "Stock insuficiente para el producto 'Laptop HP Pavilion 15'",
+    expect(
+      await screen.findByText(
+        "No se registró la venta: Stock insuficiente para el producto 'Laptop HP Pavilion 15'",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Venta registrada/)).not.toBeInTheDocument()
+    expect(getForm().getByLabelText('Nombre del comprador')).toHaveValue('María Pérez')
+  })
+
+  it('un rechazo por cobertura u horario del servidor se explica por su código', async () => {
+    mockApi()
+    vi.spyOn(ordersService, 'createPurchase').mockRejectedValue(
+      createHttpError(422, {
+        data: { error: { code: 'DELIVERY_OUTSIDE_HOURS', message: 'x', details: {} } },
+      }),
     )
-    expect(getForm().getByLabelText('Nombre del destinatario')).toHaveValue('María Pérez')
-    expect(screen.queryByText(/Pedido registrado correctamente/)).not.toBeInTheDocument()
+    const { user } = renderOrdersPage()
+    await fillValidForm(user)
+
+    await submit(user)
+
+    expect(
+      await screen.findByText('La hora elegida está fuera del horario de reparto.'),
+    ).toBeInTheDocument()
+  })
+
+  it('si se corta la red verifica el intento con la misma clave y abre la venta registrada', async () => {
+    mockApi()
+    const create = vi
+      .spyOn(ordersService, 'createPurchase')
+      .mockRejectedValue(new AxiosError('Network Error'))
+    const attempt = vi.spyOn(ordersService, 'purchaseAttempt').mockResolvedValue({
+      status: 'SUCCEEDED',
+      orderId: purchaseResult().id,
+      errorCode: null,
+      result: purchaseResult(),
+    })
+    const { user } = renderOrdersPage()
+    await fillValidForm(user)
+
+    await submit(user)
+
+    expect(await screen.findByText('Venta registrada. Este es su comprobante.')).toBeInTheDocument()
+    expect(attempt).toHaveBeenCalledWith(create.mock.calls[0][1])
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('si la venta sigue en proceso no deja enviar otra hasta verificarla', async () => {
+    mockApi()
+    const create = vi.spyOn(ordersService, 'createPurchase').mockRejectedValue(createHttpError(500))
+    const attempt = vi
+      .spyOn(ordersService, 'purchaseAttempt')
+      .mockResolvedValueOnce({ status: 'PROCESSING', orderId: null, errorCode: null })
+      .mockResolvedValueOnce({
+        status: 'SUCCEEDED',
+        orderId: purchaseResult().id,
+        errorCode: null,
+        result: purchaseResult(),
+      })
+    const { user } = renderOrdersPage()
+    await fillValidForm(user)
+
+    await submit(user)
+
+    expect(
+      await screen.findByText(
+        'La venta todavía se está registrando. Vuelve a verificar en unos segundos.',
+      ),
+    ).toBeInTheDocument()
+    expect(getForm().getByRole('button', { name: 'Registrar venta' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Verificar ahora' }))
+
+    expect(await screen.findByText('Venta registrada. Este es su comprobante.')).toBeInTheDocument()
+    expect(attempt).toHaveBeenCalledTimes(2)
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('si la venta nunca llegó, reenviarla usa la misma clave (no se duplica)', async () => {
+    mockApi()
+    const create = vi
+      .spyOn(ordersService, 'createPurchase')
+      .mockRejectedValueOnce(new AxiosError('Network Error'))
+      .mockResolvedValueOnce(purchaseResult())
+    vi.spyOn(ordersService, 'purchaseAttempt').mockRejectedValue(
+      createHttpError(404, {
+        data: { error: { code: 'ADMIN_PURCHASE_ATTEMPT_NOT_FOUND', message: 'x', details: {} } },
+      }),
+    )
+    const { user } = renderOrdersPage()
+    await fillValidForm(user)
+
+    await submit(user)
+    expect(
+      await screen.findByText(
+        'La venta no llegó a registrarse. Puedes volver a enviarla: no se registrará dos veces.',
+      ),
+    ).toBeInTheDocument()
+    await submit(user)
+
+    expect(await screen.findByText('Venta registrada. Este es su comprobante.')).toBeInTheDocument()
+    expect(create.mock.calls[1][1]).toBe(create.mock.calls[0][1])
+  })
+
+  it('tras un rechazo, corregir y volver a enviar usa una clave nueva', async () => {
+    mockApi()
+    const create = vi
+      .spyOn(ordersService, 'createPurchase')
+      .mockRejectedValueOnce(createHttpError(400, { data: { message: 'Stock insuficiente' } }))
+      .mockResolvedValueOnce(purchaseResult())
+    const { user } = renderOrdersPage()
+    await fillValidForm(user)
+    await submit(user)
+    await screen.findByText(/No se registró la venta/)
+
+    fireEvent.change(getForm().getByLabelText('Cantidad 1'), { target: { value: '1' } })
+    await submit(user)
+
+    await screen.findByText('Venta registrada. Este es su comprobante.')
+    expect(create.mock.calls[1][1]).not.toBe(create.mock.calls[0][1])
+  })
+
+  it('muestra el subtotal estimado y aclara que el total lo calcula el servidor', async () => {
+    mockApi()
+    const { user } = renderOrdersPage()
+    await fillValidForm(user)
+
+    expect(getForm().getByText(/Subtotal estimado/)).toHaveTextContent('1.500,00')
+    expect(getForm().getByText(/El total con IVA lo calcula el servidor/)).toBeInTheDocument()
+  })
+
+  it('muestra el error si no se puede cargar lo necesario para vender', async () => {
+    mockApi().coverage.mockRejectedValueOnce(createHttpError(500))
+    renderOrdersPage()
+
+    expect(
+      await screen.findByText('No se pudo cargar lo necesario para registrar ventas'),
+    ).toBeInTheDocument()
   })
 })

@@ -37,3 +37,143 @@
     background-position: -200% 0;
   }
 }
+
+/* Venta ADMIN (#34): opciones, avisos y comprobante imprimible */
+.order-form__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.order-form__choices label,
+.order-form__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--color-heading);
+}
+
+.order-form__choices label.is-disabled {
+  opacity: 0.55;
+}
+
+.order-form__hint {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.order-form__notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-sand);
+  border-radius: var(--radius-sm);
+  background: var(--color-sand-soft);
+  font-size: 0.875rem;
+  color: var(--color-heading);
+}
+
+.order-receipt-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 860px;
+}
+
+.order-receipt__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-receipt__head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.admin-receipt__head p {
+  margin: 0;
+}
+
+.admin-receipt__merchant {
+  font-family: var(--font-brand);
+  font-size: 1.375rem;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+
+.admin-receipt__people {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.admin-receipt__people dt {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.admin-receipt__people dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.admin-receipt__amounts {
+  align-self: flex-end;
+  width: min(100%, 360px);
+}
+
+.admin-receipt__total {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 1.125rem;
+}
+
+.admin-receipt__payment {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.contact-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+/* Al imprimir solo queda el comprobante: sin menú, botones ni corrección de contacto. */
+@media print {
+  .app-header,
+  .app-skip,
+  .order-receipt__toolbar,
+  .order-receipt__contact,
+  .order-receipt-page > .alert {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block;
+  }
+
+  .order-receipt-page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .admin-receipt {
+    border: 0;
+    color: #000000;
+  }
+}

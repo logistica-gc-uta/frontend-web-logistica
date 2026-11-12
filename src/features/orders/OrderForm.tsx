@@ -2,146 +2,281 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { LocationPicker } from '../../components/map/LocationPicker'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
-import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
 import { useForm } from '../../hooks/useForm'
 import { formatCurrency } from '../../lib/format/formatCurrency'
-import type { GeoPoint } from '../../types/geo'
 import type { Product } from '../products/types'
-import type { Zone } from '../zones/types'
-import { OrderItemsEditor } from './OrderItemsEditor'
-import { ordersService } from './ordersService'
+import type { DeliverySchedule } from '../shop/types'
+import { fromPolygon } from '../store-coverage/coverageDraft'
+import type { ConfiguredStoreCoverage } from '../store-coverage/types'
 import {
-  EMPTY_ORDER_ITEM,
+  COVERAGE_OUTSIDE_TEXT,
+  COVERAGE_STATUS_TEXT,
+  useCoverageCheck,
+} from '../store-coverage/useCoverageCheck'
+import { OrderItemsEditor } from './OrderItemsEditor'
+import {
   estimateOrderTotal,
-  toCreateAdminOrderInput,
+  INITIAL_ORDER_FORM,
+  REGISTERED_BUYER_PENDING,
+  toCreateAdminPurchaseInput,
   validateOrder,
 } from './orderValidation'
-import type { CreatedOrder, OrderFormValues } from './types'
-
-/** Centro de Ambato: vista inicial del mapa mientras no se elige una zona con depósito. */
-const DEFAULT_MAP_CENTER: GeoPoint = { lat: -1.2417, lng: -78.6197 }
-
-const INITIAL_VALUES: OrderFormValues = {
-  recipientName: '',
-  recipientPhone: '',
-  zoneId: '',
-  deliveryAddress: '',
-  scheduledAt: '',
-  items: [EMPTY_ORDER_ITEM],
-  location: null,
-  locationConfirmed: false,
-}
+import type { AdminPurchaseResult } from './types'
+import { useAdminPurchase } from './useAdminPurchase'
 
 interface OrderFormProps {
-  zones: Zone[]
   products: Product[]
-  onCreated: (order: CreatedOrder) => void
+  schedule: DeliverySchedule
+  coverage: ConfiguredStoreCoverage
+  onCreated: (result: AdminPurchaseResult) => void
 }
 
-export function OrderForm({ zones, products, onCreated }: OrderFormProps) {
-  // Sin depósito el backend rechaza el pedido, así que esas zonas no se ofrecen.
-  const deliverableZones = useMemo(
-    () => zones.filter((zone) => zone.depotLocation !== null),
-    [zones],
-  )
+/** Alta de una venta ADMIN con pago externo declarado (backend #45), sin zona (#42). */
+export function OrderForm({ products, schedule, coverage, onCreated }: OrderFormProps) {
+  const area = useMemo(() => fromPolygon(coverage.coverage), [coverage])
+  const purchase = useAdminPurchase()
+  const [verifyError, setVerifyError] = useState<string | null>(null)
 
-  const [createdMessage, setCreatedMessage] = useState<string | null>(null)
+  // Se declara antes de `useForm` para que la validación conozca la respuesta del servidor.
+  const [location, setLocation] = useState(INITIAL_ORDER_FORM.location)
+  const check = useCoverageCheck(location)
+  const coverageError =
+    check?.state === 'done' && check.position === 'EXTERIOR'
+      ? COVERAGE_OUTSIDE_TEXT
+      : check?.state === 'failed'
+        ? check.message
+        : check?.state === 'checking'
+          ? 'Verificando si entregamos en ese punto…'
+          : undefined
 
-  const { values, fieldErrors, submitError, isSubmitting, handleChange, setFields, handleSubmit } =
-    useForm({
-      initialValues: INITIAL_VALUES,
-      validate: (formValues) => validateOrder(formValues, products),
-      errorMessage: 'No se pudo registrar el pedido',
-      resetOnSuccess: true,
-      onSubmit: async (formValues) => {
-        const order = await ordersService.createAsAdmin(toCreateAdminOrderInput(formValues))
-        setCreatedMessage(`Pedido registrado correctamente. Total: ${formatCurrency(order.total)}`)
-        onCreated(order)
-      },
-    })
+  const form = useForm({
+    initialValues: INITIAL_ORDER_FORM,
+    validate: (formValues) => validateOrder(formValues, products, schedule, coverageError),
+    errorMessage: 'No se pudo registrar la venta',
+    onSubmit: async (formValues) => {
+      setVerifyError(null)
+      const result = await purchase.submit(toCreateAdminPurchaseInput(formValues))
+      if (result) finish(result)
+    },
+  })
+  const { values, fieldErrors, submitError, isSubmitting, handleChange, setFields } = form
 
-  /** El aviso de éxito pertenece al pedido anterior: se oculta en cuanto se intenta registrar otro. */
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    setCreatedMessage(null)
-    return handleSubmit(event)
+  /** Venta confirmada por el servidor: se limpia el formulario y se abre su comprobante. */
+  const finish = (result: AdminPurchaseResult) => {
+    setFields(INITIAL_ORDER_FORM)
+    setLocation(null)
+    onCreated(result)
   }
 
-  const depot = deliverableZones.find((zone) => zone.id === values.zoneId)?.depotLocation ?? null
+  const setPoint = (point: typeof location) => {
+    setLocation(point)
+    setFields({ location: point, locationConfirmed: false })
+  }
+
+  const verifyNow = async () => {
+    if (!purchase.pending) return
+    setVerifyError(null)
+    try {
+      const result = await purchase.verify(purchase.pending.key)
+      if (result) finish(result)
+    } catch (error) {
+      setVerifyError(error instanceof Error ? error.message : 'No se pudo verificar la venta')
+    }
+  }
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    // Mientras no se sepa si la venta anterior quedó registrada no se envía otra.
+    if (purchase.pending) {
+      event.preventDefault()
+      return
+    }
+    return form.handleSubmit(event)
+  }
+
+  const canConfirm = check?.state === 'done' && check.position !== 'EXTERIOR'
+  const coverageStatus =
+    check?.state === 'checking'
+      ? 'Verificando si entregamos en ese punto…'
+      : check?.state === 'done' && check.position !== 'EXTERIOR'
+        ? COVERAGE_STATUS_TEXT[check.position]
+        : undefined
+  const locationError =
+    check?.state === 'done' && check.position === 'EXTERIOR'
+      ? COVERAGE_OUTSIDE_TEXT
+      : check?.state === 'failed'
+        ? check.message
+        : fieldErrors.location === 'Verificando si entregamos en ese punto…'
+          ? undefined
+          : fieldErrors.location
 
   return (
-    <form className="order-form" onSubmit={submit} noValidate aria-label="Nuevo pedido">
-      {createdMessage && (
-        <div className="order-form__alert">
-          <Alert variant="success">{createdMessage}</Alert>
-        </div>
-      )}
+    <form className="order-form" onSubmit={submit} noValidate aria-label="Nueva venta">
       {submitError && (
         <div className="order-form__alert">
           <Alert>{submitError}</Alert>
         </div>
       )}
-      {deliverableZones.length === 0 && (
+      {purchase.pending && (
         <div className="order-form__alert">
           <Alert>
-            Ninguna zona tiene depósito configurado, por lo que todavía no se pueden registrar
-            pedidos.
+            <span>{purchase.pending.message}</span>{' '}
+            <Button
+              variant="secondary"
+              onClick={() => void verifyNow()}
+              isLoading={purchase.verifying}
+              loadingText="Verificando..."
+            >
+              Verificar ahora
+            </Button>
           </Alert>
+        </div>
+      )}
+      {verifyError && (
+        <div className="order-form__alert">
+          <Alert>{verifyError}</Alert>
         </div>
       )}
 
       <div className="order-form__fields">
-        <TextField
-          label="Nombre del destinatario"
-          name="recipientName"
-          autoComplete="off"
-          value={values.recipientName}
-          onChange={handleChange}
-          error={fieldErrors.recipientName}
-        />
-        <TextField
-          label="Teléfono de contacto"
-          name="recipientPhone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="off"
-          value={values.recipientPhone}
-          onChange={handleChange}
-          error={fieldErrors.recipientPhone}
-        />
-        <SelectField
-          label="Zona"
-          name="zoneId"
-          value={values.zoneId}
-          // El punto confirmado pertenece a la zona anterior: hay que ubicarlo y confirmarlo de nuevo.
-          onChange={(event) =>
-            setFields({ zoneId: event.target.value, location: null, locationConfirmed: false })
-          }
-          error={fieldErrors.zoneId}
-        >
-          <option value="">Selecciona una zona</option>
-          {deliverableZones.map((zone) => (
-            <option key={zone.id} value={zone.id}>
-              {`${zone.code} · ${zone.name}`}
-            </option>
-          ))}
-        </SelectField>
-        <TextField
-          label="Dirección de entrega"
-          name="deliveryAddress"
-          autoComplete="off"
-          value={values.deliveryAddress}
-          onChange={handleChange}
-          error={fieldErrors.deliveryAddress}
-        />
-        <TextField
-          label="Fecha y hora de entrega (hora de Guayaquil)"
-          name="scheduledAt"
-          type="datetime-local"
-          value={values.scheduledAt}
-          onChange={handleChange}
-          error={fieldErrors.scheduledAt}
-        />
+        <fieldset className="items-editor">
+          <legend>Comprador</legend>
+          <div className="order-form__choices" role="radiogroup" aria-label="Tipo de comprador">
+            <label>
+              <input
+                type="radio"
+                name="buyerType"
+                value="GUEST"
+                checked={values.buyerType === 'GUEST'}
+                onChange={() => setFields({ buyerType: 'GUEST' })}
+              />
+              Invitado (sin cuenta)
+            </label>
+            <label className="is-disabled">
+              <input type="radio" name="buyerType" value="REGISTERED_CLIENT" disabled />
+              Cliente con cuenta
+            </label>
+          </div>
+          <p className="text-muted order-form__hint">{REGISTERED_BUYER_PENDING}</p>
+          <TextField
+            label="Nombre del comprador"
+            name="buyerName"
+            autoComplete="off"
+            value={values.buyerName}
+            onChange={handleChange}
+            error={fieldErrors.buyerName ?? fieldErrors.buyerType}
+          />
+          <TextField
+            label="Teléfono del comprador"
+            name="buyerPhone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            value={values.buyerPhone}
+            onChange={handleChange}
+            error={fieldErrors.buyerPhone}
+          />
+        </fieldset>
+
+        <fieldset className="items-editor">
+          <legend>¿Quién recibe?</legend>
+          <label className="order-form__check">
+            <input
+              type="checkbox"
+              checked={values.giftToOther}
+              onChange={(event) => setFields({ giftToOther: event.target.checked })}
+            />
+            El regalo lo recibe otra persona
+          </label>
+          {values.giftToOther ? (
+            <>
+              <TextField
+                label="Nombre de quien recibe"
+                name="recipientName"
+                autoComplete="off"
+                value={values.recipientName}
+                onChange={handleChange}
+                error={fieldErrors.recipientName}
+              />
+              <TextField
+                label="Teléfono de quien recibe"
+                name="recipientPhone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="off"
+                value={values.recipientPhone}
+                onChange={handleChange}
+                error={fieldErrors.recipientPhone}
+              />
+            </>
+          ) : (
+            <p className="text-muted order-form__hint">Lo recibe el mismo comprador.</p>
+          )}
+        </fieldset>
+
+        <fieldset className="items-editor">
+          <legend>Pago declarado</legend>
+          <div className="order-form__choices" role="radiogroup" aria-label="Cómo pagó">
+            <label>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="CASH"
+                checked={values.paymentMethod === 'CASH'}
+                onChange={() => setFields({ paymentMethod: 'CASH' })}
+              />
+              Efectivo
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="TRANSFER"
+                checked={values.paymentMethod === 'TRANSFER'}
+                onChange={() => setFields({ paymentMethod: 'TRANSFER' })}
+              />
+              Transferencia
+            </label>
+          </div>
+          {fieldErrors.paymentMethod && <p className="field__error">{fieldErrors.paymentMethod}</p>}
+          <TextField
+            label="Nota del pago (opcional)"
+            name="paymentNote"
+            autoComplete="off"
+            value={values.paymentNote}
+            onChange={handleChange}
+            error={fieldErrors.paymentNote}
+          />
+          <p className="order-form__notice" role="note">
+            Se registra el pago que declara el cliente. No se valida en el banco ni se cobra con
+            tarjeta.
+          </p>
+        </fieldset>
+
+        <fieldset className="items-editor">
+          <legend>Entrega</legend>
+          <TextField
+            label="Dirección de entrega"
+            name="deliveryAddress"
+            autoComplete="off"
+            value={values.deliveryAddress}
+            onChange={handleChange}
+            error={fieldErrors.deliveryAddress}
+          />
+          <TextField
+            label="Fecha y hora aproximada de entrega (hora de Ecuador)"
+            name="scheduledAt"
+            type="datetime-local"
+            value={values.scheduledAt}
+            onChange={handleChange}
+            error={fieldErrors.scheduledAt}
+          />
+          <p className="text-muted order-form__hint">
+            Entregas de {schedule.startTime} a {schedule.endTime}. La hora es aproximada: puede
+            llegar un poco antes o un poco después.
+          </p>
+        </fieldset>
+
         <OrderItemsEditor
           items={values.items}
           products={products}
@@ -149,26 +284,41 @@ export function OrderForm({ zones, products, onCreated }: OrderFormProps) {
           error={fieldErrors.items}
         />
         <p className="order-form__total">
-          Total estimado:{' '}
+          Subtotal estimado:{' '}
           <strong>{formatCurrency(estimateOrderTotal(values.items, products))}</strong>
+          <span className="text-muted">
+            {' '}
+            · El total con IVA lo calcula el servidor y aparece en el comprobante.
+          </span>
         </p>
       </div>
 
       <div className="order-form__map">
         <LocationPicker
-          center={depot ?? DEFAULT_MAP_CENTER}
-          depot={depot}
+          center={coverage.location}
+          depot={null}
+          store={coverage.location}
+          area={area}
           value={values.location}
           isConfirmed={values.locationConfirmed}
-          onChange={(location) => setFields({ location, locationConfirmed: false })}
-          onConfirm={() => setFields({ locationConfirmed: true })}
-          error={fieldErrors.location}
+          onChange={setPoint}
+          onConfirm={() => {
+            if (canConfirm) setFields({ locationConfirmed: true })
+          }}
+          canConfirm={canConfirm}
+          status={coverageStatus}
+          error={locationError}
         />
       </div>
 
       <div className="order-form__actions">
-        <Button type="submit" isLoading={isSubmitting} loadingText="Registrando...">
-          Registrar pedido
+        <Button
+          type="submit"
+          isLoading={isSubmitting}
+          loadingText="Registrando..."
+          disabled={purchase.pending !== null}
+        >
+          Registrar venta
         </Button>
       </div>
     </form>
