@@ -3,6 +3,7 @@ export const paths = {
   home: '/admin',
   login: '/admin/login',
   orders: '/admin/pedidos',
+  orderReceipt: '/admin/pedidos/:id/comprobante',
   planning: '/admin/planificacion',
   urgencies: '/admin/urgencias',
   failedDeliveries: '/admin/entregas-fallidas',
@@ -46,3 +47,6 @@ export const shopReceiptPath = (orderId: string): string => withId(paths.shopRec
 
 /** Edición de un producto del catálogo (panel ADMIN). */
 export const productEditPath = (productId: string): string => withId(paths.productEdit, productId)
+
+/** Comprobante imprimible y contacto de un pedido (panel ADMIN). */
+export const orderReceiptPath = (orderId: string): string => withId(paths.orderReceipt, orderId)
