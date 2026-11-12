@@ -29,7 +29,9 @@ export function PlanningResult({ data }: PlanningResultProps) {
     planningService.listRoutes,
     'No se pudieron cargar las rutas guardadas',
   )
-  const drivers = useFetch(driversService.list, 'No se pudieron cargar los choferes')
+  // Disponibilidad del día planificado: un chofer ausente ese día no se ofrece (#36).
+  const loadDrivers = useCallback(() => driversService.listForDay(data.date), [data.date])
+  const drivers = useFetch(loadDrivers, 'No se pudieron cargar los choferes')
   const { reload: reloadSavedRoutes } = savedRoutes
   const { reload: reloadDrivers } = drivers
 

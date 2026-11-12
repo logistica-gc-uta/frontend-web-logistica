@@ -1,3 +1,4 @@
+import { shopErrorInfo } from '../shop/shopError'
 import { describeActionError } from '../../lib/http/describeActionError'
 
 export const describeConfirmError = (error: unknown): string =>
@@ -16,8 +17,11 @@ export const describeCorrectionError = (error: unknown): string =>
   })
 
 export const describeAssignError = (error: unknown): string =>
-  describeActionError(error, {
-    fallback: 'No se pudo asignar el chofer',
-    forbidden: 'No tienes permisos para asignar choferes.',
-    conflictHint: 'El chofer o la ruta cambiaron: revisa la lista actualizada.',
-  })
+  // Backend #44: el chofer tiene una ausencia el día de la ruta.
+  shopErrorInfo(error).code === 'DRIVER_ABSENT'
+    ? 'Ese chofer está ausente el día de la ruta: elige otro.'
+    : describeActionError(error, {
+        fallback: 'No se pudo asignar el chofer',
+        forbidden: 'No tienes permisos para asignar choferes.',
+        conflictHint: 'El chofer o la ruta cambiaron: revisa la lista actualizada.',
+      })

@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { AxiosError } from 'axios'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
 import { todayInGuayaquil } from '../../lib/time/guayaquil'
@@ -72,6 +72,11 @@ const preview = async (user: User) => {
 }
 
 const card = (label: string) => within(screen.getByRole('article', { name: label }))
+
+// La disponibilidad por día (#36) se prueba aparte: aquí alcanza con el listado simulado.
+beforeEach(() => {
+  vi.spyOn(driversService, 'listForDay').mockImplementation(() => driversService.list())
+})
 
 describe('PlanningPage · previsualizar', () => {
   it('propone el día de hoy y ofrece las zonas, avisando cuáles no tienen depósito', async () => {

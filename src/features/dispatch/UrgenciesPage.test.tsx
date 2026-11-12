@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
 import { auditRecord, failedDelivery, urgencyProposal } from '../../test/dispatchFixtures'
@@ -48,6 +48,11 @@ const renderPage = () =>
 
 const findCard = async () =>
   within(await screen.findByRole('article', { name: `Urgencia ${TITLE}` }))
+
+// La disponibilidad por día (#36) se prueba aparte: aquí alcanza con el listado simulado.
+beforeEach(() => {
+  vi.spyOn(driversService, 'listForDay').mockImplementation(() => driversService.list())
+})
 
 describe('UrgenciesPage', () => {
   it('muestra la bandeja del día, las rutas de hoy y las decisiones registradas', async () => {

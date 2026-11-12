@@ -18,6 +18,10 @@ import { dispatchService } from './dispatchService'
 import type { DispatchAudit, RescheduleInput, UrgencyProposal } from './types'
 import { loadUrgencyBoard } from './urgencyBoard'
 import { UrgencyCard } from './UrgencyCard'
+import { todayInGuayaquil } from '../../lib/time/guayaquil'
+
+/** Choferes con la disponibilidad de hoy, incluida la ausencia (#36). */
+const loadDriversToday = () => driversService.listForDay(todayInGuayaquil())
 
 /**
  * Bandeja de urgencias del día: pedidos de hoy por despachar con la propuesta del backend, las
@@ -28,7 +32,8 @@ export function UrgenciesPage() {
   const { user } = useAuth()
   const board = useFetch(loadUrgencyBoard, 'No se pudo cargar la bandeja de urgencias')
   const routes = useFetch(planningService.listRoutes, 'No se pudieron cargar las rutas de hoy')
-  const drivers = useFetch(driversService.list, 'No se pudieron cargar los choferes')
+  // Las rutas de la bandeja son de hoy: un chofer ausente hoy no se ofrece (#36).
+  const drivers = useFetch(loadDriversToday, 'No se pudieron cargar los choferes')
   const audit = useFetch(loadTodayAuditLog, 'No se pudieron cargar las decisiones')
 
   const { reload: reloadBoard } = board
