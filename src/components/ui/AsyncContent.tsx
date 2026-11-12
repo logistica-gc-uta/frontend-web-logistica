@@ -37,13 +37,20 @@ export function AsyncContent<T>({
   }
 
   if (data === undefined) {
-    return isLoading ? (
-      (loading ?? (
+    if (!isLoading) return null
+    if (!loading) {
+      return (
         <p role="status" className="empty-state">
           {loadingText}
         </p>
-      ))
-    ) : null
+      )
+    }
+    return (
+      <div role="status">
+        <span className="visually-hidden">{loadingText}</span>
+        {loading}
+      </div>
+    )
   }
 
   return <>{children(data)}</>
