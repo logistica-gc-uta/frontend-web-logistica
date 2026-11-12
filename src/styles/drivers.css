@@ -1,0 +1,177 @@
+/* ADMIN · Repartidores y ausencias (#36) */
+.drivers-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.drivers-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 2fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .drivers-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.drivers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.drivers-head h2 {
+  margin: 0;
+}
+
+.drivers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drivers-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.drivers-list__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.drivers-list__info .text-muted {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.drivers-list__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.drivers-list__actions .btn {
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+
+.badge--warning {
+  color: var(--color-signal);
+  background: var(--color-signal-soft);
+}
+
+@media (max-width: 640px) {
+  .drivers-list__item {
+    grid-template-columns: 1fr;
+  }
+}
+
+.temporary-password {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.temporary-password h3,
+.temporary-password p {
+  margin: 0;
+}
+
+.temporary-password__value {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.temporary-password__warning {
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-signal);
+  border-radius: var(--radius-sm);
+  background: var(--color-signal-soft);
+  color: var(--color-heading);
+  font-size: 0.875rem;
+}
+
+.temporary-password__actions,
+.absence-cancel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.absences {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.absences h3 {
+  margin: 0;
+}
+
+.absences__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.absences__list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.absences__list .badge {
+  margin-left: 8px;
+}
+
+.absences__dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.absence-conflicts {
+  padding: 12px 14px;
+  border-left: 4px solid var(--color-signal);
+  border-radius: var(--radius-md);
+  background: var(--color-signal-soft);
+  color: var(--color-heading);
+}
+
+.absence-conflicts p,
+.absence-conflicts ul {
+  margin: 0;
+}
+
+.absence-conflicts ul {
+  margin-top: 6px;
+  padding-left: 20px;
+}

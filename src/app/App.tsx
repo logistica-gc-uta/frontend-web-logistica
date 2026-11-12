@@ -6,6 +6,7 @@ import { OrdersPage } from '../features/orders/OrdersPage'
 import { OrderReceiptPage } from '../features/orders/OrderReceiptPage'
 import { PlanningPage } from '../features/planning/PlanningPage'
 import { UrgenciesPage } from '../features/dispatch/UrgenciesPage'
+import { DriversPage } from '../features/drivers/DriversPage'
 import { FailedDeliveriesPage } from '../features/incidents/FailedDeliveriesPage'
 import { MonitorPage } from '../features/monitor/MonitorPage'
 import { CatalogProductsPage } from '../features/catalog/CatalogProductsPage'
@@ -120,6 +121,7 @@ export function App() {
           <Route path={paths.orderReceipt} element={<OrderReceiptPage />} />
           <Route path={paths.planning} element={<PlanningPage />} />
           <Route path={paths.urgencies} element={<UrgenciesPage />} />
+          <Route path={paths.drivers} element={<DriversPage />} />
           <Route path={paths.failedDeliveries} element={<FailedDeliveriesPage />} />
           <Route path={paths.monitor} element={<MonitorPage />} />
           <Route path={paths.zones} element={<ZonesPage />} />
