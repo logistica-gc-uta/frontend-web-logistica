@@ -16,13 +16,14 @@ const DAY = randomFarDay()
 let admin: Api
 let zone: Zone
 let orderId: string
+let productId: string
 
 test.describe.configure({ mode: 'serial' })
 
 test.beforeAll(async () => {
   admin = await apiAs('ADMIN')
   zone = await createZone(admin, 'Fallas')
-  const productId = await createProduct(admin)
+  productId = await createProduct(admin)
   ;({ id: orderId } = await createOrder(admin, {
     zone,
     productId,
@@ -103,42 +104,45 @@ test('[simulada] un 403 en la bandeja se muestra y al reintentar carga la real',
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
-test('[simulada] sin conexión el alta del pedido falla sin éxito falso y al reintentar se registra una vez', async ({
+test('[simulada] sin conexión la venta no se da por registrada y al reenviarla se registra una sola vez', async ({
   page,
 }) => {
   const address = `E2E Sin red ${uniqueSuffix()}`
-  const sent: string[] = []
+  const sent: { url: string; key: string | null }[] = []
   page.on('request', (request) => {
     if (request.method() === 'POST' && request.url().endsWith('/orders/admin'))
-      sent.push(request.url())
+      sent.push({ url: request.url(), key: request.headers()['idempotency-key'] ?? null })
   })
   await page.route('**/api/v1/orders/admin', (route) => route.abort('internetdisconnected'))
 
-  await page.goto('/pedidos')
-  const form = page.getByRole('form', { name: 'Nuevo pedido' })
-  await form.getByLabel('Nombre del destinatario').fill('E2E Destinatario')
-  await form.getByLabel('Teléfono de contacto').fill('0991234567')
-  await form.getByLabel('Zona').selectOption(zone.id)
+  await page.goto('/admin/pedidos')
+  const form = page.getByRole('form', { name: 'Nueva venta' })
+  await form.getByLabel('Nombre del comprador').fill('E2E Comprador')
+  await form.getByLabel('Teléfono del comprador').fill('0991234567')
+  await form.getByRole('radio', { name: 'Efectivo' }).check()
   await form.getByLabel('Dirección de entrega').fill(address)
-  await form.getByLabel('Fecha y hora de entrega (hora de Guayaquil)').fill(`${DAY}T11:00`)
-  await form.getByLabel('Producto 1', { exact: true }).selectOption({ index: 1 })
+  await form.getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)').fill(`${DAY}T11:00`)
+  await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
   const map = form.locator('.location-picker__canvas')
   const box = (await map.boundingBox())!
   await map.click({ position: { x: box.width / 2 + 40, y: box.height / 2 + 30 } })
+  await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
   await form.getByRole('button', { name: 'Confirmar ubicación' }).click()
 
-  await form.getByRole('button', { name: 'Registrar pedido' }).click()
-  await expect(form.getByRole('alert')).toHaveText('No se pudo conectar con el servidor')
-  await expect(form.getByText('Pedido registrado correctamente')).toHaveCount(0)
+  // La venta no llegó: se consulta el intento con la misma clave y se dice que no se registró.
+  await form.getByRole('button', { name: 'Registrar venta' }).click()
+  await expect(form.getByRole('alert')).toContainText('La venta no llegó a registrarse')
+  await expect(page.getByText('Venta registrada')).toHaveCount(0)
   await evidence(form, '12-simulada-sin-conexion')
 
-  // Al volver la conexión, lo escrito sigue ahí y el reintento registra el pedido real.
+  // Al volver la conexión, lo escrito sigue ahí y el reenvío usa la misma clave.
   await page.unroute('**/api/v1/orders/admin')
   const created = page.waitForResponse((r) => r.url().endsWith('/orders/admin'))
-  await form.getByRole('button', { name: 'Registrar pedido' }).click()
+  await form.getByRole('button', { name: 'Registrar venta' }).click()
   expect((await created).status()).toBe(201)
-  await expect(form.getByText('Pedido registrado correctamente')).toBeVisible()
+  await expect(page.getByText('Venta registrada. Este es su comprobante.')).toBeVisible()
   expect(sent).toHaveLength(2)
+  expect(sent[1].key).toBe(sent[0].key)
 })
 
 test('[simulada] el seguimiento avisa la pérdida de conexión y se recupera solo', async ({

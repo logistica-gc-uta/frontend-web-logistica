@@ -4,6 +4,7 @@ import type { UrgencyProposal } from '../features/dispatch/types'
 import { ordersService } from '../features/orders/ordersService'
 import { planningService } from '../features/planning/planningService'
 import { productsService } from '../features/products/productsService'
+import { shopService } from '../features/shop/shopService'
 import type { Zone } from '../features/zones/types'
 import { authStorage } from '../lib/auth/authStorage'
 import { apiClient } from '../lib/http/apiClient'
@@ -35,7 +36,10 @@ const guayaquilTimeIn = (minutes: number) =>
 const TODAY = todayInGuayaquil()
 const LATER_TODAY = guayaquilTimeIn(MINUTES_AHEAD)
 // Cerca de la medianoche ya no queda un "más tarde hoy": la suite se omite en lugar de fallar.
-const HAS_TIME_LEFT_TODAY = LATER_TODAY > guayaquilTimeIn(0)
+// Desde backend #42 el ADMIN también respeta el horario de reparto de la tienda: fuera de él, se omite.
+const { deliverySchedule: HOURS } = await shopService.settings()
+const HAS_TIME_LEFT_TODAY =
+  LATER_TODAY > guayaquilTimeIn(0) && LATER_TODAY >= HOURS.startTime && LATER_TODAY <= HOURS.endTime
 
 const TOMORROW = new Date(Date.parse(`${TODAY}T12:00:00Z`) + 24 * 60 * 60_000)
   .toISOString()
@@ -45,15 +49,19 @@ let zone: Zone
 let productId: string
 
 const createTodayOrder = async (k: number) =>
-  ordersService.createAsAdmin({
-    recipient: { type: 'GUEST', name: `IT Urgencia ${k}`, contactPhone: '0990000000' },
-    zoneId: zone.id,
-    deliveryAddress: `IT Urgencia ${k} ${uniqueSuffix()}`,
-    items: [{ productId, quantity: 1 }],
-    scheduledDeliveryDate: `${TODAY}T${LATER_TODAY}:00-05:00`,
-    deliveryLat: DEPOT.lat + 0.001 * k,
-    deliveryLng: DEPOT.lng + 0.001 * k,
-  })
+  ordersService.createPurchase(
+    {
+      buyer: { type: 'GUEST', name: `IT Urgencia ${k}`, contactPhone: '0990000000' },
+      zoneId: zone.id,
+      deliveryAddress: `IT Urgencia ${k} ${uniqueSuffix()}`,
+      items: [{ productId, quantity: 1 }],
+      scheduledDeliveryDate: `${TODAY}T${LATER_TODAY}:00-05:00`,
+      deliveryLat: DEPOT.lat + 0.001 * k,
+      deliveryLng: DEPOT.lng + 0.001 * k,
+      payment: { method: 'CASH' },
+    },
+    crypto.randomUUID(),
+  )
 
 const urgencyOf = async (orderId: string): Promise<UrgencyProposal | undefined> =>
   (await dispatchService.inbox()).urgencies.find((urgency) => urgency.orderId === orderId)

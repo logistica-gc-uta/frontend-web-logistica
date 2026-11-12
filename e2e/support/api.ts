@@ -19,7 +19,7 @@ export class ApiError extends Error {
  */
 export interface Api {
   get<T>(path: string): Promise<T>
-  post<T>(path: string, data?: unknown): Promise<T>
+  post<T>(path: string, data?: unknown, headers?: Record<string, string>): Promise<T>
   patch<T>(path: string, data?: unknown): Promise<T>
   /** Envía un archivo como `multipart/form-data` en el campo `file`. */
   upload<T>(path: string, file: { name: string; mimeType: string; buffer: Buffer }): Promise<T>
@@ -32,10 +32,11 @@ async function call<T>(
   method: Method,
   path: string,
   data?: unknown,
+  headers: Record<string, string> = {},
 ): Promise<T> {
   const response = await context.fetch(`${API_URL}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...headers },
     data,
   })
   const text = await response.text()
@@ -55,7 +56,7 @@ export async function apiAs(role: Role): Promise<Api> {
 
   return {
     get: (path) => call(context, token, 'GET', path),
-    post: (path, data = {}) => call(context, token, 'POST', path, data),
+    post: (path, data = {}, headers) => call(context, token, 'POST', path, data, headers),
     patch: (path, data = {}) => call(context, token, 'PATCH', path, data),
     upload: async (path, file) => {
       const response = await context.post(`${API_URL}${path}`, {
