@@ -3,13 +3,36 @@ import { AppError } from '../../lib/errors/AppError'
 import { localDateTimeToIso } from '../../lib/time/guayaquil'
 import { isBlank, isPositiveInteger, toNumber } from '../../lib/validation/validators'
 import type { Product } from '../products/types'
-import type { CreateAdminOrderInput, OrderFormValues, OrderItemFormValue } from './types'
+import { validateDeliverySchedule } from '../shop/checkout/deliverySchedule'
+import type { DeliverySchedule } from '../shop/types'
+import type { CreateAdminPurchaseInput, OrderFormValues, OrderItemFormValue } from './types'
 
-/** Límites del `GuestRecipientDto` del backend. */
-const MAX_RECIPIENT_NAME_LENGTH = 120
-const MAX_RECIPIENT_PHONE_LENGTH = 40
+/** Límites de los DTO de compra ADMIN del backend (#45). */
+const MAX_NAME_LENGTH = 120
+const MAX_PHONE_LENGTH = 40
+const MAX_NOTE_LENGTH = 200
 
 export const EMPTY_ORDER_ITEM: OrderItemFormValue = { productId: '', quantity: '1' }
+
+export const INITIAL_ORDER_FORM: OrderFormValues = {
+  buyerType: 'GUEST',
+  buyerName: '',
+  buyerPhone: '',
+  giftToOther: false,
+  recipientName: '',
+  recipientPhone: '',
+  paymentMethod: '',
+  paymentNote: '',
+  deliveryAddress: '',
+  scheduledAt: '',
+  items: [EMPTY_ORDER_ITEM],
+  location: null,
+  locationConfirmed: false,
+}
+
+/** Mensaje mientras el backend no ofrezca cómo buscar clientes registrados. */
+export const REGISTERED_BUYER_PENDING =
+  'Todavía no se puede elegir un cliente con cuenta: falta el buscador de clientes en el backend.'
 
 /** Devuelve el primer mensaje de error de las líneas de producto, o `undefined` si son válidas. */
 function validateItems(items: OrderItemFormValue[], products: Product[]): string | undefined {
@@ -45,65 +68,110 @@ function validateItems(items: OrderItemFormValue[], products: Product[]): string
   return problems.length > 0 ? problems.join('. ') : undefined
 }
 
+function requiredText(value: string, max: number, empty: string): string | undefined {
+  const text = value.trim()
+  if (text === '') return empty
+  if (text.length > max) return `Máximo ${max} caracteres`
+  return undefined
+}
+
 /**
- * Valida el formulario con las mismas reglas que `CreateAdminOrderDto` y el servicio de pedidos.
- * `now` (ms desde 1970) permite probar la regla de fecha futura de forma determinista.
+ * Valida la venta con las mismas reglas que `CreateAdminOrderDto` y el horario vigente de la
+ * tienda. La cobertura del punto la decide el servidor (`coverageError` llega ya resuelto).
  */
 export function validateOrder(
   values: OrderFormValues,
   products: Product[],
-  now: number = Date.now(),
+  schedule: DeliverySchedule,
+  coverageError?: string,
+  now: Date = new Date(),
 ): FieldErrors<OrderFormValues> {
   const errors: FieldErrors<OrderFormValues> = {}
 
-  const recipientName = values.recipientName.trim()
-  if (recipientName === '') errors.recipientName = 'El nombre del destinatario es obligatorio'
-  else if (recipientName.length > MAX_RECIPIENT_NAME_LENGTH) {
-    errors.recipientName = `El nombre no puede superar ${MAX_RECIPIENT_NAME_LENGTH} caracteres`
+  if (values.buyerType === 'REGISTERED_CLIENT') errors.buyerType = REGISTERED_BUYER_PENDING
+  else {
+    const name = requiredText(values.buyerName, MAX_NAME_LENGTH, 'Escribe el nombre del comprador')
+    if (name) errors.buyerName = name
+  }
+  const buyerPhone = requiredText(
+    values.buyerPhone,
+    MAX_PHONE_LENGTH,
+    'El teléfono del comprador es obligatorio',
+  )
+  if (buyerPhone) errors.buyerPhone = buyerPhone
+
+  if (values.giftToOther) {
+    const name = requiredText(
+      values.recipientName,
+      MAX_NAME_LENGTH,
+      'Escribe el nombre de quien recibe',
+    )
+    if (name) errors.recipientName = name
+    const phone = requiredText(
+      values.recipientPhone,
+      MAX_PHONE_LENGTH,
+      'El teléfono de quien recibe es obligatorio',
+    )
+    if (phone) errors.recipientPhone = phone
   }
 
-  const recipientPhone = values.recipientPhone.trim()
-  if (recipientPhone === '') errors.recipientPhone = 'El teléfono de contacto es obligatorio'
-  else if (recipientPhone.length > MAX_RECIPIENT_PHONE_LENGTH) {
-    errors.recipientPhone = `El teléfono no puede superar ${MAX_RECIPIENT_PHONE_LENGTH} caracteres`
+  if (values.paymentMethod === '')
+    errors.paymentMethod = 'Elige cómo pagó: efectivo o transferencia'
+  if (values.paymentNote.trim().length > MAX_NOTE_LENGTH) {
+    errors.paymentNote = `Máximo ${MAX_NOTE_LENGTH} caracteres`
   }
 
-  if (isBlank(values.zoneId)) errors.zoneId = 'Selecciona una zona'
   if (isBlank(values.deliveryAddress))
     errors.deliveryAddress = 'La dirección de entrega es obligatoria'
 
-  const scheduledIso = localDateTimeToIso(values.scheduledAt)
   if (isBlank(values.scheduledAt)) {
-    errors.scheduledAt = 'La fecha y hora de entrega son obligatorias'
-  } else if (scheduledIso === null) {
-    errors.scheduledAt = 'La fecha y hora de entrega no son válidas'
-  } else if (Date.parse(scheduledIso) <= now) {
-    errors.scheduledAt = 'La entrega debe programarse para una fecha y hora futuras'
+    errors.scheduledAt = 'La fecha y la hora aproximada de entrega son obligatorias'
+  } else {
+    const [date = '', time = ''] = values.scheduledAt.split('T')
+    const when = validateDeliverySchedule(date, time, schedule, now)
+    const problem = when.date ?? when.time
+    if (problem) errors.scheduledAt = problem
+    else if (localDateTimeToIso(values.scheduledAt) === null) {
+      errors.scheduledAt = 'La fecha y hora de entrega no son válidas'
+    }
   }
 
   const itemsError = validateItems(values.items, products)
   if (itemsError) errors.items = itemsError
 
   if (values.location === null) errors.location = 'Coloca el marcador en el mapa'
+  else if (coverageError) errors.location = coverageError
   else if (!values.locationConfirmed) errors.location = 'Confirma la ubicación en el mapa'
 
   return errors
 }
 
-/** Convierte los valores (ya validados) al cuerpo de `POST /orders/admin`. */
-export function toCreateAdminOrderInput(values: OrderFormValues): CreateAdminOrderInput {
+/** Convierte los valores (ya validados) al cuerpo de `POST /orders/admin`. Sin zona (#42). */
+export function toCreateAdminPurchaseInput(values: OrderFormValues): CreateAdminPurchaseInput {
   const scheduledDeliveryDate = localDateTimeToIso(values.scheduledAt)
-  if (values.location === null || scheduledDeliveryDate === null) {
-    throw new AppError('El pedido tiene datos incompletos')
+  if (
+    values.location === null ||
+    scheduledDeliveryDate === null ||
+    values.paymentMethod === '' ||
+    values.buyerType !== 'GUEST'
+  ) {
+    throw new AppError('La venta tiene datos incompletos')
   }
+  const note = values.paymentNote.trim()
 
   return {
-    recipient: {
+    buyer: {
       type: 'GUEST',
-      name: values.recipientName.trim(),
-      contactPhone: values.recipientPhone.trim(),
+      name: values.buyerName.trim(),
+      contactPhone: values.buyerPhone.trim(),
     },
-    zoneId: values.zoneId,
+    ...(values.giftToOther && {
+      giftRecipient: {
+        name: values.recipientName.trim(),
+        contactPhone: values.recipientPhone.trim(),
+      },
+    }),
+    payment: { method: values.paymentMethod, ...(note && { note }) },
     deliveryAddress: values.deliveryAddress.trim(),
     items: values.items.map(({ productId, quantity }) => ({
       productId,
@@ -115,7 +183,7 @@ export function toCreateAdminOrderInput(values: OrderFormValues): CreateAdminOrd
   }
 }
 
-/** Total estimado con los precios actuales; ignora las líneas incompletas o inválidas. */
+/** Subtotal estimado con los precios actuales (sin IVA): el total real lo calcula el servidor. */
 export function estimateOrderTotal(items: OrderItemFormValue[], products: Product[]): number {
   const total = items.reduce((sum, { productId, quantity }) => {
     const product = products.find((candidate) => candidate.id === productId)
