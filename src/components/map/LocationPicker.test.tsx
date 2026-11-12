@@ -45,6 +45,9 @@ vi.mock('react-leaflet', () => ({
       {children}
     </div>
   ),
+  Polygon: ({ positions }: { positions: [number, number][] }) => (
+    <div data-testid="area" data-points={positions.length} />
+  ),
   useMap: () => ({ setView: leaflet.setView }),
   useMapEvents: (handlers: { click: typeof leaflet.onMapClick }) => {
     leaflet.onMapClick = handlers.click
@@ -86,6 +89,34 @@ describe('LocationPicker', () => {
     expect(screen.getByText('Depósito de la zona')).toBeInTheDocument()
     expect(screen.queryByTestId('order-marker')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirmar ubicación' })).not.toBeInTheDocument()
+  })
+
+  it('dibuja el área de entrega y la tienda, muestra la verificación y respeta canConfirm', () => {
+    const area: GeoPoint[] = [
+      { lat: -1.27, lng: -78.63 },
+      { lat: -1.27, lng: -78.6 },
+      { lat: -1.23, lng: -78.6 },
+    ]
+    renderPicker({
+      depot: null,
+      store: center,
+      area,
+      value: point,
+      status: 'Dentro de la zona de entrega.',
+      canConfirm: false,
+    })
+
+    expect(screen.getByTestId('area')).toHaveAttribute('data-points', '3')
+    expect(screen.getByText('Tienda')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Dentro de la zona de entrega.')
+    expect(screen.getByRole('button', { name: 'Confirmar ubicación' })).toBeDisabled()
+  })
+
+  it('sin área no dibuja ningún polígono (el alta de pedidos ADMIN no cambia)', () => {
+    renderPicker()
+
+    expect(screen.queryByTestId('area')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tienda')).not.toBeInTheDocument()
   })
 
   it('no dibuja el depósito si la zona todavía no se eligió', () => {

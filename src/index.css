@@ -1302,3 +1302,29 @@ a:hover {
 .dash-empty p {
   margin: 0;
 }
+
+/* Área de entrega de la tienda en el mapa del checkout (#33) */
+.location-picker__area {
+  fill: var(--color-accent);
+  fill-opacity: 0.08;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.location-picker__status {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.checkout__approx-notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-sand);
+  border-radius: var(--radius-sm);
+  background: var(--color-sand-soft);
+  font-size: 0.875rem;
+  color: var(--color-heading);
+}

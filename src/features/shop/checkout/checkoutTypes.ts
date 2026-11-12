@@ -8,7 +8,11 @@ export interface CheckoutItem {
 /** Datos de entrega que el cliente envía al cotizar y al pagar (el comprador sale del JWT). */
 export interface DeliveryInput {
   recipient: { name: string; phone: string }
-  zoneId: string
+  /**
+   * Obsoleto desde backend #42: el servidor decide la entrega con la cobertura de la tienda.
+   * Solo puede venir en un borrador guardado antes del cambio; el checkout ya no lo envía.
+   */
+  zoneId?: string
   deliveryAddress: string
   deliveryLocation: GeoPoint
   /** ISO 8601 con offset explícito de Guayaquil (`-05:00`). */
