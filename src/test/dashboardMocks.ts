@@ -17,4 +17,5 @@ export function mockDashboardServices() {
   })
   vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([])
   vi.spyOn(driversService, 'list').mockResolvedValue([])
+  vi.spyOn(driversService, 'listForDay').mockResolvedValue([])
 }

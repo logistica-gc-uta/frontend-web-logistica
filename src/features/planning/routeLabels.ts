@@ -19,4 +19,5 @@ export const ROUTE_STATUS_HELP: Record<RouteStatus, string> = {
 export const DRIVER_UNAVAILABLE_LABELS: Record<DriverUnavailableReason, string> = {
   ROUTE_HOLD: 'ocupado hasta que regrese al depósito',
   MARKED_UNAVAILABLE: 'marcado como no disponible',
+  ABSENT: 'ausente ese día',
 }
