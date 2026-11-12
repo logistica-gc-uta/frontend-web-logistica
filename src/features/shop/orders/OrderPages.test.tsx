@@ -58,7 +58,9 @@ describe('Shop · confirmación', () => {
     vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
     renderShop('/checkout/confirmacion/pedido-1')
 
-    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('RG-2030-0001')).toBeInTheDocument()
     expect(screen.getByText('aprobado')).toBeInTheDocument()
     expect(screen.getByText(/Total pagado: \$83,95/)).toBeInTheDocument()
@@ -106,7 +108,9 @@ describe('Shop · mis pedidos', () => {
     expect(within(firstLink).getByText('Pendiente de despacho')).toBeInTheDocument()
     expect(within(firstLink).getByText('$83,95')).toBeInTheDocument()
     // No enlaces internos duplicados en la fila
-    expect(within(firstLink).queryByRole('link', { name: 'Ver detalle y seguimiento' })).not.toBeInTheDocument()
+    expect(
+      within(firstLink).queryByRole('link', { name: 'Ver detalle y seguimiento' }),
+    ).not.toBeInTheDocument()
     expect(within(firstLink).queryByRole('link', { name: 'Comprobante' })).not.toBeInTheDocument()
 
     const secondLink = screen.getByRole('link', { name: 'Pedido RG-2' })
@@ -135,7 +139,11 @@ describe('Shop · mis pedidos', () => {
 
   it('filtro horizontal con botón para limpiar filtros que reinicia estado y página', async () => {
     const list = vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
-      items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
+      items: [orderSummary()],
+      total: 11,
+      page: 1,
+      pageSize: 10,
+      totalPages: 2,
     })
     const { user } = renderShop('/mi-cuenta/pedidos')
     await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
@@ -150,7 +158,11 @@ describe('Shop · mis pedidos', () => {
 
   it('consulta el estado en el servidor, reinicia la página y mantiene los totales reales', async () => {
     const list = vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
-      items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
+      items: [orderSummary()],
+      total: 11,
+      page: 1,
+      pageSize: 10,
+      totalPages: 2,
     })
     const { user } = renderShop('/mi-cuenta/pedidos')
     await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
@@ -164,7 +176,11 @@ describe('Shop · mis pedidos', () => {
     expect(await screen.findByText('No encontramos pedidos con ese estado')).toBeInTheDocument()
     expect(list).toHaveBeenLastCalledWith(1, 10, 'DELIVERED')
     list.mockResolvedValue({
-      items: [orderSummary()], total: 11, page: 1, pageSize: 10, totalPages: 2,
+      items: [orderSummary()],
+      total: 11,
+      page: 1,
+      pageSize: 10,
+      totalPages: 2,
     })
     await user.selectOptions(screen.getByLabelText('Estado del pedido'), '')
     await screen.findByRole('link', { name: /Pedido RG-2030-0001/ })
@@ -226,6 +242,19 @@ describe('Shop · detalle y seguimiento', () => {
     expect(screen.queryByRole('button', { name: /estado/i })).not.toBeInTheDocument()
   })
 
+  it('un pedido con cobertura de tienda (sin zona) muestra solo la dirección', async () => {
+    const detail = orderDetail()
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue({
+      ...detail,
+      delivery: { ...detail.delivery, zoneName: null },
+    })
+    renderShop('/mi-cuenta/pedidos/pedido-1')
+
+    const where = await screen.findByText('Av. Cevallos y Montalvo')
+    expect(where).toHaveTextContent(/^Av\. Cevallos y Montalvo$/)
+    expect(screen.queryByText(/· null/)).not.toBeInTheDocument()
+  })
+
   it('un pedido ajeno o inexistente no expone información', async () => {
     vi.spyOn(customerOrdersService, 'detail').mockRejectedValue(new Error('x'))
     renderShop('/mi-cuenta/pedidos/ajeno')
@@ -236,9 +265,14 @@ describe('Shop · detalle y seguimiento', () => {
 
 describe('Shop · importes históricos', () => {
   it('no llama gratis a un envío con importe y conserva el IVA desactivado', async () => {
-    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail({
-      taxEnabled: false, taxAmountCents: 0, shippingAmountCents: 450, totalCents: 7750,
-    }))
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(
+      orderDetail({
+        taxEnabled: false,
+        taxAmountCents: 0,
+        shippingAmountCents: 450,
+        totalCents: 7750,
+      }),
+    )
     renderShop('/mi-cuenta/pedidos/pedido-1')
     expect(await screen.findByText('IVA no aplicado')).toBeInTheDocument()
     expect(screen.getByText('$4,50')).toBeInTheDocument()

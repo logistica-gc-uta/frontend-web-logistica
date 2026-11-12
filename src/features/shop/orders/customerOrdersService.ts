@@ -43,7 +43,8 @@ export interface CustomerOrderDetail extends OrderAmounts {
   buyer: { name: string; email: string }
   recipient: { name: string; phone: string }
   delivery: {
-    zoneName: string
+    /** `null` en los pedidos con cobertura de tienda (backend #42); los antiguos traen su zona. */
+    zoneName: string | null
     address: string
     location: { lat: number; lng: number }
     scheduledDeliveryDate: string

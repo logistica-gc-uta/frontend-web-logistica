@@ -47,8 +47,22 @@ function DeliveryVanIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="13" cy="37" r="4" fill="var(--color-surface-sunken)" stroke="currentColor" strokeWidth="2" />
-      <circle cx="36" cy="37" r="4" fill="var(--color-surface-sunken)" stroke="currentColor" strokeWidth="2" />
+      <circle
+        cx="13"
+        cy="37"
+        r="4"
+        fill="var(--color-surface-sunken)"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle
+        cx="36"
+        cy="37"
+        r="4"
+        fill="var(--color-surface-sunken)"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
     </svg>
   )
 }
@@ -59,14 +73,25 @@ function OrderStatusIcon({ status }: { status: keyof typeof CUSTOMER_ORDER_STATU
       return (
         <svg aria-hidden="true" viewBox="0 0 20 20">
           <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M10 6v4l3 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path
+            d="M10 6v4l3 2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
         </svg>
       )
     case 'ASSIGNED':
       return (
         <svg aria-hidden="true" viewBox="0 0 20 20">
           <circle cx="10" cy="7" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M4 17v-1.5a4.5 4.5 0 0 1 9 0V17" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path
+            d="M4 17v-1.5a4.5 4.5 0 0 1 9 0V17"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          />
         </svg>
       )
     case 'IN_TRANSIT':
@@ -102,7 +127,13 @@ function OrderStatusIcon({ status }: { status: keyof typeof CUSTOMER_ORDER_STATU
       return (
         <svg aria-hidden="true" viewBox="0 0 20 20">
           <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="m7 7 6 6M13 7l-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path
+            d="m7 7 6 6M13 7l-6 6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
         </svg>
       )
   }
@@ -128,7 +159,9 @@ function OrderItems({ order }: { order: CustomerOrderDetail }) {
         <li key={item.productId} className="item">
           <Link to={shopProductPath(item.productId)} aria-label={`Ver ${item.name}`}>
             <ProductImage
-              src={item.imageUrl ?? catalogPhotos.data?.get(item.productId)?.primaryImageUrl ?? null}
+              src={
+                item.imageUrl ?? catalogPhotos.data?.get(item.productId)?.primaryImageUrl ?? null
+              }
               alt={item.name}
               className="order-items__image"
             />
@@ -138,7 +171,8 @@ function OrderItems({ order }: { order: CustomerOrderDetail }) {
               <Link to={shopProductPath(item.productId)}>{item.name}</Link>
             </strong>
             <p className="item-details text-muted small">
-              {item.quantity} × <span className="money">{formatCents(item.unitPriceCents)} c/u al comprar</span>
+              {item.quantity} ×{' '}
+              <span className="money">{formatCents(item.unitPriceCents)} c/u al comprar</span>
             </p>
           </div>
           <b className="item-total money">{formatCents(item.lineTotalCents)}</b>
@@ -161,7 +195,8 @@ function DeliveryFacts({ order }: { order: CustomerOrderDetail }) {
         <div>
           <h3>Dónde</h3>
           <p>
-            {order.delivery.address} · {order.delivery.zoneName}
+            {order.delivery.address}
+            {order.delivery.zoneName && ` · ${order.delivery.zoneName}`}
           </p>
           {order.delivery.notes && <p className="delivery-notes">{order.delivery.notes}</p>}
         </div>
@@ -337,7 +372,9 @@ export function MyOrdersPage() {
           data.items.length === 0 ? (
             <div className="empty" id="empty">
               <h2 id="empty-title">
-                {status ? 'No encontramos pedidos con ese estado' : 'Tu próximo detalle empieza aquí'}
+                {status
+                  ? 'No encontramos pedidos con ese estado'
+                  : 'Tu próximo detalle empieza aquí'}
               </h2>
               <p id="empty-copy">
                 {status
@@ -374,7 +411,8 @@ export function MyOrdersPage() {
                         <ProductImage
                           src={
                             order.primaryImageUrl ??
-                            catalogPhotos.data?.get(order.primaryProductId ?? '')?.primaryImageUrl ??
+                            catalogPhotos.data?.get(order.primaryProductId ?? '')
+                              ?.primaryImageUrl ??
                             null
                           }
                           alt=""
@@ -536,9 +574,7 @@ export function ReceiptPage() {
                 <p className="eyebrow order-eyebrow">{data.merchantName}</p>
                 <h1 id="receipt-title">Comprobante de compra</h1>
                 <p className="small receipt-id">{data.number}</p>
-                <p className="small">
-                  Emitido el {formatDateTime(data.issuedAt)} · Pago aprobado
-                </p>
+                <p className="small">Emitido el {formatDateTime(data.issuedAt)} · Pago aprobado</p>
               </div>
             </div>
             <div className="delivery-info">
