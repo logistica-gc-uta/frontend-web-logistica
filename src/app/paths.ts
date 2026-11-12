@@ -8,6 +8,7 @@ export const paths = {
   failedDeliveries: '/admin/entregas-fallidas',
   monitor: '/admin/seguimiento',
   zones: '/admin/zonas',
+  storeCoverage: '/admin/cobertura',
   products: '/admin/productos',
   productNew: '/admin/productos/nuevo',
   productEdit: '/admin/productos/:id',

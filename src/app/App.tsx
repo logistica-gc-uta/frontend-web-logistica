@@ -29,10 +29,17 @@ import { CatalogPage } from '../features/shop/pages/CatalogPage'
 import { ProductDetailPage } from '../features/shop/pages/ProductDetailPage'
 import { ShopHomePage } from '../features/shop/pages/ShopHomePage'
 import { ShopNotFoundPage } from '../features/shop/pages/ShopNotFoundPage'
+import { StoreCoveragePage } from '../features/store-coverage/StoreCoveragePage'
 import { ZonesPage } from '../features/zones/ZonesPage'
 import { HomePage } from '../pages/HomePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
-import { paths, shopConfirmationPath, shopOrderPath, shopProductPath, shopReceiptPath } from './paths'
+import {
+  paths,
+  shopConfirmationPath,
+  shopOrderPath,
+  shopProductPath,
+  shopReceiptPath,
+} from './paths'
 
 function KeepSearch({ to }: { to: string }) {
   const { search } = useLocation()
@@ -114,6 +121,7 @@ export function App() {
           <Route path={paths.failedDeliveries} element={<FailedDeliveriesPage />} />
           <Route path={paths.monitor} element={<MonitorPage />} />
           <Route path={paths.zones} element={<ZonesPage />} />
+          <Route path={paths.storeCoverage} element={<StoreCoveragePage />} />
           <Route path={paths.products} element={<CatalogProductsPage />} />
           <Route path={paths.productNew} element={<ProductEditorPage />} />
           <Route path={paths.productEdit} element={<ProductEditorPage />} />

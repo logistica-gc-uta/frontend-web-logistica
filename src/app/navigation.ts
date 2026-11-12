@@ -28,7 +28,10 @@ export const navGroups: readonly NavGroup[] = [
   },
   {
     title: 'Territorio',
-    items: [{ label: 'Zonas', to: paths.zones }],
+    items: [
+      { label: 'Tienda y cobertura', to: paths.storeCoverage },
+      { label: 'Zonas', to: paths.zones },
+    ],
   },
   {
     title: 'Tienda',
