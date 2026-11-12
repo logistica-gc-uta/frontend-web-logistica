@@ -190,7 +190,10 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
             </p>
             <p>{draft.delivery.deliveryAddress}</p>
             <p className="text-muted">
-              {formatDateTime(draft.delivery.scheduledDeliveryDate)} · Ecuador
+              Hora aproximada: {formatDateTime(draft.delivery.scheduledDeliveryDate)} · Ecuador
+            </p>
+            <p className="checkout__approx-notice">
+              La entrega puede llegar un poco antes o un poco después de esa hora.
             </p>
           </div>
           {!locked && <Link to={paths.shopCheckout}>Volver a entrega</Link>}
@@ -220,12 +223,7 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
           problem && <Alert>{problem.message}</Alert>
         )}
 
-        <form
-          className="form payment-form"
-          aria-label="Pago con tarjeta"
-          noValidate
-          onSubmit={pay}
-        >
+        <form className="form payment-form" aria-label="Pago con tarjeta" noValidate onSubmit={pay}>
           <fieldset disabled={locked}>
             <TextField
               label="Número de tarjeta"
@@ -288,7 +286,9 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
           <p className="payment__warning" role="note">
             Solo tarjetas ficticias de demostración. No ingreses datos bancarios reales.
           </p>
-          <p className="text-muted">Los saldos indicados son iniciales, no garantizan la aprobación.</p>
+          <p className="text-muted">
+            Los saldos indicados son iniciales, no garantizan la aprobación.
+          </p>
           <ul>
             {DEMO_CARDS.map((demo) => (
               <li key={demo.number}>
@@ -333,14 +333,23 @@ export function PaymentPage() {
         <ol className="checkout__steps steps">
           <li>
             <Link to={paths.shopCheckout} className="checkout__step-link">
-              <span className="step-number" aria-hidden="true">1</span>Entrega
+              <span className="step-number" aria-hidden="true">
+                1
+              </span>
+              Entrega
             </Link>
           </li>
           <li aria-current="step">
-            <span className="step-number" aria-hidden="true">2</span>Pago
+            <span className="step-number" aria-hidden="true">
+              2
+            </span>
+            Pago
           </li>
           <li>
-            <span className="step-number" aria-hidden="true">3</span>Resultado
+            <span className="step-number" aria-hidden="true">
+              3
+            </span>
+            Resultado
           </li>
         </ol>
       </nav>

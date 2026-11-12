@@ -47,14 +47,15 @@ async function addToCart(page: Page, quantity = 1) {
 async function fillDelivery(form: Locator, time: string) {
   await form.getByLabel('Nombre de quien recibe').fill('Ana Regalo')
   await form.getByLabel('Teléfono de contacto').fill('0991234567')
-  await form.getByLabel('Zona').selectOption({ index: 1 })
   await form.getByLabel('Dirección de entrega').fill('Av. Cevallos y Montalvo')
   const map = form.locator('.location-picker__canvas')
   const box = (await map.boundingBox())!
   await map.click({ position: { x: box.width / 2 + 30, y: box.height / 2 + 20 } })
+  // Se confirma cuando el servidor dice que el punto está dentro de la cobertura (#33).
+  await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
   await form.getByRole('button', { name: 'Confirmar ubicación' }).click()
   await form.getByLabel('Día de entrega').fill(TOMORROW)
-  await form.getByLabel('Hora de entrega').fill(time)
+  await form.getByLabel('Hora aproximada de entrega').fill(time)
 }
 
 async function fillCard(form: Locator, card: (typeof CARDS)[keyof typeof CARDS]) {

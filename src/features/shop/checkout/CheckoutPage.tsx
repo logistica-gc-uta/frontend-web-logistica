@@ -4,12 +4,13 @@ import { paths } from '../../../app/paths'
 import { LocationPicker } from '../../../components/map/LocationPicker'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
-import { SelectField } from '../../../components/ui/SelectField'
 import { TextField } from '../../../components/ui/TextField'
 import { useFetch } from '../../../hooks/useFetch'
 import { useForm, type FieldErrors } from '../../../hooks/useForm'
 import { todayInGuayaquil } from '../../../lib/time/guayaquil'
 import type { GeoPoint } from '../../../types/geo'
+import { fromPolygon } from '../../store-coverage/coverageDraft'
+import type { ConfiguredStoreCoverage, CoveragePosition } from '../../store-coverage/types'
 import { useCustomer } from '../account/customerContext'
 import type { CartLocationState } from '../cart/CartPage'
 import { useCart } from '../cart/cartContext'
@@ -34,7 +35,6 @@ export interface CheckoutLocationState {
 type DeliveryForm = {
   recipientName: string
   recipientPhone: string
-  zoneId: string
   address: string
   date: string
   time: string
@@ -46,7 +46,6 @@ type DeliveryForm = {
 const EMPTY_FORM: DeliveryForm = {
   recipientName: '',
   recipientPhone: '',
-  zoneId: '',
   address: '',
   date: '',
   time: '',
@@ -55,14 +54,40 @@ const EMPTY_FORM: DeliveryForm = {
   locationConfirmed: false,
 }
 
-const DEFAULT_MAP_CENTER: GeoPoint = { lat: -1.2417, lng: -78.6197 }
 const QUOTE_DEBOUNCE_MS = 300
+
+/**
+ * Lo que respondió el servidor sobre el punto del marcador (`POST /store-coverage/evaluate`).
+ * `key` identifica el punto consultado: una respuesta de un punto anterior no vale para el actual.
+ */
+type CoverageCheck =
+  | { key: string; state: 'checking' }
+  | { key: string; state: 'done'; position: CoveragePosition }
+  | { key: string; state: 'failed'; message: string }
+
+const pointKey = (point: GeoPoint | null): string => (point ? `${point.lat},${point.lng}` : '')
+
+/**
+ * Verificación del punto actual: la respuesta guardada si es de este mismo punto; si todavía no
+ * llegó, «verificando». Una respuesta de un punto anterior nunca vale para el actual.
+ */
+const checkFor = (check: CoverageCheck | null, key: string): CoverageCheck | null => {
+  if (!key) return null
+  return check?.key === key ? check : { key, state: 'checking' }
+}
+
+const COVERAGE_STATUS: Record<Exclude<CoveragePosition, 'EXTERIOR'>, string> = {
+  INTERIOR: 'Dentro de la zona de entrega.',
+  BOUNDARY: 'En el borde de la zona de entrega: sí entregamos ahí.',
+}
+const CHECKING_MESSAGE = 'Verificando si entregamos en ese punto…'
+const OUTSIDE_MESSAGE =
+  'Ese punto está fuera de la zona de entrega. Coloca el marcador dentro del área marcada.'
 
 /** Formulario a partir de una entrega ya cotizada (para corregirla o volver a cotizar). */
 const formFromDelivery = (delivery: DeliveryInput): DeliveryForm => ({
   recipientName: delivery.recipient.name,
   recipientPhone: delivery.recipient.phone,
-  zoneId: delivery.zoneId,
   address: delivery.deliveryAddress,
   date: delivery.scheduledDeliveryDate.slice(0, 10),
   time: delivery.scheduledDeliveryDate.slice(11, 16),
@@ -71,7 +96,11 @@ const formFromDelivery = (delivery: DeliveryInput): DeliveryForm => ({
   locationConfirmed: true,
 })
 
-function validate(values: DeliveryForm, schedule: DeliverySchedule): FieldErrors<DeliveryForm> {
+function validate(
+  values: DeliveryForm,
+  schedule: DeliverySchedule,
+  check: CoverageCheck | null,
+): FieldErrors<DeliveryForm> {
   const errors: FieldErrors<DeliveryForm> = {}
   const name = values.recipientName.trim()
   const phone = values.recipientPhone.trim()
@@ -79,19 +108,24 @@ function validate(values: DeliveryForm, schedule: DeliverySchedule): FieldErrors
   else if (name.length > 120) errors.recipientName = 'Máximo 120 caracteres'
   if (phone.length < 7 || phone.length > 40)
     errors.recipientPhone = 'Escribe un teléfono de 7 a 40 caracteres'
-  if (values.zoneId === '') errors.zoneId = 'Elige la zona de entrega'
+  const current = checkFor(check, pointKey(values.location))
   const address = values.address.trim()
   if (address.length < 5 || address.length > 250)
     errors.address = 'Escribe la dirección (5 a 250 caracteres)'
   if (values.notes.trim().length > 500) errors.notes = 'Máximo 500 caracteres'
   if (!values.location) errors.location = 'Coloca el marcador en el mapa'
+  else if (current?.state === 'done' && current.position === 'EXTERIOR')
+    errors.location = OUTSIDE_MESSAGE
+  else if (current?.state === 'failed') errors.location = current.message
+  // Sin la respuesta del servidor no se cotiza: el mapa solo muestra, no decide.
+  else if (current?.state !== 'done') errors.location = CHECKING_MESSAGE
   else if (!values.locationConfirmed) errors.location = 'Confirma la ubicación en el mapa'
   return { ...errors, ...validateDeliverySchedule(values.date, values.time, schedule) }
 }
 
+/** La entrega ya no lleva zona: el servidor la decide con la cobertura de la tienda (#42). */
 const toDelivery = (values: DeliveryForm): DeliveryInput => ({
   recipient: { name: values.recipientName.trim(), phone: values.recipientPhone.trim() },
-  zoneId: values.zoneId,
   deliveryAddress: values.address.trim(),
   deliveryLocation: values.location!,
   scheduledDeliveryDate: deliveryInstant(values.date, values.time)!,
@@ -100,17 +134,19 @@ const toDelivery = (values: DeliveryForm): DeliveryInput => ({
 
 function DeliveryStep({
   schedule,
+  coverage,
   draft,
 }: {
   schedule: DeliverySchedule
+  coverage: ConfiguredStoreCoverage
   draft: CheckoutDraft | null
 }) {
   const { customer } = useCustomer()
   const { items } = useCart()
   const navigate = useNavigate()
   const requote = (useLocation().state as CheckoutLocationState | null)?.requote
-  const zones = useFetch(shopService.zones, 'No se pudieron cargar las zonas')
-  const deliverable = (zones.data ?? []).filter((zone) => zone.depotLocation !== null)
+  const area = useMemo(() => fromPolygon(coverage.coverage), [coverage])
+  const [check, setCheck] = useState<CoverageCheck | null>(null)
 
   const [quote, setQuote] = useState<Quote | null>(null)
   const [quoting, setQuoting] = useState(false)
@@ -122,7 +158,14 @@ function DeliveryStep({
   const previousTotal =
     draft && sameItems(draft.items, items) ? draft.acceptedTotalCents : undefined
 
-  const itemIdsKey = useMemo(() => items.map((i) => i.productId).sort().join(','), [items])
+  const itemIdsKey = useMemo(
+    () =>
+      items
+        .map((i) => i.productId)
+        .sort()
+        .join(','),
+    [items],
+  )
   const fetchProducts = useCallback(
     () => loadCheckoutProducts(items.map((i) => i.productId)),
     [itemIdsKey, items],
@@ -144,7 +187,7 @@ function DeliveryStep({
 
   const form = useForm({
     initialValues: draft ? formFromDelivery(draft.delivery) : EMPTY_FORM,
-    validate: (values) => validate(values, schedule),
+    validate: (values) => validate(values, schedule, check),
     errorMessage: 'No se pudo calcular el total',
     onSubmit: async () => undefined,
   })
@@ -161,7 +204,6 @@ function DeliveryStep({
 
   const { values, fieldErrors } = form
   const shownErrors: FieldErrors<DeliveryForm> = { ...liveErrors, ...fieldErrors }
-  const depot = deliverable.find((zone) => zone.id === values.zoneId)?.depotLocation ?? null
   const unavailable = quote?.items.some((line) => !line.available) ?? false
   const totalChanged =
     quote !== null && previousTotal !== undefined && quote.totalCents !== previousTotal
@@ -187,15 +229,58 @@ function DeliveryStep({
     navigate(paths.shopPayment)
   }
 
+  // Cada punto nuevo se consulta al servidor: solo su respuesta dice si se entrega ahí.
+  const locationKey = pointKey(values.location)
   useEffect(() => {
-    const errors = validate(values, schedule)
+    if (!locationKey) return
+    const [lat, lng] = locationKey.split(',').map(Number)
+    let cancelled = false
+    shopService
+      .evaluateCoverage({ lat, lng })
+      .then(({ position }) => {
+        if (!cancelled) setCheck({ key: locationKey, state: 'done', position })
+      })
+      .catch((error: unknown) => {
+        if (!cancelled)
+          setCheck({
+            key: locationKey,
+            state: 'failed',
+            message:
+              describeCheckoutError(error).code === 'STORE_NOT_CONFIGURED'
+                ? describeCheckoutError(error).message
+                : 'No se pudo verificar si entregamos en ese punto. Mueve el marcador para intentar de nuevo.',
+          })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [locationKey])
+
+  const currentCheck = checkFor(check, locationKey)
+  const outside = currentCheck?.state === 'done' && currentCheck.position === 'EXTERIOR'
+  const coverageStatus =
+    currentCheck?.state === 'checking'
+      ? CHECKING_MESSAGE
+      : currentCheck?.state === 'done' && currentCheck.position !== 'EXTERIOR'
+        ? COVERAGE_STATUS[currentCheck.position]
+        : undefined
+  // Fuera del área o sin verificar, el error se ve enseguida, sin esperar a que se llene lo demás.
+  const locationError = outside
+    ? OUTSIDE_MESSAGE
+    : currentCheck?.state === 'failed'
+      ? currentCheck.message
+      : shownErrors.location === CHECKING_MESSAGE
+        ? undefined
+        : shownErrors.location
+
+  useEffect(() => {
+    const errors = validate(values, schedule, check)
     const started = Boolean(
       values.recipientName.trim() ||
-        values.zoneId ||
-        values.address.trim() ||
-        values.date ||
-        values.time ||
-        values.location,
+      values.address.trim() ||
+      values.date ||
+      values.time ||
+      values.location,
     )
     if (Object.keys(errors).length > 0) {
       quotedFor.current = null
@@ -235,7 +320,7 @@ function DeliveryStep({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [values, items, schedule, navigate])
+  }, [values, items, schedule, navigate, check])
 
   return (
     <div className="checkout__layout">
@@ -271,23 +356,9 @@ function DeliveryStep({
 
         <fieldset className="items-editor">
           <legend>Dirección de entrega</legend>
-          <SelectField
-            label="Zona"
-            name="zoneId"
-            value={values.zoneId}
-            error={shownErrors.zoneId ?? zones.error ?? undefined}
-            // La ubicación confirmada pertenece a la zona anterior: hay que ubicarla de nuevo.
-            onChange={(event) =>
-              change({ zoneId: event.target.value, location: null, locationConfirmed: false })
-            }
-          >
-            <option value="">Selecciona una zona</option>
-            {deliverable.map((zone) => (
-              <option key={zone.id} value={zone.id}>
-                {zone.name}
-              </option>
-            ))}
-          </SelectField>
+          <p className="text-muted checkout-form__coverage-hint">
+            Entregamos dentro del área marcada en el mapa, incluido su borde.
+          </p>
           <TextField
             label="Dirección de entrega"
             name="address"
@@ -297,13 +368,19 @@ function DeliveryStep({
             error={shownErrors.address}
           />
           <LocationPicker
-            center={depot ?? DEFAULT_MAP_CENTER}
-            depot={depot}
+            center={coverage.location}
+            depot={null}
+            store={coverage.location}
+            area={area}
             value={values.location}
             isConfirmed={values.locationConfirmed}
             onChange={(location) => change({ location, locationConfirmed: false })}
-            onConfirm={() => change({ locationConfirmed: true })}
-            error={shownErrors.location}
+            onConfirm={() => {
+              if (currentCheck?.state === 'done' && !outside) change({ locationConfirmed: true })
+            }}
+            canConfirm={currentCheck?.state === 'done' && !outside}
+            status={coverageStatus}
+            error={locationError}
           />
         </fieldset>
 
@@ -311,6 +388,10 @@ function DeliveryStep({
           <legend>¿Cuándo entregamos?</legend>
           <p className="text-muted">
             Entregas de {schedule.startTime} a {schedule.endTime} · hora de Ecuador.
+          </p>
+          <p className="checkout__approx-notice" role="note">
+            La hora que elijas es aproximada: la entrega puede llegar un poco antes o un poco
+            después.
           </p>
           <div className="checkout-form__when">
             <TextField
@@ -323,7 +404,7 @@ function DeliveryStep({
               error={shownErrors.date}
             />
             <TextField
-              label="Hora de entrega"
+              label="Hora aproximada de entrega"
               name="time"
               type="time"
               min={schedule.startTime}
@@ -341,7 +422,6 @@ function DeliveryStep({
             error={shownErrors.notes}
           />
         </fieldset>
-
       </form>
 
       <div className="checkout__aside">
@@ -423,7 +503,9 @@ function DeliveryStep({
             {quoting ? (
               <p role="status">Calculando el total...</p>
             ) : (
-              <p className="text-muted">Completa la entrega para consultar el total de tu pedido.</p>
+              <p className="text-muted">
+                Completa la entrega para consultar el total de tu pedido.
+              </p>
             )}
             <div className="checkout__actions">
               <Link to={paths.shopCart} className="btn btn--secondary">
@@ -442,37 +524,72 @@ export function CheckoutPage() {
   const { customer } = useCustomer()
   const { items } = useCart()
   const settings = useFetch(shopService.settings, 'No se pudo consultar el horario de reparto')
+  const coverage = useFetch(
+    shopService.storeCoverage,
+    'No se pudo consultar la zona de entrega de la tienda',
+  )
   const draft = useMemo(() => (customer ? checkoutStorage.load(customer.id) : null), [customer])
 
   if (items.length === 0) return <Navigate to={paths.shopCart} replace />
+
+  const loadError = settings.error ?? coverage.error
+  const retry = () => {
+    if (settings.error) settings.reload()
+    if (coverage.error) coverage.reload()
+  }
 
   return (
     <div className="shop-page checkout checkout-presentation checkout-presentation--delivery">
       <nav aria-label="Pasos de compra">
         <ol className="checkout__steps steps">
           <li aria-current="step">
-            <span className="step-number" aria-hidden="true">1</span>Entrega
+            <span className="step-number" aria-hidden="true">
+              1
+            </span>
+            Entrega
           </li>
           <li>
-            <span className="step-number" aria-hidden="true">2</span>Pago
+            <span className="step-number" aria-hidden="true">
+              2
+            </span>
+            Pago
           </li>
           <li>
-            <span className="step-number" aria-hidden="true">3</span>Resultado
+            <span className="step-number" aria-hidden="true">
+              3
+            </span>
+            Resultado
           </li>
         </ol>
       </nav>
       <h1>Un lugar para la sorpresa.</h1>
       <p className="checkout__intro">Cuéntanos dónde y cuándo entregar tu detalle.</p>
-      {settings.error && (
+      {loadError && (
         <Alert>
-          <span>{settings.error}.</span>{' '}
-          <Button variant="secondary" onClick={settings.reload}>
+          <span>{loadError}.</span>{' '}
+          <Button variant="secondary" onClick={retry}>
             Reintentar
           </Button>
         </Alert>
       )}
-      {!settings.data && !settings.error && <p role="status">Cargando...</p>}
-      {settings.data && <DeliveryStep schedule={settings.data.deliverySchedule} draft={draft} />}
+      {!loadError && (!settings.data || !coverage.data) && <p role="status">Cargando...</p>}
+      {/* Sin área de entrega configurada no se puede comprar: se dice, sin cotizar ni tocar el carrito. */}
+      {coverage.data && !coverage.data.configured && (
+        <Alert>
+          <span>
+            La tienda todavía no definió su zona de entrega: por ahora no se pueden hacer compras
+            con entrega. Tu bolsa se conserva.
+          </span>{' '}
+          <Link to={paths.shopCart}>Volver a la bolsa</Link>
+        </Alert>
+      )}
+      {settings.data && coverage.data?.configured && (
+        <DeliveryStep
+          schedule={settings.data.deliverySchedule}
+          coverage={coverage.data}
+          draft={draft}
+        />
+      )}
     </div>
   )
 }

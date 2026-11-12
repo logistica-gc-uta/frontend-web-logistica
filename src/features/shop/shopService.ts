@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { AppError } from '../../lib/errors/AppError'
 import { shopPublicClient } from '../../lib/http/shopPublicClient'
-import type { Zone } from '../zones/types'
+import type { GeoPoint } from '../../types/geo'
+import type { CoverageEvaluation, StoreCoverage } from '../store-coverage/types'
 import { shopErrorCode } from './shopError'
 import type {
   CatalogApiQuery,
@@ -128,8 +129,18 @@ export const shopService = {
     }
   },
 
-  async zones(): Promise<Zone[]> {
-    const { data } = await shopPublicClient.get<Zone[]>('/zones')
+  /** Tienda y área de entrega vigentes (públicas): `{ configured: false }` si no hay. */
+  async storeCoverage(): Promise<StoreCoverage> {
+    const { data } = await shopPublicClient.get<StoreCoverage>('/store-coverage')
+    return data
+  },
+
+  /** El servidor dice si un punto está dentro, en el borde o fuera del área de entrega. */
+  async evaluateCoverage(point: GeoPoint): Promise<CoverageEvaluation> {
+    const { data } = await shopPublicClient.post<CoverageEvaluation>(
+      '/store-coverage/evaluate',
+      point,
+    )
     return data
   },
 }

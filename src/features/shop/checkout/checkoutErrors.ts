@@ -24,7 +24,16 @@ const PROBLEMS: Record<string, Omit<CheckoutProblem, 'code'>> = {
     action: 'fix',
     message: 'La hora elegida está fuera del horario de reparto.',
   },
-  ZONE_NOT_FOUND: { action: 'fix', message: 'La zona elegida ya no existe. Elige otra.' },
+  DELIVERY_OUTSIDE_COVERAGE: {
+    action: 'fix',
+    message:
+      'La ubicación está fuera de la zona de entrega. Mueve el marcador dentro del área marcada.',
+  },
+  STORE_NOT_CONFIGURED: {
+    action: 'fix',
+    message:
+      'La tienda todavía no definió su zona de entrega: por ahora no se pueden hacer compras con entrega.',
+  },
   VALIDATION_ERROR: { action: 'fix', message: 'Revisa los datos: hay alguno inválido.' },
   QUANTITY_LIMIT_EXCEEDED: {
     action: 'cart',

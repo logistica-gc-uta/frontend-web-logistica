@@ -22,7 +22,6 @@ export const signInCustomer = (session: Session = customerSession) => customerSt
 
 export const delivery: DeliveryInput = {
   recipient: { name: 'Ana Regalo', phone: '0991234567' },
-  zoneId: 'zona-centro',
   deliveryAddress: 'Av. Cevallos y Montalvo',
   deliveryLocation: { lat: -1.25, lng: -78.63 },
   scheduledDeliveryDate: '2030-02-15T10:00:00-05:00',

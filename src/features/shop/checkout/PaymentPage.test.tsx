@@ -9,6 +9,7 @@ import {
   orderDetail,
   signInCustomer,
 } from '../../../test/checkoutFixtures'
+import { savedCoverage } from '../../../test/coverageFixtures'
 import { createHttpError } from '../../../test/http'
 import { renderWithProviders } from '../../../test/renderWithProviders'
 import { shopProduct, shopSettings } from '../../../test/shopFixtures'
@@ -30,6 +31,12 @@ beforeEach(() => {
   vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
   vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
   vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
+  // Al volver al checkout (recotizar) se lee la cobertura de la tienda: sin backend real.
+  vi.spyOn(shopService, 'storeCoverage').mockResolvedValue(savedCoverage())
+  vi.spyOn(shopService, 'evaluateCoverage').mockResolvedValue({
+    accepted: true,
+    position: 'INTERIOR',
+  })
 })
 
 afterEach(() => {
@@ -69,14 +76,18 @@ const allStoredText = () =>
 
 describe('Shop · pago ficticio', () => {
   it('recupera las fotos por ID al abrir pago con una cotización guardada', async () => {
-    const lookup = vi.mocked(shopService.product).mockResolvedValue(shopProduct({
-      name: 'Nombre actual del catálogo',
-      priceCents: 99999,
-    }))
+    const lookup = vi.mocked(shopService.product).mockResolvedValue(
+      shopProduct({
+        name: 'Nombre actual del catálogo',
+        priceCents: 99999,
+      }),
+    )
     await openPayment()
     const summary = screen.getByRole('region', { name: 'Resumen del pago' })
-    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
-      .toHaveAttribute('src', shopProduct().primaryImageUrl)
+    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' })).toHaveAttribute(
+      'src',
+      shopProduct().primaryImageUrl,
+    )
     expect(lookup).toHaveBeenCalledWith('p-rosas')
     expect(within(summary).getByText('$83,95')).toBeInTheDocument()
     expect(within(summary).queryByText('Nombre actual del catálogo')).not.toBeInTheDocument()
@@ -87,15 +98,17 @@ describe('Shop · pago ficticio', () => {
     vi.mocked(shopService.product).mockRejectedValue(new Error('Imagen no disponible'))
     await openPayment()
     const summary = screen.getByRole('region', { name: 'Resumen del pago' })
-    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
-      .toHaveTextContent('Imagen no disponible')
+    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' })).toHaveTextContent(
+      'Imagen no disponible',
+    )
     expect(within(summary).getByText('$83,95')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirmar pago · $83,95' })).toBeEnabled()
     expect(checkoutStorage.load(customer.id)).toEqual(checkoutDraft())
   })
 
   it('simulador deshabilitado: conserva pedido y cotización sin fingir aprobación', async () => {
-    const pay = vi.spyOn(checkoutService, 'pay')
+    const pay = vi
+      .spyOn(checkoutService, 'pay')
       .mockRejectedValue(shopError(503, 'PAYMENT_SIMULATION_DISABLED'))
     const attempt = vi.spyOn(checkoutService, 'attempt')
     const { user, form } = await openPayment()
@@ -116,6 +129,11 @@ describe('Shop · pago ficticio', () => {
     const { user } = await openPayment()
 
     expect(screen.getByRole('heading', { name: 'Tarjeta', level: 2 })).toBeInTheDocument()
+    // Antes de pagar se recuerda que la hora es aproximada (no se promete una ventana exacta).
+    expect(screen.getByText(/^Hora aproximada:/)).toBeInTheDocument()
+    expect(
+      screen.getByText('La entrega puede llegar un poco antes o un poco después de esa hora.'),
+    ).toBeInTheDocument()
     const steps = screen.getByRole('navigation', { name: 'Pasos de compra' })
     expect(within(steps).getByText('Pago')).toHaveAttribute('aria-current', 'step')
     const help = screen.getByText('Ayuda con tarjetas de prueba')
@@ -194,7 +212,9 @@ describe('Shop · pago ficticio', () => {
 
     release(checkoutSuccess)
 
-    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' }),
+    ).toBeInTheDocument()
     expect(customerOrdersService.detail).toHaveBeenCalledWith('pedido-1')
     await waitFor(() => expect(cartStorage.load(customer.id)).toEqual([]))
     expect(checkoutStorage.load(customer.id)).toBeNull()
@@ -222,7 +242,9 @@ describe('Shop · pago ficticio', () => {
 
     await fillCard(form, user)
     await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
-    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' }),
+    ).toBeInTheDocument()
     expect(pay.mock.calls[1][0]).not.toBe(pay.mock.calls[0][0])
   })
 
@@ -273,7 +295,9 @@ describe('Shop · pago ficticio', () => {
     await fillCard(form, user)
     await user.click(form.getByRole('button', { name: /Confirmar pago/ }))
 
-    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' }),
+    ).toBeInTheDocument()
     expect(attempt).toHaveBeenCalledWith(pay.mock.calls[0][0])
     expect(pay).toHaveBeenCalledTimes(1)
   })
@@ -330,7 +354,9 @@ describe('Shop · pago ficticio', () => {
     })
     renderWithProviders(<App />, { route: '/checkout/pago' })
 
-    expect(await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Ya es un detalle nuestro.' }),
+    ).toBeInTheDocument()
     expect(attempt).toHaveBeenCalledWith('clave-original')
     expect(pay).not.toHaveBeenCalled()
   })

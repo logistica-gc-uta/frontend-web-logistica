@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../../app/App'
 import { checkoutDraft, customer, quote, signInCustomer } from '../../../test/checkoutFixtures'
-import { zones } from '../../../test/fixtures'
+import { savedCoverage } from '../../../test/coverageFixtures'
 import { createHttpError } from '../../../test/http'
 import { renderWithProviders } from '../../../test/renderWithProviders'
 import { shopProduct, shopSettings } from '../../../test/shopFixtures'
@@ -20,23 +20,36 @@ vi.mock('../../../components/map/LocationPicker', () => ({
     onChange,
     onConfirm,
     error,
+    status,
+    canConfirm = true,
+    area,
   }: {
     value: unknown
     isConfirmed: boolean
     onChange: (point: { lat: number; lng: number }) => void
     onConfirm: () => void
     error?: string
+    status?: string
+    canConfirm?: boolean
+    area?: unknown[]
   }) => (
-    <div>
+    <div data-testid="map" data-area-points={area?.length ?? 0}>
       <button type="button" onClick={() => onChange({ lat: -1.25, lng: -78.63 })}>
         Colocar marcador
       </button>
+      <button type="button" onClick={() => onChange({ lat: -1.25, lng: -78.6 })}>
+        Colocar marcador en el borde
+      </button>
+      <button type="button" onClick={() => onChange({ lat: -1.4, lng: -78.9 })}>
+        Colocar marcador fuera
+      </button>
       {value !== null && !isConfirmed && (
-        <button type="button" onClick={onConfirm}>
+        <button type="button" onClick={onConfirm} disabled={!canConfirm}>
           Confirmar ubicación
         </button>
       )}
       {isConfirmed && <span>Ubicación confirmada</span>}
+      {status && <p>{status}</p>}
       {error && <p>{error}</p>}
     </div>
   ),
@@ -44,14 +57,24 @@ vi.mock('../../../components/map/LocationPicker', () => ({
 
 const SCHEDULE = shopSettings().deliverySchedule
 const DAY = '2099-03-10'
-const deliverableZone = zones.find((zone) => zone.depotLocation !== null)!
+
+/** Respuesta del servidor para cada punto del mapa simulado. */
+const POSITIONS: Record<string, 'INTERIOR' | 'BOUNDARY' | 'EXTERIOR'> = {
+  '-1.25,-78.63': 'INTERIOR',
+  '-1.25,-78.6': 'BOUNDARY',
+  '-1.4,-78.9': 'EXTERIOR',
+}
 
 beforeEach(() => {
   signInCustomer()
   cartStorage.save([{ productId: 'p-rosas', quantity: 2 }], customer.id)
   vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
   vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
-  vi.spyOn(shopService, 'zones').mockResolvedValue(zones)
+  vi.spyOn(shopService, 'storeCoverage').mockResolvedValue(savedCoverage())
+  vi.spyOn(shopService, 'evaluateCoverage').mockImplementation(async ({ lat, lng }) => {
+    const position = POSITIONS[`${lat},${lng}`]
+    return { accepted: position !== 'EXTERIOR', position }
+  })
 })
 
 afterEach(() => sessionStorage.clear())
@@ -61,7 +84,6 @@ const renderCheckout = () => renderWithProviders(<App />, { route: '/checkout' }
 async function openCheckout() {
   const view = renderWithProviders(<App />, { route: '/checkout' })
   const form = await screen.findByRole('form', { name: 'Datos de entrega' })
-  await waitFor(() => expect(within(form).getAllByRole('option').length).toBeGreaterThan(1))
   return { ...view, form: within(form) }
 }
 
@@ -69,15 +91,19 @@ async function fillDelivery(
   form: ReturnType<typeof within>,
   user: ReturnType<typeof renderWithProviders>['user'],
   time = '10:00',
+  marker = 'Colocar marcador',
 ) {
   await user.type(form.getByLabelText('Nombre de quien recibe'), 'Ana Regalo')
   await user.type(form.getByLabelText('Teléfono de contacto'), '0991234567')
-  await user.selectOptions(form.getByLabelText('Zona'), deliverableZone.id)
   await user.type(form.getByLabelText('Dirección de entrega'), 'Av. Cevallos y Montalvo')
-  await user.click(form.getByRole('button', { name: 'Colocar marcador' }))
+  await user.click(form.getByRole('button', { name: marker }))
+  // Solo se confirma cuando el servidor respondió que el punto está dentro o en el borde.
+  await waitFor(() =>
+    expect(form.getByRole('button', { name: 'Confirmar ubicación' })).toBeEnabled(),
+  )
   await user.click(form.getByRole('button', { name: 'Confirmar ubicación' }))
   fireEvent.change(form.getByLabelText('Día de entrega'), { target: { value: DAY } })
-  fireEvent.change(form.getByLabelText('Hora de entrega'), { target: { value: time } })
+  fireEvent.change(form.getByLabelText('Hora aproximada de entrega'), { target: { value: time } })
 }
 
 describe('horario de entrega (Ecuador)', () => {
@@ -127,8 +153,10 @@ describe('Shop · checkout', () => {
     await fillDelivery(form, user)
 
     const summary = await screen.findByRole('region', { name: 'Total a pagar' })
-    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' }))
-      .toHaveAttribute('src', shopProduct().primaryImageUrl)
+    expect(await within(summary).findByRole('img', { name: 'Ramo de rosas' })).toHaveAttribute(
+      'src',
+      shopProduct().primaryImageUrl,
+    )
     expect(within(summary).getByText('$83,95')).toBeInTheDocument()
     expect(within(summary).getAllByText('$73,00')).toHaveLength(2)
     expect(within(summary).getByText('$10,95')).toBeInTheDocument()
@@ -142,7 +170,9 @@ describe('Shop · checkout', () => {
     expect(screen.getByRole('heading', { name: 'Un lugar para la sorpresa.' })).toBeInTheDocument()
     const steps = screen.getByRole('navigation', { name: 'Pasos de compra' })
     expect(within(steps).getByText('Entrega')).toHaveAttribute('aria-current', 'step')
-    expect(screen.getByText('Completa la entrega para consultar el total de tu pedido.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Completa la entrega para consultar el total de tu pedido.'),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/IVA simulado/)).not.toBeInTheDocument()
   })
 
@@ -163,7 +193,6 @@ describe('Shop · checkout', () => {
     await waitFor(() =>
       expect(quoteCall).toHaveBeenCalledWith([{ productId: 'p-rosas', quantity: 2 }], {
         recipient: { name: 'Ana Regalo', phone: '0991234567' },
-        zoneId: deliverableZone.id,
         deliveryAddress: 'Av. Cevallos y Montalvo',
         deliveryLocation: { lat: -1.25, lng: -78.63 },
         scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
@@ -173,7 +202,9 @@ describe('Shop · checkout', () => {
     // Línea y subtotal: $73,00 cada uno.
     expect(within(summary).getAllByText('$73,00')).toHaveLength(2)
     expect(within(summary).getByText('IVA 15 %')).toBeInTheDocument()
-    expect(within(summary).queryByText(/ficticio|simulado|impuesto oficial/)).not.toBeInTheDocument()
+    expect(
+      within(summary).queryByText(/ficticio|simulado|impuesto oficial/),
+    ).not.toBeInTheDocument()
     expect(within(summary).getByText(/Total vigente hasta las/)).toBeInTheDocument()
     expect(within(summary).getByText('$10,95')).toBeInTheDocument()
     expect(within(summary).getByText('Envío gratis $0,00')).toBeInTheDocument()
@@ -190,7 +221,7 @@ describe('Shop · checkout', () => {
     )
   })
 
-  it('cambiar un dato después de cotizar obliga a cotizar de nuevo; cambiar de zona pide ubicar otra vez', async () => {
+  it('cambiar un dato después de cotizar obliga a cotizar de nuevo', async () => {
     vi.spyOn(checkoutService, 'quote').mockResolvedValue(quote())
     const { user, form } = await openCheckout()
     await fillDelivery(form, user)
@@ -198,11 +229,119 @@ describe('Shop · checkout', () => {
 
     await user.type(form.getByLabelText('Dirección de entrega'), ' 2')
     expect(screen.queryByRole('region', { name: 'Total a pagar' })).not.toBeInTheDocument()
+  })
 
-    const other = zones.filter((zone) => zone.depotLocation !== null)[1] ?? deliverableZone
-    await user.selectOptions(form.getByLabelText('Zona'), '')
-    await user.selectOptions(form.getByLabelText('Zona'), other.id)
+  it('no pide zona: muestra el área de la tienda y la hora como aproximada', async () => {
+    const { form } = await openCheckout()
+
+    expect(form.queryByLabelText('Zona')).not.toBeInTheDocument()
+    expect(form.getByTestId('map')).toHaveAttribute('data-area-points', '4')
+    expect(
+      form.getByText(/dentro del área marcada en el mapa, incluido su borde/),
+    ).toBeInTheDocument()
+    expect(form.getByRole('note', { name: '' })).toHaveTextContent(
+      'La hora que elijas es aproximada: la entrega puede llegar un poco antes o un poco después.',
+    )
+  })
+
+  it('un punto en el borde se acepta y se cotiza', async () => {
+    const quoteCall = vi.spyOn(checkoutService, 'quote').mockResolvedValue(quote())
+    const { user, form } = await openCheckout()
+    await fillDelivery(form, user, '10:00', 'Colocar marcador en el borde')
+
+    expect(
+      form.getByText('En el borde de la zona de entrega: sí entregamos ahí.'),
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(quoteCall).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({ deliveryLocation: { lat: -1.25, lng: -78.6 } }),
+      ),
+    )
+  })
+
+  it('un punto fuera del área no se puede confirmar ni cotizar', async () => {
+    const quoteCall = vi.spyOn(checkoutService, 'quote')
+    const { user, form } = await openCheckout()
+    await user.type(form.getByLabelText('Nombre de quien recibe'), 'Ana Regalo')
+    await user.type(form.getByLabelText('Teléfono de contacto'), '0991234567')
+    await user.type(form.getByLabelText('Dirección de entrega'), 'Km 30 vía a Baños')
+    fireEvent.change(form.getByLabelText('Día de entrega'), { target: { value: DAY } })
+    fireEvent.change(form.getByLabelText('Hora aproximada de entrega'), {
+      target: { value: '10:00' },
+    })
+    await user.click(form.getByRole('button', { name: 'Colocar marcador fuera' }))
+
+    expect(
+      await form.findByText(
+        'Ese punto está fuera de la zona de entrega. Coloca el marcador dentro del área marcada.',
+      ),
+    ).toBeInTheDocument()
+    expect(form.getByRole('button', { name: 'Confirmar ubicación' })).toBeDisabled()
+    expect(quoteCall).not.toHaveBeenCalled()
+    expect(screen.queryByRole('region', { name: 'Total a pagar' })).not.toBeInTheDocument()
+  })
+
+  it('mover el punto después de cotizar pide confirmarlo y recotiza conservando las fotos', async () => {
+    const quoteCall = vi.spyOn(checkoutService, 'quote').mockResolvedValue(quote())
+    const { user, form } = await openCheckout()
+    await fillDelivery(form, user)
+    await screen.findByRole('region', { name: 'Total a pagar' })
+
+    await user.click(form.getByRole('button', { name: 'Colocar marcador en el borde' }))
     expect(form.queryByText('Ubicación confirmada')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Total a pagar' })).not.toBeInTheDocument()
+
+    await waitFor(() =>
+      expect(form.getByRole('button', { name: 'Confirmar ubicación' })).toBeEnabled(),
+    )
+    await user.click(form.getByRole('button', { name: 'Confirmar ubicación' }))
+
+    const summary = await screen.findByRole('region', { name: 'Total a pagar' })
+    expect(within(summary).getByRole('img', { name: 'Ramo de rosas' })).toHaveAttribute(
+      'src',
+      shopProduct().primaryImageUrl,
+    )
+    expect(within(summary).getByText('$83,95')).toBeInTheDocument()
+    expect(quoteCall).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ deliveryLocation: { lat: -1.25, lng: -78.6 } }),
+    )
+  })
+
+  it('si el servidor rechaza la cobertura al cotizar lo explica y no muestra total', async () => {
+    vi.spyOn(checkoutService, 'quote').mockRejectedValue(
+      createHttpError(422, {
+        data: { error: { code: 'DELIVERY_OUTSIDE_COVERAGE', message: 'x' } },
+      }),
+    )
+    const { user, form } = await openCheckout()
+    await fillDelivery(form, user)
+
+    expect(
+      await screen.findByText(
+        'La ubicación está fuera de la zona de entrega. Mueve el marcador dentro del área marcada.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Total a pagar' })).not.toBeInTheDocument()
+    expect(cartStorage.load(customer.id)).toEqual([{ productId: 'p-rosas', quantity: 2 }])
+  })
+
+  it('sin zona de entrega configurada no deja comprar y conserva la bolsa', async () => {
+    vi.spyOn(shopService, 'storeCoverage').mockResolvedValue({ configured: false })
+    const quoteCall = vi.spyOn(checkoutService, 'quote')
+    renderCheckout()
+
+    expect(
+      await screen.findByText(/La tienda todavía no definió su zona de entrega/),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Datos de entrega' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver a la bolsa' })).toHaveAttribute(
+      'href',
+      '/carrito',
+    )
+    expect(quoteCall).not.toHaveBeenCalled()
+    expect(cartStorage.load(customer.id)).toEqual([{ productId: 'p-rosas', quantity: 2 }])
   })
 
   it('una hora fuera de la ventana no se cotiza; si el servidor la rechaza se explica', async () => {
@@ -218,7 +357,9 @@ describe('Shop · checkout', () => {
     ).toBeInTheDocument()
     expect(quoteCall).not.toHaveBeenCalled()
 
-    fireEvent.change(form.getByLabelText('Hora de entrega'), { target: { value: '17:00' } })
+    fireEvent.change(form.getByLabelText('Hora aproximada de entrega'), {
+      target: { value: '17:00' },
+    })
     expect(
       await screen.findByText('La hora elegida está fuera del horario de reparto.'),
     ).toBeInTheDocument()
@@ -316,7 +457,8 @@ describe('Shop · checkout', () => {
 
     expect(screen.getByRole('group', { name: '¿Cuándo entregamos?' })).toBeInTheDocument()
     const aside = screen.getByRole('complementary', { name: 'Resumen del pedido' })
-    expect(within(aside).getByText('Ramo de rosas')).toBeInTheDocument()
+    // Los productos llegan del catálogo después de abrir el formulario.
+    expect(await within(aside).findByText('Ramo de rosas')).toBeInTheDocument()
     expect(within(aside).getByText(/Cantidad 2/)).toBeInTheDocument()
     expect(within(aside).getByText('Total al confirmar la entrega')).toBeInTheDocument()
     expect(within(aside).getByRole('link', { name: '← Ver bolsa' })).toHaveAttribute(

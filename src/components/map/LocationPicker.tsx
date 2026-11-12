@@ -1,10 +1,18 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useId } from 'react'
-import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { useEffect, useId, type ReactNode } from 'react'
+import {
+  MapContainer,
+  Marker,
+  Polygon,
+  TileLayer,
+  Tooltip,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet'
 import type { GeoPoint } from '../../types/geo'
 import { Button } from '../ui/Button'
-import { depotIcon, orderIcon } from './icons'
+import { depotIcon, orderIcon, storeIcon } from './icons'
 
 const INITIAL_ZOOM = 15
 const COORDINATE_DECIMALS = 6 // ≈ 0,1 m: más precisión que la de cualquier dirección postal.
@@ -47,6 +55,14 @@ interface LocationPickerProps {
   onChange: (point: GeoPoint) => void
   onConfirm: () => void
   error?: string
+  /** Área de entrega a dibujar (vértices en orden). Solo se muestra: la decide el servidor. */
+  area?: GeoPoint[]
+  /** Tienda desde la que se entrega. */
+  store?: GeoPoint | null
+  /** Resultado de verificar el punto colocado (por ejemplo, «Dentro de la zona de entrega»). */
+  status?: ReactNode
+  /** Si el punto colocado se puede confirmar (uno fuera del área, no). */
+  canConfirm?: boolean
 }
 
 /**
@@ -62,6 +78,10 @@ export function LocationPicker({
   onChange,
   onConfirm,
   error,
+  area,
+  store = null,
+  status,
+  canConfirm = true,
 }: LocationPickerProps) {
   const labelId = useId()
   const errorId = useId()
@@ -89,6 +109,18 @@ export function LocationPicker({
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <Recenter center={center} />
+          {area && area.length >= 3 && (
+            <Polygon
+              positions={area.map(({ lat, lng }) => [lat, lng] as [number, number])}
+              pathOptions={{ className: 'location-picker__area' }}
+              interactive={false}
+            />
+          )}
+          {store && (
+            <Marker position={[store.lat, store.lng]} icon={storeIcon} interactive={false}>
+              <Tooltip direction="top">Tienda</Tooltip>
+            </Marker>
+          )}
           <ClickToPlace onPlace={onChange} />
           {depot && (
             <Marker position={[depot.lat, depot.lng]} icon={depotIcon} interactive={false}>
@@ -116,7 +148,7 @@ export function LocationPicker({
 
       <div className="location-picker__actions">
         {value && !isConfirmed && (
-          <Button variant="secondary" onClick={onConfirm}>
+          <Button variant="secondary" onClick={onConfirm} disabled={!canConfirm}>
             Confirmar ubicación
           </Button>
         )}
@@ -126,6 +158,12 @@ export function LocationPicker({
           </span>
         )}
       </div>
+
+      {status && (
+        <p role="status" className="location-picker__status">
+          {status}
+        </p>
+      )}
 
       {error && (
         <p id={errorId} className="field__error">

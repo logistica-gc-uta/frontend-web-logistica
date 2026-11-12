@@ -12,6 +12,7 @@ import { shopService } from '../shopService'
 import { customerApiClient } from './customerApiClient'
 import { customerService } from './customerService'
 import { customerStorage } from './customerStorage'
+import { savedCoverage } from '../../../test/coverageFixtures'
 
 const renderShop = (route: string) => renderWithProviders(<App />, { route })
 
@@ -85,7 +86,7 @@ describe('Shop · registro CLIENT', () => {
   it('envía solo nombre, correo y contraseña (sin rol) e inicia sesión conservando el paso pendiente', async () => {
     mockCatalog()
     vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct({ id: 'p-rosas' }))
-    vi.spyOn(shopService, 'zones').mockResolvedValue([])
+    vi.spyOn(shopService, 'storeCoverage').mockResolvedValue(savedCoverage())
     const post = vi.spyOn(customerApiClient, 'post').mockResolvedValue(createHttpResponse({}))
     vi.spyOn(customerService, 'login').mockResolvedValue(customerSession)
     cartStorage.save([{ productId: 'p-rosas', quantity: 1 }])
