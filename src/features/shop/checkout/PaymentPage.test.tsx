@@ -9,6 +9,7 @@ import {
   orderDetail,
   signInCustomer,
 } from '../../../test/checkoutFixtures'
+import { savedCoverage } from '../../../test/coverageFixtures'
 import { createHttpError } from '../../../test/http'
 import { renderWithProviders } from '../../../test/renderWithProviders'
 import { shopProduct, shopSettings } from '../../../test/shopFixtures'
@@ -30,6 +31,12 @@ beforeEach(() => {
   vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
   vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
   vi.spyOn(shopService, 'product').mockResolvedValue(shopProduct())
+  // Al volver al checkout (recotizar) se lee la cobertura de la tienda: sin backend real.
+  vi.spyOn(shopService, 'storeCoverage').mockResolvedValue(savedCoverage())
+  vi.spyOn(shopService, 'evaluateCoverage').mockResolvedValue({
+    accepted: true,
+    position: 'INTERIOR',
+  })
 })
 
 afterEach(() => {
