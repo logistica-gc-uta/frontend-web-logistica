@@ -14,7 +14,12 @@ import { shopProduct } from '../../../test/shopFixtures'
 import { customerApiClient } from '../account/customerApiClient'
 import { cartStorage } from '../cart/cartStorage'
 import { shopService } from '../shopService'
-import { customerOrdersService, ORDER_NOT_FOUND_MESSAGE } from './customerOrdersService'
+import {
+  customerOrdersService,
+  ORDER_NOT_FOUND_MESSAGE,
+  RECEIPT_UNAVAILABLE_MESSAGE,
+  ReceiptUnavailableError,
+} from './customerOrdersService'
 
 const renderShop = (route: string) => renderWithProviders(<App />, { route })
 
@@ -113,7 +118,7 @@ describe('Shop · mis pedidos', () => {
     ).not.toBeInTheDocument()
     expect(within(firstLink).queryByRole('link', { name: 'Comprobante' })).not.toBeInTheDocument()
 
-    const secondLink = screen.getByRole('link', { name: 'Pedido RG-2' })
+    const secondLink = screen.getByRole('link', { name: 'Pedido RG-2 · Compra en la web' })
     expect(secondLink).toHaveAttribute('href', '/mi-cuenta/pedidos/pedido-2')
     expect(within(secondLink).getByText('En camino')).toBeInTheDocument()
     expect(within(secondLink).getByText('$11,49')).toBeInTheDocument()
@@ -299,11 +304,162 @@ describe('Shop · comprobante de compra', () => {
     expect(screen.getByText('IVA 12 % (tasa al comprar)')).toBeInTheDocument()
     expect(screen.getByText('$8,76')).toBeInTheDocument()
     expect(screen.getByText('$81,76')).toBeInTheDocument()
-    expect(screen.getByText(/PAY-DEMO-1 · tarjeta terminada en 0001/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/PAY-DEMO-1 · tarjeta de demostración terminada en 0001/),
+    ).toBeInTheDocument()
     expect(await screen.findByText(/Av. Cevallos y Montalvo/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Imprimir comprobante' }))
     expect(print).toHaveBeenCalled()
     expect(screen.queryByText(receipt().disclaimer)).not.toBeInTheDocument()
+  })
+})
+
+describe('Shop · historial unificado (#35)', () => {
+  /** Pedido antiguo que se conserva sin comprobante: sin número, importes, productos ni fotos. */
+  const withoutReceipt = {
+    receiptAvailable: false,
+    number: null,
+    receiptId: null,
+    paymentStatus: null,
+    itemsCount: null,
+    primaryImageUrl: null,
+    primaryProductId: null,
+    subtotalCents: null,
+    taxAmountCents: null,
+    taxRateBps: null,
+    taxEnabled: null,
+    shippingAmountCents: null,
+    totalCents: null,
+  } as const
+
+  it('una sola lista con compras de la web y de la tienda, cada una con su origen', async () => {
+    vi.spyOn(customerOrdersService, 'list').mockResolvedValue({
+      items: [
+        orderSummary({ id: 'tienda-1', number: 'RG-T1', source: 'ADMIN', totalCents: 2300 }),
+        orderSummary({ id: 'web-1', number: 'RG-W1', source: 'SHOP' }),
+        orderSummary({ id: 'antiguo-1', source: 'SHOP', ...withoutReceipt }),
+      ],
+      total: 3,
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+    })
+    renderShop('/mi-cuenta/pedidos')
+
+    const store = await screen.findByRole('link', { name: 'Pedido RG-T1 · Registrada en tienda' })
+    expect(within(store).getByText('Registrada en tienda')).toBeInTheDocument()
+    expect(within(store).getByText('$23,00')).toBeInTheDocument()
+    const web = screen.getByRole('link', { name: 'Pedido RG-W1 · Compra en la web' })
+    expect(within(web).getByText('Compra en la web')).toBeInTheDocument()
+
+    // El pedido sin comprobante sigue visible, sin número ni importe inventados.
+    const old = screen.getByRole('link', { name: 'Pedido sin comprobante · Compra en la web' })
+    expect(old).toHaveAttribute('href', '/mi-cuenta/pedidos/antiguo-1')
+    expect(within(old).getByText('Sin comprobante')).toBeInTheDocument()
+    expect(within(old).getByText('Importe no disponible')).toBeInTheDocument()
+    expect(within(old).getByText('Productos no disponibles')).toBeInTheDocument()
+    expect(within(old).queryByText(/\$/)).not.toBeInTheDocument()
+    // Se respeta el orden del servidor (más recientes primero).
+    const links = screen.getAllByRole('link', { name: /^Pedido / })
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/mi-cuenta/pedidos/tienda-1',
+      '/mi-cuenta/pedidos/web-1',
+      '/mi-cuenta/pedidos/antiguo-1',
+    ])
+  })
+
+  it('una compra registrada en tienda no se presenta como pago con tarjeta', async () => {
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(
+      orderDetail({ source: 'ADMIN', paymentStatus: 'APPROVED' }),
+    )
+    renderShop('/mi-cuenta/pedidos/pedido-1')
+
+    expect(await screen.findByText('Pago registrado en la tienda')).toBeInTheDocument()
+    expect(screen.getByText(/no es una verificación bancaria/)).toBeInTheDocument()
+    expect(screen.getByText('Registrada en tienda')).toBeInTheDocument()
+    expect(screen.queryByText(/tarjeta/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver comprobante' })).toBeInTheDocument()
+  })
+
+  it('una compra de la web dice que se pagó con la tarjeta de demostración', async () => {
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
+    renderShop('/mi-cuenta/pedidos/pedido-1')
+
+    expect(await screen.findByText('Pago aprobado con tarjeta de demostración')).toBeInTheDocument()
+    expect(screen.getByText('Compra en la web')).toBeInTheDocument()
+  })
+
+  it('un pedido sin comprobante muestra su seguimiento real sin reconstruir productos ni importes', async () => {
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(
+      orderDetail({
+        ...withoutReceipt,
+        items: [],
+        recipient: null,
+        timeline: [{ code: 'PENDING', label: 'Pedido registrado', at: '2030-02-10T15:00:00Z' }],
+      }),
+    )
+    renderShop('/mi-cuenta/pedidos/pedido-1')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Pedido sin comprobante', level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Pedido registrado')).toBeInTheDocument()
+    expect(
+      screen.getByText('El detalle de productos e importes no está disponible para este pedido.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Datos de quien recibe no disponibles')).toBeInTheDocument()
+    expect(screen.getByText('Pago sin comprobante disponible')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Ver comprobante' })).not.toBeInTheDocument()
+    expect(screen.getByText(RECEIPT_UNAVAILABLE_MESSAGE)).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).queryByText(/\$\d/)).not.toBeInTheDocument()
+  })
+
+  it('el comprobante de una compra en tienda muestra el pago declarado, sin tarjeta', async () => {
+    vi.spyOn(customerOrdersService, 'receipt').mockResolvedValue(
+      receipt({
+        buyer: { name: customer.name, email: customer.email, phone: '0991234567' },
+        recipient: { name: 'Ana Regalo', phone: '0987654321' },
+        payment: {
+          kind: 'ADMIN_DECLARED_EXTERNAL',
+          status: 'DECLARED',
+          method: 'TRANSFER',
+          declaredAt: '2030-02-10T15:00:00Z',
+        },
+      }),
+    )
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail({ source: 'ADMIN' }))
+    renderShop('/mi-cuenta/pedidos/pedido-1/comprobante')
+
+    expect(
+      await screen.findByText(/Pago declarado en la tienda: transferencia/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Registrado en la tienda/)).toBeInTheDocument()
+    expect(screen.getByText('Ana Regalo · 0987654321')).toBeInTheDocument()
+    expect(screen.queryByText(/tarjeta/i)).not.toBeInTheDocument()
+  })
+
+  it('sin comprobante lo dice y lleva al detalle del pedido', async () => {
+    vi.spyOn(customerOrdersService, 'receipt').mockRejectedValue(new ReceiptUnavailableError())
+    vi.spyOn(customerOrdersService, 'detail').mockResolvedValue(orderDetail())
+    renderShop('/mi-cuenta/pedidos/pedido-1/comprobante')
+
+    expect(await screen.findByText(RECEIPT_UNAVAILABLE_MESSAGE)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver el detalle del pedido' })).toHaveAttribute(
+      'href',
+      '/mi-cuenta/pedidos/pedido-1',
+    )
+  })
+
+  it('el comprobante de un pedido ajeno no revela nada ni ofrece su detalle', async () => {
+    vi.spyOn(customerOrdersService, 'receipt').mockRejectedValue(new Error(ORDER_NOT_FOUND_MESSAGE))
+    vi.spyOn(customerOrdersService, 'detail').mockRejectedValue(new Error(ORDER_NOT_FOUND_MESSAGE))
+    renderShop('/mi-cuenta/pedidos/ajeno/comprobante')
+
+    expect(await screen.findByRole('link', { name: 'Ver mis pedidos' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Ver el detalle del pedido' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Ana Regalo')).not.toBeInTheDocument()
   })
 })

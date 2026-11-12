@@ -1048,3 +1048,21 @@
     display: none !important;
   }
 }
+
+/* Origen de la compra (#35): web o tienda, en la lista y el detalle */
+.origin-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: var(--color-heading);
+  background: var(--color-surface-sunken);
+}
+
+.origin-badge--admin {
+  color: var(--color-sand-strong);
+  background: var(--color-sand-soft);
+}
