@@ -24,6 +24,8 @@ export interface Order {
   status: string
   deliveryAddress: string
   scheduledDeliveryDate: string | null
+  /** `null` en ventas sin zona (#42). */
+  zoneId: string | null
 }
 
 interface Proposal {
@@ -65,15 +67,22 @@ export interface NewOrder {
 
 export async function createOrder(admin: Api, { zone, productId, scheduledAt, k }: NewOrder) {
   const address = `E2E Parada ${k} ${uniqueSuffix()}`
-  const order = await admin.post<{ id: string }>('/orders/admin', {
-    recipient: { type: 'GUEST', name: `E2E Destinatario ${k}`, contactPhone: '0990000000' },
-    zoneId: zone.id,
-    deliveryAddress: address,
-    items: [{ productId, quantity: 1 }],
-    scheduledDeliveryDate: scheduledAt,
-    deliveryLat: zone.depot.lat + 0.0012 * k,
-    deliveryLng: zone.depot.lng + 0.0009 * k,
-  })
+  // Venta ADMIN (backend #45). Se envía `zoneId` (opcional desde #42) para que el pedido siga
+  // siendo planificable: la planificación omite los pedidos sin zona hasta backend #49.
+  const order = await admin.post<{ id: string }>(
+    '/orders/admin',
+    {
+      buyer: { type: 'GUEST', name: `E2E Comprador ${k}`, contactPhone: '0990000000' },
+      payment: { method: 'CASH' },
+      zoneId: zone.id,
+      deliveryAddress: address,
+      items: [{ productId, quantity: 1 }],
+      scheduledDeliveryDate: scheduledAt,
+      deliveryLat: zone.depot.lat + 0.0012 * k,
+      deliveryLng: zone.depot.lng + 0.0009 * k,
+    },
+    { 'Idempotency-Key': crypto.randomUUID() },
+  )
   return { id: order.id, address }
 }
 

@@ -76,15 +76,19 @@ describe('Integración real · tiempo real (Socket.IO /realtime)', () => {
     })
     orderIds = []
     for (const k of [1, 2]) {
-      const order = await ordersService.createAsAdmin({
-        recipient: { type: 'GUEST', name: `IT Tiempo real ${k}`, contactPhone: '0990000000' },
-        zoneId: zone.id,
-        deliveryAddress: `IT Tiempo real ${k} ${suffix}`,
-        items: [{ productId: product.id, quantity: 1 }],
-        scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
-        deliveryLat: DEPOT.lat + 0.001 * k,
-        deliveryLng: DEPOT.lng + 0.001 * k,
-      })
+      const order = await ordersService.createPurchase(
+        {
+          buyer: { type: 'GUEST', name: `IT Tiempo real ${k}`, contactPhone: '0990000000' },
+          zoneId: zone.id,
+          deliveryAddress: `IT Tiempo real ${k} ${suffix}`,
+          items: [{ productId: product.id, quantity: 1 }],
+          scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
+          deliveryLat: DEPOT.lat + 0.001 * k,
+          deliveryLng: DEPOT.lng + 0.001 * k,
+          payment: { method: 'CASH' },
+        },
+        crypto.randomUUID(),
+      )
       orderIds.push(order.id)
     }
     const [proposal] = (await planningService.getProposals({ date: DAY, zoneId: zone.id }))

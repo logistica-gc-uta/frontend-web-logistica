@@ -5,6 +5,7 @@ import { monitorService } from '../features/monitor/monitorService'
 import { ordersService } from '../features/orders/ordersService'
 import { planningService } from '../features/planning/planningService'
 import { productsService } from '../features/products/productsService'
+import { shopService } from '../features/shop/shopService'
 import type { Zone } from '../features/zones/types'
 import { apiClient } from '../lib/http/apiClient'
 import { BUSINESS_TIME_ZONE, todayInGuayaquil } from '../lib/time/guayaquil'
@@ -36,8 +37,15 @@ const FIRST_VISIT = guayaquilTimeIn(30)
 const AGREED_FROM = guayaquilTimeIn(120)
 const AGREED_TO = guayaquilTimeIn(180)
 // Las tres horas deben caer hoy y en orden (cerca de la medianoche no se puede).
+// Desde backend #42 el ADMIN también respeta el horario de reparto de la tienda: fuera de él, se omite.
+const { deliverySchedule: HOURS } = await shopService.settings()
+const withinHours = (time: string) => time >= HOURS.startTime && time <= HOURS.endTime
 const HAS_TIME_TODAY =
-  guayaquilTimeIn(0) < FIRST_VISIT && FIRST_VISIT < AGREED_FROM && AGREED_FROM < AGREED_TO
+  guayaquilTimeIn(0) < FIRST_VISIT &&
+  FIRST_VISIT < AGREED_FROM &&
+  AGREED_FROM < AGREED_TO &&
+  withinHours(FIRST_VISIT) &&
+  withinHours(AGREED_TO)
 
 const at = (time: string) => `${TODAY}T${time}:00-05:00`
 
@@ -54,15 +62,19 @@ const openRoutes = new Set<string>()
 
 const createTodayOrder = async (k: number) =>
   (
-    await ordersService.createAsAdmin({
-      recipient: { type: 'GUEST', name: `IT Fallida ${k}`, contactPhone: '0990000000' },
-      zoneId: zone.id,
-      deliveryAddress: `IT Fallida ${k} ${uniqueSuffix()}`,
-      items: [{ productId, quantity: 1 }],
-      scheduledDeliveryDate: at(FIRST_VISIT),
-      deliveryLat: DEPOT.lat + 0.001 * k,
-      deliveryLng: DEPOT.lng + 0.001 * k,
-    })
+    await ordersService.createPurchase(
+      {
+        buyer: { type: 'GUEST', name: `IT Fallida ${k}`, contactPhone: '0990000000' },
+        zoneId: zone.id,
+        deliveryAddress: `IT Fallida ${k} ${uniqueSuffix()}`,
+        items: [{ productId, quantity: 1 }],
+        scheduledDeliveryDate: at(FIRST_VISIT),
+        deliveryLat: DEPOT.lat + 0.001 * k,
+        deliveryLng: DEPOT.lng + 0.001 * k,
+        payment: { method: 'CASH' },
+      },
+      crypto.randomUUID(),
+    )
   ).id
 
 /** Confirma como DRAFT la propuesta de hoy que contiene `orderId` y se la asigna al chofer. */

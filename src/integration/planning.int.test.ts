@@ -50,15 +50,19 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
     })
     orderIds = []
     for (let k = 1; k <= ORDERS_IN_DAY; k += 1) {
-      const order = await ordersService.createAsAdmin({
-        recipient: { type: 'GUEST', name: `IT Plan ${k}`, contactPhone: '0990000000' },
-        zoneId,
-        deliveryAddress: `IT Parada ${k} ${uniqueSuffix()}`,
-        items: [{ productId: product.id, quantity: 1 }],
-        scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
-        deliveryLat: depot.lat + 0.0012 * k,
-        deliveryLng: depot.lng + 0.0009 * ((k % 3) + 1),
-      })
+      const order = await ordersService.createPurchase(
+        {
+          buyer: { type: 'GUEST', name: `IT Plan ${k}`, contactPhone: '0990000000' },
+          zoneId,
+          deliveryAddress: `IT Parada ${k} ${uniqueSuffix()}`,
+          items: [{ productId: product.id, quantity: 1 }],
+          scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
+          deliveryLat: depot.lat + 0.0012 * k,
+          deliveryLng: depot.lng + 0.0009 * ((k % 3) + 1),
+          payment: { method: 'CASH' },
+        },
+        crypto.randomUUID(),
+      )
       orderIds.push(order.id)
     }
   })

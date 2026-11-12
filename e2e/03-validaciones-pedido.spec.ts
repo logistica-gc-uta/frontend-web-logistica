@@ -6,7 +6,7 @@ import { evidence } from './support/evidence'
 import { at, randomFarDay } from './support/time'
 
 /**
- * Errores básicos del alta de pedidos: validaciones del formulario (no llegan a la API) y un
+ * Errores básicos de la venta ADMIN (#34): validaciones del formulario (no llegan a la API) y un
  * rechazo real del backend (otro pedido se llevó el stock) que nunca se presenta como éxito.
  */
 let admin: Api
@@ -37,19 +37,25 @@ async function placeMarker(form: Locator) {
   await map.click({ position: { x: box.width / 2 + 40, y: box.height / 2 + 30 } })
 }
 
+async function fillBuyer(form: Locator) {
+  await form.getByLabel('Nombre del comprador').fill('E2E Comprador')
+  await form.getByLabel('Teléfono del comprador').fill('0991234567')
+  await form.getByRole('radio', { name: 'Efectivo' }).check()
+}
+
 test('el formulario explica cada dato faltante y no envía nada', async ({ page }) => {
   const sent = countOrderRequests(page)
-  await page.goto('/pedidos')
-  const form = page.getByRole('form', { name: 'Nuevo pedido' })
+  await page.goto('/admin/pedidos')
+  const form = page.getByRole('form', { name: 'Nueva venta' })
 
-  await form.getByRole('button', { name: 'Registrar pedido' }).click()
+  await form.getByRole('button', { name: 'Registrar venta' }).click()
 
   for (const message of [
-    'El nombre del destinatario es obligatorio',
-    'El teléfono de contacto es obligatorio',
-    'Selecciona una zona',
+    'Escribe el nombre del comprador',
+    'El teléfono del comprador es obligatorio',
+    'Elige cómo pagó: efectivo o transferencia',
     'La dirección de entrega es obligatoria',
-    'La fecha y hora de entrega son obligatorias',
+    'La fecha y la hora aproximada de entrega son obligatorias',
     'Coloca el marcador en el mapa',
   ]) {
     await expect(form.locator('.field__error', { hasText: message })).toBeVisible()
@@ -62,22 +68,21 @@ test('una fecha pasada y una ubicación sin confirmar se rechazan antes de envia
   page,
 }) => {
   const sent = countOrderRequests(page)
-  await page.goto('/pedidos')
-  const form = page.getByRole('form', { name: 'Nuevo pedido' })
-  await form.getByLabel('Nombre del destinatario').fill('E2E Destinatario')
-  await form.getByLabel('Teléfono de contacto').fill('0991234567')
-  await form.getByLabel('Zona').selectOption(zone.id)
+  await page.goto('/admin/pedidos')
+  const form = page.getByRole('form', { name: 'Nueva venta' })
+  await fillBuyer(form)
   await form.getByLabel('Dirección de entrega').fill(`E2E Validación ${uniqueSuffix()}`)
-  await form.getByLabel('Fecha y hora de entrega (hora de Guayaquil)').fill('2020-01-01T10:00')
+  await form
+    .getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)')
+    .fill('2020-01-01T10:00')
   await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
   await placeMarker(form)
+  await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
 
-  await form.getByRole('button', { name: 'Registrar pedido' }).click()
+  await form.getByRole('button', { name: 'Registrar venta' }).click()
 
   await expect(
-    form.locator('.field__error', {
-      hasText: 'La entrega debe programarse para una fecha y hora futuras',
-    }),
+    form.locator('.field__error', { hasText: 'El día de entrega ya pasó' }),
   ).toBeVisible()
   await expect(
     form.locator('.field__error', { hasText: 'Confirma la ubicación en el mapa' }),
@@ -85,29 +90,29 @@ test('una fecha pasada y una ubicación sin confirmar se rechazan antes de envia
   expect(sent).toEqual([])
 })
 
-test('si otro pedido se lleva el último stock, el backend rechaza el alta y no se muestra éxito', async ({
+test('si otra venta se lleva el último stock, el backend la rechaza y no se muestra comprobante', async ({
   page,
 }) => {
   const day = randomFarDay()
-  await page.goto('/pedidos')
-  const form = page.getByRole('form', { name: 'Nuevo pedido' })
-  await form.getByLabel('Nombre del destinatario').fill('E2E Destinatario')
-  await form.getByLabel('Teléfono de contacto').fill('0991234567')
-  await form.getByLabel('Zona').selectOption(zone.id)
+  await page.goto('/admin/pedidos')
+  const form = page.getByRole('form', { name: 'Nueva venta' })
+  await fillBuyer(form)
   await form.getByLabel('Dirección de entrega').fill(`E2E Sin stock ${uniqueSuffix()}`)
-  await form.getByLabel('Fecha y hora de entrega (hora de Guayaquil)').fill(`${day}T10:00`)
+  await form.getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)').fill(`${day}T10:00`)
   await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
   await placeMarker(form)
+  await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
   await form.getByRole('button', { name: 'Confirmar ubicación' }).click()
 
-  // Mientras el formulario está abierto, otro pedido consume la única unidad del producto.
+  // Mientras el formulario está abierto, otra venta consume la única unidad del producto.
   await createOrder(admin, { zone, productId, scheduledAt: at(day, '10:00'), k: 1 })
 
   const response = page.waitForResponse((r) => r.url().endsWith('/orders/admin'))
-  await form.getByRole('button', { name: 'Registrar pedido' }).click()
+  await form.getByRole('button', { name: 'Registrar venta' }).click()
   expect((await response).ok()).toBe(false)
 
-  await expect(form.getByRole('alert')).toBeVisible()
+  await expect(form.getByRole('alert')).toContainText('No se registró la venta')
   await evidence(form, '05-rechazo-del-backend')
-  await expect(form.getByText('Pedido registrado correctamente')).toHaveCount(0)
+  await expect(page.getByText('Venta registrada')).toHaveCount(0)
+  await expect(form.getByLabel('Nombre del comprador')).toHaveValue('E2E Comprador')
 })

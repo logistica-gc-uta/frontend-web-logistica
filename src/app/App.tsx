@@ -3,6 +3,7 @@ import { AppLayout } from '../components/layout/AppLayout'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { OrdersPage } from '../features/orders/OrdersPage'
+import { OrderReceiptPage } from '../features/orders/OrderReceiptPage'
 import { PlanningPage } from '../features/planning/PlanningPage'
 import { UrgenciesPage } from '../features/dispatch/UrgenciesPage'
 import { FailedDeliveriesPage } from '../features/incidents/FailedDeliveriesPage'
@@ -116,6 +117,7 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route path={paths.home} element={<HomePage />} />
           <Route path={paths.orders} element={<OrdersPage />} />
+          <Route path={paths.orderReceipt} element={<OrderReceiptPage />} />
           <Route path={paths.planning} element={<PlanningPage />} />
           <Route path={paths.urgencies} element={<UrgenciesPage />} />
           <Route path={paths.failedDeliveries} element={<FailedDeliveriesPage />} />

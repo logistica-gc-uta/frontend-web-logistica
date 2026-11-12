@@ -1,5 +1,16 @@
 import { apiClient } from '../../lib/http/apiClient'
-import type { CreatedOrder, CreateAdminOrderInput, Order, OrdersPage, OrdersQuery } from './types'
+import type {
+  AdminPurchaseAttempt,
+  AdminPurchaseResult,
+  AdminReceipt,
+  ContactAuditEntry,
+  CreateAdminPurchaseInput,
+  Order,
+  OrderContact,
+  OrderContactChange,
+  OrdersPage,
+  OrdersQuery,
+} from './types'
 
 const RESOURCE = '/orders'
 
@@ -31,9 +42,56 @@ export const ordersService = {
     return [first, ...rest].flatMap((page) => page.items)
   },
 
-  /** Registra un pedido a nombre de un destinatario invitado (solo ADMIN). */
-  async createAsAdmin(input: CreateAdminOrderInput): Promise<CreatedOrder> {
-    const { data } = await apiClient.post<CreatedOrder>(`${RESOURCE}/admin`, input)
+  /**
+   * Registra una venta con pago externo declarado (solo ADMIN, backend #45). La misma clave con el
+   * mismo cuerpo devuelve el resultado original: reenviar no cobra ni descuenta stock dos veces.
+   */
+  async createPurchase(
+    input: CreateAdminPurchaseInput,
+    idempotencyKey: string,
+  ): Promise<AdminPurchaseResult> {
+    const { data } = await apiClient.post<AdminPurchaseResult>(`${RESOURCE}/admin`, input, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return data
+  },
+
+  /** Estado de una venta cuyo resultado no se conoce (red caída, tiempo agotado). */
+  async purchaseAttempt(idempotencyKey: string): Promise<AdminPurchaseAttempt> {
+    const { data } = await apiClient.get<AdminPurchaseAttempt>(
+      `${RESOURCE}/admin/purchase-attempts/${encodeURIComponent(idempotencyKey)}`,
+    )
+    return data
+  },
+
+  /** Comprobante imprimible de un pedido (ADMIN: de cliente con cuenta o invitado). */
+  async receipt(orderId: string): Promise<AdminReceipt> {
+    const { data } = await apiClient.get<AdminReceipt>(
+      `${RESOURCE}/${encodeURIComponent(orderId)}/receipt`,
+    )
+    return data
+  },
+
+  /** Contacto actual del pedido con su versión (el detalle ADMIN lo incluye). */
+  async contact(orderId: string): Promise<OrderContact> {
+    const { data } = await apiClient.get<OrderContact>(`${RESOURCE}/${encodeURIComponent(orderId)}`)
+    return data
+  },
+
+  /** Corrige el contacto; con una versión vieja el backend responde 409 sin cambiar nada. */
+  async updateContact(orderId: string, change: OrderContactChange): Promise<OrderContact> {
+    const { data } = await apiClient.patch<OrderContact>(
+      `${RESOURCE}/${encodeURIComponent(orderId)}/contact`,
+      change,
+    )
+    return data
+  },
+
+  /** Correcciones de contacto registradas, de la más antigua a la más reciente. */
+  async contactHistory(orderId: string): Promise<ContactAuditEntry[]> {
+    const { data } = await apiClient.get<ContactAuditEntry[]>(
+      `${RESOURCE}/${encodeURIComponent(orderId)}/contact-history`,
+    )
     return data
   },
 }

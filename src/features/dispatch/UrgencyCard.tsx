@@ -154,7 +154,7 @@ export function UrgencyCard({
             </div>
             <div>
               <dt>Zona</dt>
-              <dd>{order.zone.code}</dd>
+              <dd>{order.zone?.code ?? '—'}</dd>
             </div>
             <div>
               <dt>Entrega</dt>

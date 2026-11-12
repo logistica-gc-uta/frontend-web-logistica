@@ -33,7 +33,8 @@ export interface CreatedOrder {
   recipientType: 'REGISTERED_CLIENT' | 'GUEST' | null
   recipientName: string | null
   recipientPhone: string | null
-  zoneId: string
+  /** `null` en pedidos con cobertura de tienda (backend #42); los antiguos conservan su zona. */
+  zoneId: string | null
   deliveryAddress: string
   deliveryLat: number | null
   deliveryLng: number | null
@@ -48,7 +49,7 @@ export interface CreatedOrder {
 export interface Order extends CreatedOrder {
   user?: { id: string; name: string }
   items: OrderItem[]
-  zone: { id: string; name: string; code: string }
+  zone: { id: string; name: string; code: string } | null
   deliveryLocation: GeoPoint | null
   planningEligibility: PlanningEligibility
 }
@@ -70,10 +71,25 @@ export interface OrdersQuery {
   status?: OrderStatus
 }
 
-/** Cuerpo de `POST /orders/admin` para un destinatario invitado (sin cuenta). */
-export interface CreateAdminOrderInput {
-  recipient: { type: 'GUEST'; name: string; contactPhone: string }
-  zoneId: string
+/** Comprador de una venta registrada por ADMIN: cliente con cuenta o invitado (backend #45). */
+export type AdminPurchaseBuyer =
+  | { type: 'REGISTERED_CLIENT'; clientId: string; contactPhone: string }
+  | { type: 'GUEST'; name: string; contactPhone: string }
+
+/** Pago hecho fuera del Shop y declarado por ADMIN: no es una verificación bancaria. */
+export type DeclaredPaymentMethod = 'CASH' | 'TRANSFER'
+
+/** Cuerpo de `POST /orders/admin` (venta con pago externo declarado; sin zona desde #42). */
+export interface CreateAdminPurchaseInput {
+  buyer: AdminPurchaseBuyer
+  /** Solo si el regalo lo recibe otra persona; si no, recibe el comprador. */
+  giftRecipient?: { name: string; contactPhone: string }
+  payment: { method: DeclaredPaymentMethod; note?: string }
+  /**
+   * Opcional y obsoleto (#42): el formulario no lo envía. Solo lo usan las pruebas que necesitan
+   * pedidos planificables hasta que backend #49 planifique por cobertura.
+   */
+  zoneId?: string
   deliveryAddress: string
   items: { productId: string; quantity: number }[]
   /** Instante ISO 8601 con desfase de zona horaria explícito. */
@@ -82,17 +98,115 @@ export interface CreateAdminOrderInput {
   deliveryLng: number
 }
 
+/** Respuesta de una venta confirmada: el pedido, su comprobante y los importes del servidor. */
+export interface AdminPurchaseResult extends CreatedOrder {
+  buyerName: string | null
+  buyerPhone: string | null
+  contactRevision: number
+  receipt: { id: string; number: string }
+  payment: {
+    kind: 'ADMIN_DECLARED_EXTERNAL'
+    status: 'DECLARED'
+    method: DeclaredPaymentMethod
+    declaredAt: string
+  }
+  subtotalCents: number
+  taxAmountCents: number
+  taxRateBps: number
+  shippingAmountCents: number
+  totalCents: number
+}
+
+/** `GET /orders/admin/purchase-attempts/:key`: estado de una venta cuyo resultado no se conoce. */
+export interface AdminPurchaseAttempt {
+  status: 'PROCESSING' | 'SUCCEEDED' | 'REJECTED' | 'FAILED'
+  orderId: string | null
+  errorCode: string | null
+  result?: AdminPurchaseResult
+}
+
+/** Comprobante imprimible (`GET /orders/:id/receipt`) de una venta ADMIN o del Shop. */
+export interface AdminReceipt {
+  id: string
+  number: string
+  orderId: string
+  issuedAt: string
+  merchantName: string
+  buyer: { name: string; phone?: string; email?: string }
+  recipient: { name: string; phone: string }
+  items: {
+    sku: string
+    name: string
+    quantity: number
+    unitPriceCents: number
+    lineTotalCents: number
+  }[]
+  currency: 'USD'
+  subtotalCents: number
+  totalCents: number
+  payment:
+    | {
+        kind: 'ADMIN_DECLARED_EXTERNAL'
+        status: 'DECLARED'
+        method: DeclaredPaymentMethod
+        declaredAt: string
+      }
+    | { kind?: 'SIMULATED_CARD'; status: 'APPROVED'; reference: string; cardLast4: string }
+  disclaimer: string
+  tax: { enabled: boolean; rateBps: number; ratePercent: number; amountCents: number }
+  shipping: { status: 'FREE_INCLUDED'; amountCents: number }
+}
+
+/** Datos de contacto del pedido que ADMIN puede corregir (con su versión). */
+export interface OrderContact {
+  id: string
+  userId: string | null
+  recipientType: 'REGISTERED_CLIENT' | 'GUEST' | null
+  buyerName: string | null
+  buyerPhone: string | null
+  recipientName: string | null
+  recipientPhone: string | null
+  contactRevision: number
+  deliveryAddress: string
+  scheduledDeliveryDate: string | null
+}
+
+/** Cuerpo de `PATCH /orders/:id/contact`: solo los campos que cambian, con la versión actual. */
+export interface OrderContactChange {
+  contactRevision: number
+  buyerName?: string
+  buyerPhone?: string
+  recipientName?: string
+  recipientPhone?: string
+}
+
+/** Una corrección registrada en `GET /orders/:id/contact-history`. */
+export interface ContactAuditEntry {
+  id: string
+  field: 'buyerName' | 'buyerPhone' | 'recipientName' | 'recipientPhone'
+  previousValue: string | null
+  nextValue: string
+  actorId: string
+  createdAt: string
+}
+
 /** Línea de producto del formulario; la cantidad se captura como texto. */
 export type OrderItemFormValue = {
   productId: string
   quantity: string
 }
 
-/** Valores del formulario de pedido. */
+/** Valores del formulario de venta ADMIN. */
 export type OrderFormValues = {
+  buyerType: 'GUEST' | 'REGISTERED_CLIENT'
+  buyerName: string
+  buyerPhone: string
+  /** El regalo lo recibe otra persona distinta del comprador. */
+  giftToOther: boolean
   recipientName: string
   recipientPhone: string
-  zoneId: string
+  paymentMethod: '' | DeclaredPaymentMethod
+  paymentNote: string
   deliveryAddress: string
   /** Fecha y hora en horario de Guayaquil, formato de `datetime-local` (aaaa-mm-ddThh:mm). */
   scheduledAt: string

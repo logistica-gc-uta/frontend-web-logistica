@@ -49,23 +49,26 @@ async function previewDay(page: Page) {
 
 test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
   test.info().annotations.push({ type: 'Día planificado', description: DAY })
-  const address = `E2E Calle principal ${uniqueSuffix()}`
+  let address = ''
   let orderId = ''
 
-  await test.step('registrar el pedido y confirmar su ubicación en el mapa', async () => {
-    await page.goto('/pedidos')
-    const form = page.getByRole('form', { name: 'Nuevo pedido' })
-    await form.getByLabel('Nombre del destinatario').fill('E2E Destinataria')
-    await form.getByLabel('Teléfono de contacto').fill('0991234567')
-    await form.getByLabel('Zona').selectOption(zone.id)
-    await form.getByLabel('Dirección de entrega').fill(address)
-    await form.getByLabel('Fecha y hora de entrega (hora de Guayaquil)').fill(`${DAY}T10:00`)
+  await test.step('registrar una venta de invitado en el panel y ver su comprobante', async () => {
+    await page.goto('/admin/pedidos')
+    const form = page.getByRole('form', { name: 'Nueva venta' })
+    await form.getByLabel('Nombre del comprador').fill('E2E Compradora')
+    await form.getByLabel('Teléfono del comprador').fill('0991234567')
+    await form.getByRole('radio', { name: 'Efectivo' }).check()
+    await form.getByLabel('Dirección de entrega').fill(`E2E Venta ${uniqueSuffix()}`)
+    await form
+      .getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)')
+      .fill(`${DAY}T10:00`)
     await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
 
-    // Un clic en el mapa coloca el marcador; hay que confirmarlo antes de registrar.
+    // Un clic en el mapa coloca el marcador; el servidor lo verifica y luego se confirma.
     const map = form.locator('.location-picker__canvas')
     const box = (await map.boundingBox())!
     await map.click({ position: { x: box.width / 2 + 40, y: box.height / 2 + 30 } })
+    await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
     await form.getByRole('button', { name: 'Confirmar ubicación' }).click()
     await expect(form.getByText('Ubicación confirmada')).toBeVisible()
 
@@ -73,14 +76,27 @@ test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
       (response) =>
         response.url().endsWith('/orders/admin') && response.request().method() === 'POST',
     )
-    await form.getByRole('button', { name: 'Registrar pedido' }).click()
-    orderId = ((await (await created).json()) as { id: string }).id
+    await form.getByRole('button', { name: 'Registrar venta' }).click()
+    const saleId = ((await (await created).json()) as { id: string }).id
 
-    await expect(
-      form.getByRole('status').filter({ hasText: 'Pedido registrado correctamente' }),
-    ).toBeVisible()
-    await evidence(form, '02-pedido-registrado')
-    expect((await getOrder(admin, orderId)).status).toBe('PENDING')
+    await expect(page.getByText('Venta registrada. Este es su comprobante.')).toBeVisible()
+    await expect(page.getByText(/Pago declarado: Efectivo\./)).toBeVisible()
+    await evidence(page.locator('.admin-receipt'), '02-venta-comprobante')
+    const sale = await getOrder(admin, saleId)
+    expect(sale.status).toBe('PENDING')
+    // Sin zona (#42): la planificación lo tomará cuando backend #49 agrupe por cobertura.
+    expect(sale.zoneId).toBeNull()
+  })
+
+  await test.step('pedido planificable del día (con zona, por API hasta backend #49)', async () => {
+    const order = await createOrder(admin, {
+      zone,
+      productId,
+      scheduledAt: at(DAY, '10:00'),
+      k: 1,
+    })
+    orderId = order.id
+    address = order.address
   })
 
   await test.step('previsualizar dos veces no guarda ninguna ruta', async () => {
