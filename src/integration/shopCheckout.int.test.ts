@@ -12,10 +12,11 @@ import {
 } from '../features/shop/orders/customerOrdersService'
 import { shopErrorInfo } from '../features/shop/shopError'
 import { authStorage } from '../lib/auth/authStorage'
-import { apiClient } from '../lib/http/apiClient'
 import { BUSINESS_TIME_ZONE } from '../lib/time/guayaquil'
 import type { Session } from '../types/auth'
-import type { Zone } from '../features/zones/types'
+import { fromPolygon } from '../features/store-coverage/coverageDraft'
+import { shopService } from '../features/shop/shopService'
+import type { GeoPoint } from '../types/geo'
 import { credentialsFor } from './support/env'
 import { loginAsAdmin, uniqueSuffix } from './support/session'
 import {
@@ -49,18 +50,22 @@ const TOMORROW = new Intl.DateTimeFormat('sv-SE', { timeZone: BUSINESS_TIME_ZONE
   new Date(Date.now() + 24 * 60 * 60 * 1000),
 )
 
-let zone: Zone
+/** Un punto dentro de la cobertura de la tienda y un vértice (su borde), leídos del backend. */
+let inside: GeoPoint
+let onBorder: GeoPoint
+/** Lejos de Ambato: fuera de la cobertura. */
+const OUTSIDE: GeoPoint = { lat: -2.9, lng: -79.0 }
 let gift: { id: string } // $36,50: 2 unidades = $73,00
 let cheap: { id: string } // $1,00: para pagar sin agotar el saldo ficticio
 let lastUnit: { id: string } // stock 1: dos compradores compiten
 let buyerA: Session
 let buyerB: Session
 
-const deliveryAt = (time: string): DeliveryInput => ({
+/** Entrega sin zona (backend #42): solo dirección, punto y hora aproximada. */
+const deliveryAt = (time: string, location: GeoPoint = inside): DeliveryInput => ({
   recipient: { name: 'IT Destinataria', phone: '0991234567' },
-  zoneId: zone.id,
   deliveryAddress: `IT Calle ${uniqueSuffix()}`,
-  deliveryLocation: zone.depotLocation!,
+  deliveryLocation: location,
   scheduledDeliveryDate: `${TOMORROW}T${time}:00-05:00`,
 })
 
@@ -101,9 +106,17 @@ describe('Integración real · compra en el Shop (CLIENT)', () => {
 
   beforeAll(async () => {
     await loginAsAdmin()
-    zone = (await apiClient.get<Zone[]>('/zones')).data.find(
-      (candidate) => candidate.depotLocation,
-    )!
+    // La compra necesita la cobertura de la tienda (#32/#41): se usa la que esté configurada.
+    const coverage = await shopService.storeCoverage()
+    if (!coverage.configured)
+      throw new Error('Configura la tienda y su cobertura antes de esta prueba')
+    const area = fromPolygon(coverage.coverage)
+    onBorder = area[0]
+    inside = {
+      lat: area.reduce((sum, p) => sum + p.lat, 0) / area.length,
+      lng: area.reduce((sum, p) => sum + p.lng, 0) / area.length,
+    }
+    expect((await shopService.evaluateCoverage(inside)).position).toBe('INTERIOR')
     const category = await createShopCategory('IT Checkout')
     gift = await createShopProduct({
       categoryId: category.id,
@@ -206,6 +219,31 @@ describe('Integración real · compra en el Shop (CLIENT)', () => {
         }),
       )
       expect(Date.parse(quote.validUntil) - Date.now()).toBeLessThanOrEqual(15 * 60 * 1000)
+    })
+
+    it('#33 · sin zona: un punto en el borde de la cobertura se cotiza', async () => {
+      as(buyerA)
+      expect((await shopService.evaluateCoverage(onBorder)).position).toBe('BOUNDARY')
+
+      const quote = await checkoutService.quote(
+        [{ productId: gift.id, quantity: 2 }],
+        deliveryAt('10:00', onBorder),
+      )
+
+      expect(quote.totalCents).toBe(8395)
+    })
+
+    it('#33 · un punto fuera de la cobertura se rechaza (DELIVERY_OUTSIDE_COVERAGE) sin cotizar', async () => {
+      as(buyerA)
+      expect((await shopService.evaluateCoverage(OUTSIDE)).accepted).toBe(false)
+
+      const error = await checkoutService
+        .quote([{ productId: gift.id, quantity: 2 }], deliveryAt('10:00', OUTSIDE))
+        .catch((reason: unknown) => reason)
+
+      expect(shopErrorInfo(error)).toEqual(
+        expect.objectContaining({ status: 422, code: 'DELIVERY_OUTSIDE_COVERAGE' }),
+      )
     })
 
     it('si el ADMIN cambia o desactiva el IVA, el desglose cambia y la cotización anterior ya no se cobra', async () => {
@@ -376,6 +414,8 @@ describe('Integración real · compra en el Shop (CLIENT)', () => {
           timeline: [expect.objectContaining({ code: 'PENDING' })],
         }),
       )
+      // #33: el pedido se creó sin zona; la entrega es dirección + punto + hora.
+      expect(detail.delivery).toEqual(expect.objectContaining({ zoneName: null, location: inside }))
       const receipt = await customerOrdersService.receipt(result.order.id)
       expect(receipt).toEqual(
         expect.objectContaining({
