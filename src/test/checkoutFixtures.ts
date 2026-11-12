@@ -85,6 +85,9 @@ export const orderSummary = (
   overrides: Partial<CustomerOrderSummary> = {},
 ): CustomerOrderSummary => ({
   id: 'pedido-1',
+  source: 'SHOP',
+  receiptAvailable: true,
+  paymentStatus: 'APPROVED',
   number: 'RG-2030-0001',
   createdAt: '2030-02-10T15:00:00Z',
   scheduledDeliveryDate: '2030-02-15T15:00:00Z',
@@ -99,6 +102,8 @@ export const orderSummary = (
 
 export const orderDetail = (overrides: Partial<CustomerOrderDetail> = {}): CustomerOrderDetail => ({
   id: 'pedido-1',
+  source: 'SHOP',
+  receiptAvailable: true,
   number: 'RG-2030-0001',
   createdAt: '2030-02-10T15:00:00Z',
   scheduledDeliveryDate: '2030-02-15T15:00:00Z',
