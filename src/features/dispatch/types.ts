@@ -17,6 +17,12 @@ export type DispatchAction =
   | 'LOSS_DECLARE'
   | 'REPLACEMENT_PREPARE'
   | 'ORIGINAL_RECOVER'
+  | 'LOSS_CANCEL'
+  | 'EMERGENCY_DECLARE'
+  | 'UNIT_RECOVERY_CONFIRM'
+  | 'EMERGENCY_CLOSE'
+  | 'EMERGENCY_DRIVER_RELEASE'
+  | 'EMERGENCY_REQUEUE'
 
 /** `REJECTED` es el resultado correcto de un rechazo; `FAILED` nunca es un éxito. */
 export type DispatchOutcome = 'APPLIED' | 'REJECTED' | 'FAILED'

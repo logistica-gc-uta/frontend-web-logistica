@@ -25,6 +25,7 @@ export const navGroups: readonly NavGroup[] = [
       { label: 'Entregas fallidas', to: paths.failedDeliveries },
       { label: 'Seguimiento', to: paths.monitor },
       { label: 'Repartidores', to: paths.drivers },
+      { label: 'Emergencias', to: paths.emergencies },
     ],
   },
   {

@@ -7,6 +7,7 @@ export const paths = {
   planning: '/admin/planificacion',
   urgencies: '/admin/urgencias',
   drivers: '/admin/repartidores',
+  emergencies: '/admin/emergencias',
   failedDeliveries: '/admin/entregas-fallidas',
   monitor: '/admin/seguimiento',
   zones: '/admin/zonas',
