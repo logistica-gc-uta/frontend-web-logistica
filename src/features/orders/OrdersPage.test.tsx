@@ -8,6 +8,7 @@ import { adminSession, orders, products, zones } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
 import { adminReceipt, orderContact, purchaseResult } from '../../test/purchaseFixtures'
 import { renderWithProviders } from '../../test/renderWithProviders'
+import { mockLossesPanel } from '../../test/lossFixtures'
 import { shopSettings } from '../../test/shopFixtures'
 import { productsService } from '../products/productsService'
 import { shopService } from '../shop/shopService'
@@ -73,6 +74,7 @@ const mockApi = (list: (query: OrdersQuery) => Promise<OrdersPage> = pageOf()) =
   )
   // El comprobante que se abre tras una venta confirmada.
   vi.spyOn(ordersService, 'receipt').mockResolvedValue(adminReceipt())
+  mockLossesPanel()
   vi.spyOn(ordersService, 'contact').mockResolvedValue(orderContact())
   vi.spyOn(ordersService, 'contactHistory').mockResolvedValue([])
   return { zonesList, productsList, ordersList, settings, coverage }

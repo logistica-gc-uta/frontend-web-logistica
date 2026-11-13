@@ -9,6 +9,7 @@ import { useFetch } from '../../hooks/useFetch'
 import { AppError } from '../../lib/errors/AppError'
 import { getErrorMessage } from '../../lib/http/apiError'
 import { formatDateTime } from '../../lib/format/formatDateTime'
+import { LossesPanel } from '../losses/LossesPanel'
 import { formatCents } from '../shop/money'
 import { shopErrorInfo } from '../shop/shopError'
 import { ordersService } from './ordersService'
@@ -282,7 +283,10 @@ function ContactHistory({ entries }: { entries: ContactAuditEntry[] }) {
 /** ADMIN · comprobante imprimible de un pedido y corrección de su contacto. */
 export function OrderReceiptPage() {
   const { id = '' } = useParams()
-  const justCreated = (useLocation().state as OrderReceiptLocationState | null)?.justCreated
+  const location = useLocation()
+  const justCreated = (location.state as OrderReceiptLocationState | null)?.justCreated
+  // Desde una entrega fallida llega el intento, para ligar la pérdida a él (#39).
+  const attemptId = new URLSearchParams(location.search).get('intento') ?? undefined
 
   const loadReceipt = useCallback(async () => {
     try {
@@ -362,6 +366,8 @@ export function OrderReceiptPage() {
           {(entries) => <ContactHistory entries={entries} />}
         </AsyncContent>
       </section>
+
+      <LossesPanel orderId={id} attemptId={attemptId} />
     </main>
   )
 }

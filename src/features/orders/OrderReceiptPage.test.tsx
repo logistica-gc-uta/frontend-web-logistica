@@ -6,11 +6,13 @@ import { adminSession } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
 import { adminReceipt, contactAudit, orderContact } from '../../test/purchaseFixtures'
 import { renderWithProviders } from '../../test/renderWithProviders'
+import { mockLossesPanel } from '../../test/lossFixtures'
 import { ordersService } from './ordersService'
 
 const ORDER_ID = orderContact().id
 
 const mockApi = () => ({
+  ...mockLossesPanel(),
   receipt: vi.spyOn(ordersService, 'receipt').mockResolvedValue(adminReceipt()),
   contact: vi.spyOn(ordersService, 'contact').mockResolvedValue(orderContact()),
   history: vi.spyOn(ordersService, 'contactHistory').mockResolvedValue([]),

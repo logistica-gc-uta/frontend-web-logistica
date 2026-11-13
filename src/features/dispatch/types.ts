@@ -14,6 +14,9 @@ export type DispatchAction =
   | 'PICKUP_AGREE'
   | 'PICKUP_DECLINE'
   | 'PICKUP_CONFIRM'
+  | 'LOSS_DECLARE'
+  | 'REPLACEMENT_PREPARE'
+  | 'ORIGINAL_RECOVER'
 
 /** `REJECTED` es el resultado correcto de un rechazo; `FAILED` nunca es un éxito. */
 export type DispatchOutcome = 'APPLIED' | 'REJECTED' | 'FAILED'
