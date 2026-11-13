@@ -22,6 +22,13 @@ export type OrderSource = 'SHOP' | 'ADMIN'
 /** Los importes son `null` en un pedido que se conserva sin comprobante: no se reconstruyen. */
 type MaybeAmounts = { [K in keyof OrderAmounts]: OrderAmounts[K] | null }
 
+/** Retiro en tienda: `PENDING_PICKUP` todavía no es una entrega; `PICKED_UP` sí. */
+export interface CustomerPickup {
+  state: 'PENDING_PICKUP' | 'PICKED_UP'
+  agreedAt: string
+  pickedUpAt: string | null
+}
+
 export interface CustomerOrderSummary extends MaybeAmounts {
   id: string
   source: OrderSource
@@ -36,6 +43,10 @@ export interface CustomerOrderSummary extends MaybeAmounts {
   primaryImageUrl: string | null
   primaryProductId: string | null
   receiptId: string | null
+  /** Retiro en tienda acordado (backend #50); `null` o ausente si no hay. */
+  pickup?: CustomerPickup | null
+  /** La entrega falló y espera que la tienda acuerde otra entrega o el retiro (backend #50). */
+  pendingManagement?: boolean
 }
 
 export interface CustomerOrderPage {
@@ -81,6 +92,10 @@ export interface CustomerOrderDetail extends MaybeAmounts {
   }[]
   /** Cambios reales registrados por el backend (creado, asignado, en ruta, entregado…). */
   timeline: { code: string; label: string; at: string }[]
+  /** Retiro en tienda acordado (backend #50); `null` o ausente si no hay. */
+  pickup?: CustomerPickup | null
+  /** La entrega falló y espera que la tienda acuerde otra entrega o el retiro (backend #50). */
+  pendingManagement?: boolean
 }
 
 /** Pago de un comprobante: tarjeta de demostración (Shop) o declarado en la tienda (ADMIN). */
