@@ -165,4 +165,11 @@ export const dispatchService = {
   /** Pasa un pedido a otra ruta no iniciada del mismo día y zona (`MOVE`). */
   moveOrder: ({ routeId, orderId, targetRouteId, reason }: MoveOrderInput) =>
     intervene('MOVE', { routeId, orderId, targetRouteId, reason }),
+
+  /**
+   * Libera un borrador sin chofer (`RELEASE_DRAFT`, backend #49): quita sus paradas y devuelve sus
+   * pedidos a pendientes para replanificarlos hoy. Queda auditado.
+   */
+  releaseDraft: (routeId: string, reason: string) =>
+    intervene('RELEASE_DRAFT', { routeId, reason }),
 }

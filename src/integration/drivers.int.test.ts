@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { describeDriverError } from '../features/drivers/driverErrors'
 import { driversAdminService } from '../features/drivers/driversAdminService'
 import type { CreatedDriver } from '../features/drivers/types'
@@ -8,13 +8,16 @@ import { driversService } from '../features/planning/driversService'
 import { planningService } from '../features/planning/planningService'
 import { productsService } from '../features/products/productsService'
 import { zonesService } from '../features/zones/zonesService'
+import { dispatchService } from '../features/dispatch/dispatchService'
+import { shopService } from '../features/shop/shopService'
 import { apiClient } from '../lib/http/apiClient'
+import { BUSINESS_TIME_ZONE, todayInGuayaquil } from '../lib/time/guayaquil'
 import { expectHttpError } from './support/assertions'
 import { loginAsAdmin, loginAsClient, uniqueSuffix } from './support/session'
 
 /**
- * Cada ejecución crea sus propios repartidores (nunca usa los del seed) y trabaja en un miércoles
- * al azar entre 2080 y 2099: las ausencias y la ruta asignada solo afectan a esos repartidores.
+ * Cada ejecución crea sus propios repartidores (nunca usa los del seed). Las ausencias sin rutas se
+ * prueban en un miércoles al azar entre 2080 y 2099; las de rutas, hoy (ver más abajo).
  */
 const FIRST_WEDNESDAY = Date.UTC(2080, 0, 3)
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
@@ -24,6 +27,20 @@ const DAY = new Date(FIRST_WEDNESDAY + Math.floor(Math.random() * 1000) * WEEK_M
 const NEXT_DAY = new Date(Date.parse(`${DAY}T12:00:00Z`) + 24 * 60 * 60 * 1000)
   .toISOString()
   .slice(0, 10)
+
+const hourFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: BUSINESS_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+const TODAY = todayInGuayaquil()
+const LATER_TODAY = hourFormatter.format(new Date(Date.now() + 30 * 60_000))
+const { deliverySchedule: HOURS } = await shopService.settings()
+const HAS_TIME_LEFT_TODAY =
+  LATER_TODAY > hourFormatter.format(new Date()) &&
+  LATER_TODAY >= HOURS.startTime &&
+  LATER_TODAY <= HOURS.endTime
 
 const newDriver = (label: string) => {
   const suffix = uniqueSuffix()
@@ -45,43 +62,91 @@ const codeOf = async (promise: Promise<unknown>) => {
 describe(`Integración real · repartidores y ausencias (/drivers) · día ${DAY}`, () => {
   let assigned: CreatedDriver
   let spare: CreatedDriver
-  let routeIds: string[]
 
   beforeAll(async () => {
     await loginAsAdmin()
     assigned = await newDriver('asignado')
     spare = await newDriver('libre')
+  })
 
-    // Dos rutas DRAFT propias del día: una se asigna a `assigned`, la otra se intenta con `spare`.
-    const zone = (await zonesService.list()).find((candidate) => candidate.depotLocation !== null)
-    if (!zone?.depotLocation) throw new Error('Ninguna zona tiene depósito: ejecuta el seed.')
-    const product = await productsService.create({
-      name: `IT Producto repartidores ${uniqueSuffix()}`,
-      price: 10,
-      stock: 2,
-    })
-    routeIds = []
-    for (let k = 1; k <= 2; k += 1) {
-      const order = await ordersService.createPurchase(
-        {
-          buyer: { type: 'GUEST', name: `IT Ausencia ${k}`, contactPhone: '0990000000' },
-          zoneId: zone.id,
-          deliveryAddress: `IT Ausencia ${k} ${uniqueSuffix()}`,
-          items: [{ productId: product.id, quantity: 1 }],
-          scheduledDeliveryDate: `${DAY}T10:00:00-05:00`,
-          deliveryLat: zone.depotLocation.lat + 0.001 * k,
-          deliveryLng: zone.depotLocation.lng + 0.001 * k,
-          payment: { method: 'CASH' },
-        },
-        crypto.randomUUID(),
-      )
-      const route = await planningService.confirmRoute({
-        zoneId: zone.id,
-        routeDate: `${DAY}T15:00:00Z`,
-        orderIds: [order.id],
+  /**
+   * Desde backend #49 las rutas solo se confirman y asignan el día de entrega: la ruta asignada y el
+   * rechazo por ausencia se prueban HOY, con dos repartidores propios más. El borrador que no se
+   * asigna se libera al final.
+   */
+  describe.skipIf(!HAS_TIME_LEFT_TODAY)(`hoy (${TODAY}): rutas y ausencias`, () => {
+    let onRoute: CreatedDriver
+    let absentToday: CreatedDriver
+    const routeIds: string[] = []
+
+    beforeAll(async () => {
+      await loginAsAdmin()
+      onRoute = await newDriver('en ruta')
+      absentToday = await newDriver('ausente hoy')
+      const zone = (await zonesService.list()).find((item) => item.depotLocation !== null)
+      if (!zone?.depotLocation) throw new Error('Ninguna zona tiene depósito: ejecuta el seed.')
+      const product = await productsService.create({
+        name: `IT Producto repartidores ${uniqueSuffix()}`,
+        price: 10,
+        stock: 2,
       })
-      routeIds.push(route.id)
-    }
+      const when = `${TODAY}T${LATER_TODAY}:00-05:00`
+      for (let k = 1; k <= 2; k += 1) {
+        const order = await ordersService.createPurchase(
+          {
+            buyer: { type: 'GUEST', name: `IT Ausencia ${k}`, contactPhone: '0990000000' },
+            zoneId: zone.id,
+            deliveryAddress: `IT Ausencia ${k} ${uniqueSuffix()}`,
+            items: [{ productId: product.id, quantity: 1 }],
+            scheduledDeliveryDate: when,
+            deliveryLat: zone.depotLocation.lat + 0.001 * k,
+            deliveryLng: zone.depotLocation.lng + 0.001 * k,
+            payment: { method: 'CASH' },
+          },
+          crypto.randomUUID(),
+        )
+        const route = await planningService.confirmRoute({
+          zoneId: zone.id,
+          routeDate: when,
+          orderIds: [order.id],
+        })
+        routeIds.push(route.id)
+      }
+    })
+
+    afterAll(async () => {
+      await loginAsAdmin()
+      await dispatchService.releaseDraft(routeIds[1], 'IT: limpieza de la prueba').catch(() => {})
+    })
+
+    it('una ausencia sobre una ruta asignada se guarda y la informa sin reasignar nada', async () => {
+      await planningService.assignDriver(routeIds[0], onRoute.id)
+
+      const absence = await driversAdminService.addAbsence(onRoute.id, {
+        startDate: TODAY,
+        endDate: TODAY,
+        reason: 'IT cita médica',
+      })
+
+      expect(absence.status).toBe('ACTIVE')
+      expect(absence.conflicts).toEqual([
+        expect.objectContaining({ routeId: routeIds[0], status: 'ASSIGNED' }),
+      ])
+      const route = (await planningService.listRoutes()).find((item) => item.id === routeIds[0])
+      expect(route).toEqual(expect.objectContaining({ status: 'ASSIGNED', driverId: onRoute.id }))
+    })
+
+    it('asignar una ruta a un repartidor ausente se rechaza con DRIVER_ABSENT', async () => {
+      await driversAdminService.addAbsence(absentToday.id, { startDate: TODAY, endDate: TODAY })
+
+      const error = await planningService
+        .assignDriver(routeIds[1], absentToday.id)
+        .catch((reason: unknown) => reason)
+
+      expect(describeAssignError(error)).toBe(
+        'Ese chofer está ausente el día de la ruta: elige otro.',
+      )
+    })
   })
 
   beforeEach(loginAsAdmin)
@@ -118,26 +183,6 @@ describe(`Integración real · repartidores y ausencias (/drivers) · día ${DAY
     expect(updated.user.name).toBe(spare.user.name)
   })
 
-  it('una ausencia sobre una ruta asignada se guarda y la informa sin reasignar nada', async () => {
-    await planningService.assignDriver(routeIds[0], assigned.id)
-
-    const absence = await driversAdminService.addAbsence(assigned.id, {
-      startDate: DAY,
-      endDate: NEXT_DAY,
-      reason: 'IT cita médica',
-    })
-
-    expect(absence.status).toBe('ACTIVE')
-    expect(absence.conflicts).toEqual([
-      expect.objectContaining({ routeId: routeIds[0], status: 'ASSIGNED' }),
-    ])
-    const route = (await planningService.listRoutes()).find((item) => item.id === routeIds[0])
-    expect(route).toEqual(expect.objectContaining({ status: 'ASSIGNED', driverId: assigned.id }))
-    expect(await driversAdminService.absences(assigned.id)).toEqual([
-      expect.objectContaining({ id: absence.id, startDate: DAY, endDate: NEXT_DAY }),
-    ])
-  })
-
   it('la disponibilidad depende del día y la planificación no ofrece al ausente', async () => {
     const absence = await driversAdminService.addAbsence(spare.id, {
       startDate: DAY,
@@ -156,16 +201,6 @@ describe(`Integración real · repartidores y ausencias (/drivers) · día ${DAY
     const forDay = (await driversService.listForDay(DAY)).find((driver) => driver.id === spare.id)
     expect(forDay).toEqual(
       expect.objectContaining({ isAvailable: false, unavailableReason: 'ABSENT' }),
-    )
-  })
-
-  it('asignar una ruta a un repartidor ausente se rechaza con DRIVER_ABSENT', async () => {
-    const error = await planningService
-      .assignDriver(routeIds[1], spare.id)
-      .catch((reason: unknown) => reason)
-
-    expect(describeAssignError(error)).toBe(
-      'Ese chofer está ausente el día de la ruta: elige otro.',
     )
   })
 

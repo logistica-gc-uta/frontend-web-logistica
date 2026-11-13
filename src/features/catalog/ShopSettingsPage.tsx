@@ -11,7 +11,13 @@ import { useAuth } from '../auth/useAuth'
 import { shopErrorInfo } from '../shop/shopError'
 import { describeCatalogError } from './catalogErrors'
 import { catalogService } from './catalogService'
-import { formFromSettings, settingsChanges, validateSettings } from './settingsForm'
+import {
+  formFromSettings,
+  MARGIN_MAX,
+  MARGIN_MIN,
+  settingsChanges,
+  validateSettings,
+} from './settingsForm'
 import type { AdminShopSettings } from './types'
 
 function SettingsEditor({
@@ -144,6 +150,22 @@ function SettingsEditor({
             error={fieldErrors.endTime}
           />
         </div>
+      </fieldset>
+
+      <fieldset className="items-editor">
+        <legend>Planificación de rutas</legend>
+        <TextField
+          label="Margen para agrupar horarios (minutos)"
+          inputMode="numeric"
+          value={values.marginMinutes}
+          onChange={(event) => form.setFields({ marginMinutes: event.target.value })}
+          error={fieldErrors.marginMinutes}
+        />
+        <p className="text-muted">
+          Una ruta propuesta solo junta entregas cuyas horas pedidas se diferencian en hasta este
+          margen (de {MARGIN_MIN} a {MARGIN_MAX} minutos). Sirve para agrupar: no garantiza entregar
+          dentro de ese margen. Aplica a las próximas propuestas; las rutas guardadas no cambian.
+        </p>
       </fieldset>
 
       <dl className="settings-fixed">

@@ -1,3 +1,4 @@
+import { areaLabel } from '../../lib/planning/routeArea'
 import { apiClient } from '../../lib/http/apiClient'
 import type { MonitorRoute, MonitorRouteStatus, MonitorStop, StopOutcome } from './types'
 
@@ -7,7 +8,8 @@ interface RawRoute {
   status: MonitorRouteStatus
   date: string
   createdAt: string
-  zone: { code: string }
+  /** `null` en rutas sin zona que salen de la tienda (backend #49). */
+  zone: { code: string } | null
   driverId: string | null
   driver: { user: { name: string } } | null
   startedAt: string | null
@@ -43,7 +45,7 @@ const toMonitorRoute = (raw: RawRoute): MonitorRoute => {
     status: raw.status,
     date: raw.date,
     createdAt: raw.createdAt,
-    zoneCode: raw.zone.code,
+    zoneCode: areaLabel(raw.zone?.code),
     driverId: raw.driverId,
     driverName: raw.driver?.user.name ?? null,
     startedAt: raw.startedAt,

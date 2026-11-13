@@ -10,6 +10,7 @@ export type DispatchAction =
   | 'PRIORITIZE'
   | 'CONTACT'
   | 'RESCHEDULE'
+  | 'RELEASE_DRAFT'
 
 /** `REJECTED` es el resultado correcto de un rechazo; `FAILED` nunca es un éxito. */
 export type DispatchOutcome = 'APPLIED' | 'REJECTED' | 'FAILED'
@@ -58,7 +59,8 @@ export interface UrgencyProposal {
   kind: UrgencyKind
   /** Ruta en la que se insertaría (`INSERT`). */
   routeId: string | null
-  zoneId: string
+  /** `null` cuando el pedido no tiene zona y se despacha desde la tienda (backend #49). */
+  zoneId: string | null
   /** Pedidos de la ruta propuesta en orden de visita. */
   orderIds: string[]
   /** Choferes efectivamente disponibles para una salida nueva. */

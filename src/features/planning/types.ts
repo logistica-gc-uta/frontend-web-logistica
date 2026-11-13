@@ -48,9 +48,10 @@ export interface RoadEngineStatus {
 
 /** Ruta propuesta por el planificador (Clarke & Wright). Es temporal: no se guarda hasta confirmarla. */
 export interface RouteProposal {
-  zoneId: string
-  zoneCode: string
-  /** Depósito donde la ruta empieza y termina. */
+  /** `null` en propuestas sin zona que salen de la tienda (backend #49). */
+  zoneId: string | null
+  zoneCode: string | null
+  /** Punto donde la ruta empieza y termina: la tienda, o el depósito de la zona si no hay tienda. */
   depot: GeoPoint
   /** Pedidos en orden de visita (1 a 4). */
   orderIds: string[]
@@ -103,6 +104,12 @@ export interface RouteProposalsResponse {
   distanceMethod: DistanceMethod
   /** Solo con motor vial. */
   roadMetrics?: RoadMetricsInfo
+  /** La fecha consultada es hoy en Ecuador (backend #49). */
+  isToday: boolean
+  /** Solo hoy se pueden confirmar y asignar las propuestas; otro día es una vista previa. */
+  canConfirm: boolean
+  /** Diferencia máxima, en minutos, entre las horas pedidas de una misma ruta (backend #48). */
+  timeWindowMarginMinutes: number
   proposals: RouteProposal[]
   excluded: ExcludedOrder[]
   summary: PlanningSummary
@@ -117,7 +124,8 @@ export interface ProposalsQuery {
 
 /** Cuerpo de `POST /routes`: confirma una propuesta como ruta DRAFT. */
 export interface ConfirmRouteInput {
-  zoneId: string
+  /** `null` para una ruta sin zona que sale de la tienda (backend #49). */
+  zoneId: string | null
   routeDate: string
   orderIds: string[]
 }
@@ -143,7 +151,8 @@ export interface SavedRouteDetail {
   date: string
   /** Cuándo se confirmó; ordena la lista para que cada ruta conserve su número. */
   createdAt: string
-  zoneId: string
+  /** Sin zona (`null`), la ruta sale de la tienda y se muestra como «Tienda» (backend #49). */
+  zoneId: string | null
   zoneCode: string
   zoneName: string
   driverId: string | null

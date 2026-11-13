@@ -52,9 +52,14 @@ interface RawSettings {
   tax: { enabled: boolean; rateBps: number }
   limits: { maxUnitsPerSkuPerOrder: number }
   deliverySchedule: { timeZone: string; startTime: string; endTime: string }
+  /** Backend #48; un backend anterior no lo envía y se usa su valor por defecto. */
+  routePlanning?: { timeWindowMarginMinutes: number }
   updatedAt: string
   updatedById: string | null
 }
+
+/** Margen de agrupación horaria por defecto del backend (#48). */
+const DEFAULT_MARGIN_MINUTES = 30
 
 const toSettings = (raw: RawSettings): AdminShopSettings => ({
   version: raw.version,
@@ -66,6 +71,8 @@ const toSettings = (raw: RawSettings): AdminShopSettings => ({
     endTime: raw.deliverySchedule.endTime,
   },
   shippingFreeIncluded: raw.shipping.status === 'FREE_INCLUDED',
+  routeTimeWindowMarginMinutes:
+    raw.routePlanning?.timeWindowMarginMinutes ?? DEFAULT_MARGIN_MINUTES,
   updatedAt: raw.updatedAt,
   updatedById: raw.updatedById,
 })

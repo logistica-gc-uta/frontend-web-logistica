@@ -1,6 +1,6 @@
 import { useKeyedActions } from '../../hooks/useKeyedActions'
 import { dispatchService } from '../dispatch/dispatchService'
-import { describeAssignError, describeCorrectionError } from './confirmError'
+import { describeAssignError, describeCorrectionError, describeReleaseError } from './confirmError'
 import { planningService } from './planningService'
 
 /**
@@ -32,5 +32,7 @@ export function useSavedRouteActions(onDone: () => void) {
         () => dispatchService.moveOrder({ routeId, orderId, targetRouteId, reason }),
         describeCorrectionError,
       ),
+    release: (routeId: string, reason: string) =>
+      run(routeId, () => dispatchService.releaseDraft(routeId, reason), describeReleaseError),
   }
 }

@@ -41,6 +41,7 @@ export const adminSettings = (overrides: Partial<AdminShopSettings> = {}): Admin
   maxUnitsPerSkuPerOrder: 10,
   deliverySchedule: { timeZone: 'America/Guayaquil', startTime: '07:00', endTime: '17:00' },
   shippingFreeIncluded: true,
+  routeTimeWindowMarginMinutes: 30,
   updatedAt: '2026-11-03T10:00:00Z',
   updatedById: null,
   ...overrides,
