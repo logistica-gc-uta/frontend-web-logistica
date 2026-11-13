@@ -224,4 +224,55 @@ describe('pérdidas y reemplazos · página del pedido', () => {
     expect(box.queryByText(/Pérdida declarada/)).not.toBeInTheDocument()
     await waitFor(() => expect(losses).toHaveBeenCalledTimes(2))
   })
+
+  it('anula una pérdida declarada por error y avisa que el reemplazo vuelve al stock', async () => {
+    const cancel = vi.spyOn(dispatchService, 'cancelLoss').mockResolvedValue({ id: 'x' } as never)
+    const { user } = renderPage('', [preparedLoss()])
+    const loss = within(
+      await (
+        await panel()
+      ).findByRole('listitem', {
+        name: 'Pérdida de Laptop HP Pavilion 15 (unidad 1)',
+      }),
+    )
+
+    await user.click(loss.getByRole('button', { name: /Anular pérdida/ }))
+    await user.type(loss.getByLabelText(/Motivo: anular pérdida/), 'Fue un error')
+    await user.click(loss.getByRole('button', { name: 'Confirmar' }))
+
+    expect(cancel).toHaveBeenCalledWith('loss-1', 'Fue un error')
+    expect(await screen.findByText(/la unidad del reemplazo volvió al stock/)).toBeInTheDocument()
+  })
+
+  it('una pérdida anulada se ve anulada, sin acciones, y la unidad se puede volver a declarar', async () => {
+    renderPage('', [
+      preparedLoss({
+        cancelledAt: '2030-02-15T09:00:00Z',
+        cancelReason: 'Fue un error',
+        movements: [
+          ...preparedLoss().movements,
+          {
+            kind: 'REPLACEMENT_CANCEL_IN',
+            delta: 1,
+            stockAfter: 5,
+            createdAt: '2030-02-15T09:00:00Z',
+            createdById: 'admin-1',
+          },
+        ],
+      }),
+    ])
+    const box = await panel()
+    const loss = within(
+      await box.findByRole('listitem', { name: 'Pérdida de Laptop HP Pavilion 15 (unidad 1)' }),
+    )
+
+    expect(loss.getByText(/^Anulada el/)).toHaveTextContent('Fue un error')
+    expect(
+      loss.getByText(/Devolución al anular la pérdida \(\+1\) · stock después: 5/),
+    ).toBeInTheDocument()
+    expect(loss.queryByRole('button')).not.toBeInTheDocument()
+    expect(
+      box.getByRole('button', { name: 'Declarar pérdida de Laptop HP Pavilion 15' }),
+    ).toBeInTheDocument()
+  })
 })
