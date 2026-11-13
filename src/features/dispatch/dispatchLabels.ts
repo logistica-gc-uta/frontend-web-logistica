@@ -12,6 +12,7 @@ export const DISPATCH_ACTION_LABELS: Record<DispatchAction, string> = {
   REORDER: 'Reordenar paradas',
   MOVE: 'Mover pedido de ruta',
   REASSIGN_DRIVER: 'Cambiar chofer',
+  RELEASE_DRAFT: 'Liberar borrador vencido',
   PRIORITIZE: 'Priorizar',
   CONTACT: 'Contacto con el destinatario',
   RESCHEDULE: 'Reprogramar',

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { STORE_AREA_LABEL } from '../../lib/planning/routeArea'
 import { RoutesMap, type MapRoute } from '../../components/map/RoutesMap'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
@@ -62,7 +63,7 @@ export function PlanningResult({ data }: PlanningResultProps) {
         label,
         color,
         depot: proposal.depot,
-        depotLabel: `Depósito ${proposal.zoneCode}`,
+        depotLabel: proposal.zoneCode ? `Depósito ${proposal.zoneCode}` : STORE_AREA_LABEL,
         stops: proposal.stops.map((stop) => ({
           sequence: stop.sequence,
           location: stop.location,
@@ -92,6 +93,19 @@ export function PlanningResult({ data }: PlanningResultProps) {
           <strong>Vista previa.</strong> Estas rutas todavía no están guardadas: nada se registra
           hasta que confirmes.
         </p>
+        {!data.canConfirm && (
+          <p className="notice notice--preview" role="note">
+            <strong>Solo vista previa: no es el día de entrega.</strong> Las rutas se confirman y
+            asignan el mismo día (hora de Ecuador). Los pedidos de este día siguen pendientes y se
+            planifican ese día.
+          </p>
+        )}
+        <p className="notice">
+          <strong>Horarios agrupados.</strong> Cada ruta junta entregas cuyas horas pedidas se
+          diferencian en hasta {data.timeWindowMarginMinutes} minutos, con un máximo de{' '}
+          {data.capacity} paradas, y las visita en orden de hora. Es una forma de agrupar, no una
+          promesa de entregar dentro de ±{data.timeWindowMarginMinutes} minutos.
+        </p>
         <DistanceNotice method={data.distanceMethod} />
         <PlanningSummary summary={data.summary} method={data.distanceMethod} />
       </section>
@@ -106,14 +120,16 @@ export function PlanningResult({ data }: PlanningResultProps) {
         <section className="card" aria-labelledby="planning-routes-title">
           <div className="planning-routes__header">
             <h2 id="planning-routes-title">Rutas propuestas ({routes.length})</h2>
-            <Button
-              disabled={isConfirming || pendingToConfirm.length === 0}
-              onClick={() => confirmAll(pendingToConfirm.map(({ proposal }) => proposal))}
-            >
-              {unsavedCount === 0
-                ? 'Todas las rutas están guardadas'
-                : `Confirmar todas (${pendingToConfirm.length})`}
-            </Button>
+            {data.canConfirm && (
+              <Button
+                disabled={isConfirming || pendingToConfirm.length === 0}
+                onClick={() => confirmAll(pendingToConfirm.map(({ proposal }) => proposal))}
+              >
+                {unsavedCount === 0
+                  ? 'Todas las rutas están guardadas'
+                  : `Confirmar todas (${pendingToConfirm.length})`}
+              </Button>
+            )}
           </div>
 
           <div className="planning-routes">
@@ -129,6 +145,7 @@ export function PlanningResult({ data }: PlanningResultProps) {
                   isSelected={selectedKey === key}
                   confirmation={states[key]}
                   onSelect={() => toggleSelection(key)}
+                  canConfirm={data.canConfirm}
                   onConfirm={() => confirm(proposal)}
                 />
               ))}
@@ -161,6 +178,8 @@ export function PlanningResult({ data }: PlanningResultProps) {
                 onReassign={routeActions.reassign}
                 onReorder={routeActions.reorder}
                 onMove={routeActions.move}
+                isToday={data.isToday}
+                onRelease={routeActions.release}
               />
             </>
           )}

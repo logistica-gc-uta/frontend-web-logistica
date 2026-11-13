@@ -1,4 +1,5 @@
 import { apiClient } from '../../lib/http/apiClient'
+import { areaLabel, STORE_AREA_LABEL } from '../../lib/planning/routeArea'
 import type {
   ConfirmRouteInput,
   ProposalsQuery,
@@ -19,8 +20,9 @@ interface RawRoute {
   status: RouteStatus
   date: string
   createdAt: string
-  zoneId: string
-  zone: { code: string; name: string }
+  zoneId: string | null
+  /** `null` en rutas sin zona que salen de la tienda (backend #49). */
+  zone: { code: string; name: string } | null
   driverId: string | null
   driver: { user: { name: string } } | null
   orders: RouteOrderSummary[]
@@ -37,8 +39,8 @@ const toRouteDetail = (raw: RawRoute): SavedRouteDetail => ({
   date: raw.date,
   createdAt: raw.createdAt,
   zoneId: raw.zoneId,
-  zoneCode: raw.zone.code,
-  zoneName: raw.zone.name,
+  zoneCode: areaLabel(raw.zone?.code),
+  zoneName: raw.zone?.name ?? STORE_AREA_LABEL,
   driverId: raw.driverId,
   driverName: raw.driver?.user.name ?? null,
   orders: raw.orders

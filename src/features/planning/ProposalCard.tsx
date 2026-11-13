@@ -1,3 +1,4 @@
+import { areaLabel } from '../../lib/planning/routeArea'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { formatDateTime } from '../../lib/format/formatDateTime'
@@ -15,6 +16,8 @@ interface ProposalCardProps {
   method: DistanceMethod
   isSelected: boolean
   confirmation: ConfirmationState | undefined
+  /** `false` fuera del día de entrega: la propuesta solo se puede ver (backend #49). */
+  canConfirm?: boolean
   onSelect: () => void
   onConfirm: () => void
 }
@@ -38,6 +41,7 @@ export function ProposalCard({
   method,
   isSelected,
   confirmation,
+  canConfirm = true,
   onSelect,
   onConfirm,
 }: ProposalCardProps) {
@@ -50,7 +54,7 @@ export function ProposalCard({
       <header className="proposal__header">
         <span className="proposal__swatch" style={{ background: color }} aria-hidden="true" />
         <h3>
-          {label} · {proposal.zoneCode}
+          {label} · {areaLabel(proposal.zoneCode)}
         </h3>
         <span className="badge">
           {proposal.stops.length}/{capacity} paradas
@@ -120,6 +124,8 @@ export function ProposalCard({
           <span role="status" className="badge badge--success">
             Guardada como borrador (DRAFT)
           </span>
+        ) : !canConfirm ? (
+          <span className="badge">Solo vista previa</span>
         ) : (
           <Button isLoading={isSaving} loadingText="Guardando..." onClick={onConfirm}>
             Confirmar ruta
