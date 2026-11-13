@@ -45,6 +45,7 @@ const incidentView = (overrides: Partial<IncidentView> = {}): IncidentView => ({
   originalRoute: R1,
   visits: [{ route: R1, stop: FAILED_STOP }],
   management: [],
+  pickup: null,
   ...overrides,
 })
 
@@ -56,6 +57,8 @@ const renderCard = (overrides: Partial<IncidentCardProps> = {}) => {
     currentUserId: adminUser.id,
     onContact: vi.fn().mockResolvedValue(true),
     onReschedule: vi.fn().mockResolvedValue(true),
+    onPickupDecision: vi.fn().mockResolvedValue(true),
+    onPickupConfirm: vi.fn().mockResolvedValue(true),
     ...overrides,
   }
   render(<IncidentCard {...props} />)

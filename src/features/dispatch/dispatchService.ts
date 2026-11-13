@@ -7,6 +7,7 @@ import type {
   ContactInput,
   FailedDelivery,
   MoveOrderInput,
+  OrderPickup,
   RescheduleInput,
   ReorderStopsInput,
   UrgencyInbox,
@@ -23,6 +24,8 @@ interface RawInbox {
   incidents: {
     orderId: string
     routeId: string | null
+    /** Backend #50; un backend anterior no lo envía. */
+    pickup?: OrderPickup | null
     attempts: { id: string; stopId: string; failureReason: string | null; recordedAt: string }[]
   }[]
 }
@@ -30,10 +33,14 @@ interface RawInbox {
 const toFailedDelivery = ({
   orderId,
   routeId,
+  pickup,
   attempts,
 }: RawInbox['incidents'][number]): FailedDelivery => ({
   orderId,
   routeId,
+  pickup: pickup
+    ? { state: pickup.state, agreedAt: pickup.agreedAt, pickedUpAt: pickup.pickedUpAt }
+    : null,
   attempts: attempts
     .map(({ id, stopId, failureReason, recordedAt }) => ({ id, stopId, failureReason, recordedAt }))
     .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
@@ -172,4 +179,26 @@ export const dispatchService = {
    */
   releaseDraft: (routeId: string, reason: string) =>
     intervene('RELEASE_DRAFT', { routeId, reason }),
+
+  /**
+   * Retiro en tienda (backend #50). El acuerdo deja el pedido pendiente de retiro sin crear ruta y no
+   * es una entrega; tras una entrega fallida debe referirse al último intento (`attemptId`).
+   */
+  agreePickup: ({ orderId, attemptId, reason }: PickupInput) =>
+    intervene('PICKUP_AGREE', { orderId, ...(attemptId ? { attemptId } : {}), reason }),
+
+  /** El cliente no acepta retirar: solo se audita y el pedido sigue pendiente de gestión. */
+  declinePickup: ({ orderId, attemptId, reason }: PickupInput) =>
+    intervene('PICKUP_DECLINE', { orderId, ...(attemptId ? { attemptId } : {}), reason }),
+
+  /** Retiro físico confirmado: es lo único que entrega el pedido (pasa a DELIVERED). */
+  confirmPickup: (orderId: string, reason: string) =>
+    intervene('PICKUP_CONFIRM', { orderId, reason }),
+}
+
+export interface PickupInput {
+  orderId: string
+  /** Último intento fallido, si el pedido viene de una entrega fallida. */
+  attemptId?: string
+  reason: string
 }

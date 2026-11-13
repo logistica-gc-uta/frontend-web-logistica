@@ -21,7 +21,7 @@ import {
   type ReceiptPayment,
 } from './customerOrdersService'
 import { OrderAmounts } from './OrderAmounts'
-import { CUSTOMER_ORDER_STATUS, statusBadgeClass } from './orderStatus'
+import { CUSTOMER_ORDER_STATUS, trackingBadgeClass, trackingLabel } from './orderStatus'
 
 const useOrder = (id: string) => {
   const load = useCallback(() => customerOrdersService.detail(id), [id])
@@ -487,9 +487,9 @@ export function MyOrdersPage() {
                             : `${order.itemsCount} ${order.itemsCount === 1 ? 'producto' : 'productos'}`}
                         </span>
                       </span>
-                      <span className={`state ${statusBadgeClass(order.status)}`}>
+                      <span className={`state ${trackingBadgeClass(order)}`}>
                         <OrderStatusIcon status={order.status} />
-                        {CUSTOMER_ORDER_STATUS[order.status]}
+                        {trackingLabel(order)}
                       </span>
                       <span className="amount">
                         {order.totalCents === null ? (
@@ -550,9 +550,9 @@ export function OrderDetailPage() {
                   <OriginBadge source={data.source} /> Comprado el {formatDateTime(data.createdAt)}
                 </p>
               </div>
-              <span className={`badge ${statusBadgeClass(data.status)}`}>
+              <span className={trackingBadgeClass(data)}>
                 <OrderStatusIcon status={data.status} />
-                {CUSTOMER_ORDER_STATUS[data.status]}
+                {trackingLabel(data)}
               </span>
             </div>
             <div className="layout">

@@ -37,6 +37,7 @@ export const failedDelivery = (
 ): FailedDelivery => ({
   orderId,
   routeId: 'route-1',
+  pickup: null,
   attempts: [
     {
       id: `attempt-${orderId}`,

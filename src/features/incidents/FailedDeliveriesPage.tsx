@@ -12,6 +12,7 @@ import { IncidentCard, type RegisteredAgreement } from './IncidentCard'
 import { describeIncidentError } from './incidentError'
 import { describeWindow } from './incidentFormat'
 import { loadIncidentsBoard } from './incidentsBoard'
+import type { PickupDecision } from './PickupSection'
 
 /**
  * Bandeja de entregas fallidas, separada de la de urgencias: pedidos cuyo intento de entrega falló
@@ -63,12 +64,55 @@ export function FailedDeliveriesPage() {
     )
   }
 
+  /**
+   * Gestión del retiro en tienda (#50). Si falla (por ejemplo, se cae la red) no se da por hecha: se
+   * vuelve a consultar la bandeja para ver el estado real antes de intentar de nuevo.
+   */
+  const runPickup = async (orderId: string, perform: () => Promise<unknown>, done: string) => {
+    const ok = await actions.run(orderId, perform, describeIncidentError)
+    if (ok) setNotice(done)
+    else board.reload()
+    return ok
+  }
+
+  const addressOf = (orderId: string) => {
+    const address = board.data?.incidents.find((incident) => incident.orderId === orderId)?.order
+      ?.deliveryAddress
+    return address ? `«${address}»` : orderId.slice(0, 8)
+  }
+
+  const pickupDecision = (
+    orderId: string,
+    attemptId: string | undefined,
+    decision: PickupDecision,
+    reason: string,
+  ) =>
+    decision === 'agree'
+      ? runPickup(
+          orderId,
+          () => dispatchService.agreePickup({ orderId, attemptId, reason }),
+          `Pedido ${addressOf(orderId)}: retiro en tienda acordado. Queda pendiente de retiro; no se creó otra ruta y todavía no está entregado.`,
+        )
+      : runPickup(
+          orderId,
+          () => dispatchService.declinePickup({ orderId, attemptId, reason }),
+          `Pedido ${addressOf(orderId)}: el cliente no aceptó retirar. Sigue pendiente de gestión.`,
+        )
+
+  const pickupConfirm = (orderId: string, reason: string) =>
+    runPickup(
+      orderId,
+      () => dispatchService.confirmPickup(orderId, reason),
+      `Pedido ${addressOf(orderId)} entregado: retirado en tienda.`,
+    )
+
   return (
     <main className="page">
       <h1>Entregas fallidas</h1>
       <p className="text-muted">
         Pedidos cuyo intento de entrega falló. No se cancelan ni se dan por entregados: contacta al
-        destinatario y, solo si acuerdan una nueva fecha y franja, reprográmalos.
+        destinatario y, si acuerdan una nueva fecha y franja, reprográmalos, o acuerda que lo retire
+        en la tienda.
       </p>
 
       <div className="page-stack">
@@ -107,6 +151,8 @@ export function FailedDeliveriesPage() {
                       currentUserId={user?.id}
                       onContact={contact}
                       onReschedule={reschedule}
+                      onPickupDecision={pickupDecision}
+                      onPickupConfirm={pickupConfirm}
                     />
                   ))}
                 </div>

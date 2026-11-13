@@ -1,5 +1,5 @@
 import { dispatchService } from '../dispatch/dispatchService'
-import type { DispatchAudit, FailedAttempt } from '../dispatch/types'
+import type { DispatchAudit, FailedAttempt, OrderPickup } from '../dispatch/types'
 import { monitorService } from '../monitor/monitorService'
 import type { MonitorRoute, MonitorStop } from '../monitor/types'
 import { ordersService } from '../orders/ordersService'
@@ -22,8 +22,10 @@ export interface IncidentView {
   originalRoute: MonitorRoute | undefined
   /** Todas las visitas del pedido, en el orden de sus rutas. Solo lectura: nunca se reescriben. */
   visits: OrderVisit[]
-  /** Contactos y reprogramaciones registrados para el pedido, el más reciente primero. */
+  /** Contactos, reprogramaciones y gestiones de retiro del pedido, la más reciente primero. */
   management: DispatchAudit[]
+  /** Retiro en tienda acordado (backend #50), o `null` si todavía espera gestión. */
+  pickup: OrderPickup | null
 }
 
 export interface IncidentsBoard {
@@ -32,7 +34,13 @@ export interface IncidentsBoard {
   loadedAt: string
 }
 
-const MANAGEMENT_ACTIONS = new Set(['CONTACT', 'RESCHEDULE'])
+const MANAGEMENT_ACTIONS = new Set([
+  'CONTACT',
+  'RESCHEDULE',
+  'PICKUP_AGREE',
+  'PICKUP_DECLINE',
+  'PICKUP_CONFIRM',
+])
 
 /**
  * Carga las entregas fallidas que esperan gestión, con su contexto: la ruta del intento, el
@@ -66,6 +74,7 @@ export async function loadIncidentsBoard(): Promise<IncidentsBoard> {
           (record) => record.orderId === failed.orderId && MANAGEMENT_ACTIONS.has(record.action),
         )
         .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
+      pickup: failed.pickup,
     }
   })
 

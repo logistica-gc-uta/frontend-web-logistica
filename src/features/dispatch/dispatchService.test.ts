@@ -58,6 +58,7 @@ describe('dispatchService.inbox', () => {
         {
           orderId: 'f1',
           routeId: 'route-1',
+          pickup: null,
           attempts: [
             {
               id: 'nuevo',

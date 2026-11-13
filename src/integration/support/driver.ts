@@ -5,12 +5,13 @@ import { credentialsFor } from './env'
 /**
  * Acciones del chofer contra la API real, con su propio token (sin tocar la sesión ADMIN de la
  * prueba). Son las mismas que usa la app Flutter: iniciar, registrar entregas y visitas fallidas,
- * completar y confirmar el regreso al depósito.
+ * completar y confirmar el regreso al depósito. Por defecto entra el chofer del seed; una prueba
+ * puede pasar las credenciales de un repartidor propio (#36) para no ocupar al del seed.
  */
-export async function driverApi() {
+export async function driverApi(credentials = credentialsFor('DRIVER')) {
   const { data } = await axios.post<{ access_token: string }>(
     `${env.apiUrl}/auth/login`,
-    credentialsFor('DRIVER'),
+    credentials,
   )
   const client = axios.create({
     baseURL: env.apiUrl,
