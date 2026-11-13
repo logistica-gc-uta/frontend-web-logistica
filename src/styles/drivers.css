@@ -71,11 +71,6 @@
   font-size: 0.875rem;
 }
 
-.badge--warning {
-  color: var(--color-signal);
-  background: var(--color-signal-soft);
-}
-
 @media (max-width: 640px) {
   .drivers-list__item {
     grid-template-columns: 1fr;

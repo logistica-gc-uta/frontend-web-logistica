@@ -11,6 +11,9 @@ export type DispatchAction =
   | 'CONTACT'
   | 'RESCHEDULE'
   | 'RELEASE_DRAFT'
+  | 'PICKUP_AGREE'
+  | 'PICKUP_DECLINE'
+  | 'PICKUP_CONFIRM'
 
 /** `REJECTED` es el resultado correcto de un rechazo; `FAILED` nunca es un éxito. */
 export type DispatchOutcome = 'APPLIED' | 'REJECTED' | 'FAILED'
@@ -87,8 +90,20 @@ export interface FailedAttempt {
  * Pedido con una entrega fallida que espera gestión del ADMIN. No está cancelado ni entregado:
  * conserva su estado comercial y queda en revisión hasta reprogramarse.
  */
+/**
+ * Retiro en tienda acordado (backend #50). `PENDING_PICKUP`: el cliente quedó en retirarlo, todavía no
+ * es una entrega. `PICKED_UP`: un ADMIN confirmó el retiro físico (el pedido queda entregado).
+ */
+export interface OrderPickup {
+  state: 'PENDING_PICKUP' | 'PICKED_UP'
+  agreedAt: string
+  pickedUpAt: string | null
+}
+
 export interface FailedDelivery {
   orderId: string
+  /** Retiro acordado para el pedido, o `null` si todavía espera gestión. */
+  pickup: OrderPickup | null
   /** Ruta a la que apunta el pedido ahora (puede ser `null` tras cerrarse la ruta). */
   routeId: string | null
   /** Intentos fallidos, el más reciente primero. */

@@ -11,6 +11,7 @@ import { describeFailureReason, MONITOR_ROUTE_STATUS_LABELS } from '../monitor/m
 import { describeWindow, routeName, visitResult } from './incidentFormat'
 import { ORDER_STATUS_LABELS } from '../orders/orderLabels'
 import type { IncidentView } from './incidentsBoard'
+import { PickupSection, type PickupDecision } from './PickupSection'
 
 /** El backend audita el motivo y admite hasta 500 caracteres. */
 const REASON_MAX_LENGTH = 500
@@ -30,6 +31,14 @@ export interface IncidentCardProps {
   /** Devuelve `true` si el backend registró el contacto. */
   onContact: (input: ContactInput) => Promise<boolean>
   onReschedule: (orderId: string, agreement: RegisteredAgreement) => Promise<boolean>
+  /** Retiro en tienda (backend #50): respuesta del cliente y confirmación del retiro físico. */
+  onPickupDecision: (
+    orderId: string,
+    attemptId: string | undefined,
+    decision: PickupDecision,
+    reason: string,
+  ) => Promise<boolean>
+  onPickupConfirm: (orderId: string, reason: string) => Promise<boolean>
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -45,6 +54,8 @@ export function IncidentCard({
   currentUserId,
   onContact,
   onReschedule,
+  onPickupDecision,
+  onPickupConfirm,
 }: IncidentCardProps) {
   const [agreed, setAgreed] = useState<boolean | null>(null)
   const [reason, setReason] = useState('')
@@ -57,6 +68,8 @@ export function IncidentCard({
   const title = order?.deliveryAddress ?? `Pedido ${incident.orderId.slice(0, 8)}`
   const isSaving = state?.status === 'saving'
   const routeCompleted = originalRoute?.status === 'COMPLETED'
+  // Con el retiro acordado no se ofrecen contacto ni reprogramación: serían decisiones contradictorias.
+  const awaitingPickup = incident.pickup?.state === 'PENDING_PICKUP'
 
   const submitContact = async () => {
     const found: Record<string, string> = {}
@@ -99,12 +112,18 @@ export function IncidentCard({
     <article className="card incident" aria-label={`Entrega fallida ${title}`}>
       <header className="incident__header">
         <h3>{title}</h3>
-        <span className="badge badge--danger">Pendiente de gestión</span>
+        {awaitingPickup ? (
+          <span className="badge badge--warning">Pendiente de retiro en tienda</span>
+        ) : (
+          <span className="badge badge--danger">Entrega pendiente de gestión</span>
+        )}
       </header>
 
       <p className="notice" role="note">
-        <strong>Intento fallido.</strong> El pedido no está cancelado ni entregado: espera que el
-        administrador contacte al destinatario y, si acuerdan una nueva fecha, lo reprograme.
+        <strong>Intento fallido.</strong> El pedido no está cancelado ni entregado:{' '}
+        {awaitingPickup
+          ? 'el cliente acordó retirarlo en la tienda y no se creó otra ruta.'
+          : 'espera que el administrador contacte al destinatario y acuerden una nueva fecha o el retiro en tienda.'}
       </p>
 
       <dl className="incident__meta">
@@ -159,94 +178,112 @@ export function IncidentCard({
         </section>
       )}
 
-      <fieldset className="incident__contact" disabled={isSaving}>
-        <legend>Registrar contacto con el destinatario</legend>
-        <div className="incident__choices" role="radiogroup" aria-label="Resultado del contacto">
-          <label>
-            <input
-              type="radio"
-              name={`agreed-${incident.orderId}`}
-              checked={agreed === true}
-              onChange={() => setAgreed(true)}
-            />
-            Se acordó una nueva entrega
-          </label>
-          <label>
-            <input
-              type="radio"
-              name={`agreed-${incident.orderId}`}
-              checked={agreed === false}
-              onChange={() => setAgreed(false)}
-            />
-            No se logró acordar
-          </label>
-        </div>
-        {errors.agreed && <p className="field__error">{errors.agreed}</p>}
+      {!awaitingPickup && (
+        <>
+          <fieldset className="incident__contact" disabled={isSaving}>
+            <legend>Registrar contacto con el destinatario</legend>
+            <div
+              className="incident__choices"
+              role="radiogroup"
+              aria-label="Resultado del contacto"
+            >
+              <label>
+                <input
+                  type="radio"
+                  name={`agreed-${incident.orderId}`}
+                  checked={agreed === true}
+                  onChange={() => setAgreed(true)}
+                />
+                Se acordó una nueva entrega
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={`agreed-${incident.orderId}`}
+                  checked={agreed === false}
+                  onChange={() => setAgreed(false)}
+                />
+                No se logró acordar
+              </label>
+            </div>
+            {errors.agreed && <p className="field__error">{errors.agreed}</p>}
 
-        <TextField
-          label={`Motivo de la gestión de ${title}`}
-          value={reason}
-          maxLength={REASON_MAX_LENGTH}
-          error={errors.reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
+            <TextField
+              label={`Motivo de la gestión de ${title}`}
+              value={reason}
+              maxLength={REASON_MAX_LENGTH}
+              error={errors.reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
 
-        {agreed && (
-          <div className="incident__window">
-            <TextField
-              label="Día acordado"
-              type="date"
-              min={todayInGuayaquil()}
-              value={day}
-              onChange={(event) => setDay(event.target.value)}
-            />
-            <TextField
-              label="Desde (hora de Guayaquil)"
-              type="time"
-              value={from}
-              onChange={(event) => setFrom(event.target.value)}
-            />
-            <TextField
-              label="Hasta (hora de Guayaquil)"
-              type="time"
-              value={to}
-              error={errors.window}
-              onChange={(event) => setTo(event.target.value)}
-            />
+            {agreed && (
+              <div className="incident__window">
+                <TextField
+                  label="Día acordado"
+                  type="date"
+                  min={todayInGuayaquil()}
+                  value={day}
+                  onChange={(event) => setDay(event.target.value)}
+                />
+                <TextField
+                  label="Desde (hora de Guayaquil)"
+                  type="time"
+                  value={from}
+                  onChange={(event) => setFrom(event.target.value)}
+                />
+                <TextField
+                  label="Hasta (hora de Guayaquil)"
+                  type="time"
+                  value={to}
+                  error={errors.window}
+                  onChange={(event) => setTo(event.target.value)}
+                />
+              </div>
+            )}
+
+            <Button isLoading={isSaving} loadingText="Guardando..." onClick={submitContact}>
+              Registrar contacto
+            </Button>
+          </fieldset>
+
+          <div className="incident__reschedule">
+            {agreement ? (
+              <p>
+                <strong>Acuerdo registrado:</strong> nueva entrega el{' '}
+                {describeWindow(agreement.window)}.
+              </p>
+            ) : (
+              <p className="text-muted">
+                Para reprogramar, registra primero un contacto en el que se haya acordado la fecha y
+                la franja de entrega.
+              </p>
+            )}
+            {!routeCompleted && (
+              <p className="text-muted">
+                La ruta original todavía no se completó: se podrá reprogramar cuando el chofer la
+                termine.
+              </p>
+            )}
+            <Button
+              variant="secondary"
+              disabled={!agreement || !routeCompleted || isSaving}
+              onClick={() => agreement && void onReschedule(incident.orderId, agreement)}
+            >
+              Reprogramar con este acuerdo
+            </Button>
           </div>
-        )}
+        </>
+      )}
 
-        <Button isLoading={isSaving} loadingText="Guardando..." onClick={submitContact}>
-          Registrar contacto
-        </Button>
-      </fieldset>
-
-      <div className="incident__reschedule">
-        {agreement ? (
-          <p>
-            <strong>Acuerdo registrado:</strong> nueva entrega el {describeWindow(agreement.window)}
-            .
-          </p>
-        ) : (
-          <p className="text-muted">
-            Para reprogramar, registra primero un contacto en el que se haya acordado la fecha y la
-            franja de entrega.
-          </p>
-        )}
-        {!routeCompleted && (
-          <p className="text-muted">
-            La ruta original todavía no se completó: se podrá reprogramar cuando el chofer la
-            termine.
-          </p>
-        )}
-        <Button
-          variant="secondary"
-          disabled={!agreement || !routeCompleted || isSaving}
-          onClick={() => agreement && void onReschedule(incident.orderId, agreement)}
-        >
-          Reprogramar con este acuerdo
-        </Button>
-      </div>
+      <PickupSection
+        title={title}
+        pickup={incident.pickup}
+        isSaving={isSaving}
+        onDecide={(decision, why) =>
+          onPickupDecision(incident.orderId, latestAttempt?.id, decision, why)
+        }
+        onConfirm={(why) => onPickupConfirm(incident.orderId, why)}
+      />
 
       {state?.status === 'failed' && <Alert>{state.error}</Alert>}
     </article>

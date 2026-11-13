@@ -890,6 +890,12 @@ a:hover {
   background: var(--color-danger-soft);
 }
 
+/* Estado en espera que no es un error (p. ej. pendiente de retiro, ocupado con una ruta). */
+.badge--warning {
+  color: var(--color-signal);
+  background: var(--color-signal-soft);
+}
+
 .badge--accent {
   color: var(--color-accent);
   background: var(--color-accent-soft);
