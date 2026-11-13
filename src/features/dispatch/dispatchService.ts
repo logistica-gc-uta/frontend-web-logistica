@@ -48,6 +48,7 @@ const toProposal = ({
   availableDriverIds,
   reasons,
   totalDistanceKm,
+  distanceMethod,
   fingerprint,
 }: UrgencyProposal): UrgencyProposal => ({
   orderId,
@@ -58,6 +59,7 @@ const toProposal = ({
   availableDriverIds,
   reasons,
   totalDistanceKm,
+  ...(distanceMethod && { distanceMethod }),
   fingerprint,
 })
 

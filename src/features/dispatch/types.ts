@@ -1,3 +1,5 @@
+import type { DistanceMethod } from '../planning/types'
+
 /** Acciones administrativas auditadas de `POST /dispatch/interventions`. */
 export type DispatchAction =
   | 'CONFIRM'
@@ -64,6 +66,8 @@ export interface UrgencyProposal {
   /** Códigos del backend; pueden aparecer códigos nuevos. */
   reasons: string[]
   totalDistanceKm: number
+  /** Cómo se midió la distancia (#47); los backends anteriores no lo envían. */
+  distanceMethod?: DistanceMethod
   /** Huella de la propuesta: confirmar con una huella vieja da 409. */
   fingerprint: string
 }

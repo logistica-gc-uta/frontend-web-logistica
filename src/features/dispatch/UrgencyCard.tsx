@@ -34,6 +34,12 @@ export interface UrgencyCardProps {
   onReschedule: (input: RescheduleInput) => Promise<boolean>
 }
 
+/** Distancia de la propuesta diciendo cómo se midió: por calles (#47) o en línea recta. */
+const distanceText = ({ totalDistanceKm, distanceMethod }: UrgencyProposal) =>
+  distanceMethod === 'OSRM_ROAD_NETWORK'
+    ? `${formatKm(totalDistanceKm)} por calles, estimados`
+    : `${formatKm(totalDistanceKm)} estimados en línea recta`
+
 /** Explicación en palabras de la propuesta del backend. */
 function ProposalExplanation({
   proposal,
@@ -43,7 +49,7 @@ function ProposalExplanation({
     return (
       <p>
         Cabe en <strong>{targetRouteName ?? 'una ruta de hoy sin iniciar'}</strong>: quedaría con{' '}
-        {proposal.orderIds.length} paradas ({formatKm(proposal.totalDistanceKm)} estimados).
+        {proposal.orderIds.length} paradas ({distanceText(proposal)}).
       </p>
     )
   }
@@ -51,7 +57,7 @@ function ProposalExplanation({
     return (
       <p>
         Ninguna ruta de hoy puede recibirlo: están completas o ya se iniciaron. Se propone una
-        salida nueva ({formatKm(proposal.totalDistanceKm)} estimados).
+        salida nueva ({distanceText(proposal)}).
       </p>
     )
   }

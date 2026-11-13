@@ -10,6 +10,12 @@ const PLANNING_REASON_LABELS: Record<string, string> = {
   NOT_TODAY: 'no está programado para hoy',
   ORDER_NOT_PENDING: 'el pedido ya no está pendiente',
   NO_AVAILABLE_DRIVER: 'no hay choferes disponibles para una salida nueva',
+  // Motor vial (#47): sin datos viales no se propone una salida; el pedido sigue pendiente.
+  ROAD_ENGINE_UNAVAILABLE: 'el motor vial no responde: no se puede medir por calles ahora',
+  ROAD_ENGINE_BAD_RESPONSE: 'el motor vial devolvió datos incompletos',
+  ROAD_ROUTE_NOT_FOUND: 'no hay un recorrido por calles hasta la entrega',
+  ROAD_POINT_OFF_NETWORK: 'la ubicación de entrega está lejos de cualquier calle',
+  ROAD_MATRIX_TOO_LARGE: 'hay demasiados puntos para medir por calles de una vez',
 }
 
 /**
