@@ -16,6 +16,7 @@ export const EMPTY_ORDER_ITEM: OrderItemFormValue = { productId: '', quantity: '
 
 export const INITIAL_ORDER_FORM: OrderFormValues = {
   buyerType: 'GUEST',
+  client: null,
   buyerName: '',
   buyerPhone: '',
   giftToOther: false,
@@ -30,9 +31,8 @@ export const INITIAL_ORDER_FORM: OrderFormValues = {
   locationConfirmed: false,
 }
 
-/** Mensaje mientras el backend no ofrezca cómo buscar clientes registrados. */
-export const REGISTERED_BUYER_PENDING =
-  'Todavía no se puede elegir un cliente con cuenta: falta el buscador de clientes en el backend.'
+/** Falta elegir la cuenta cuando el comprador es un cliente registrado. */
+export const CLIENT_REQUIRED = 'Busca y elige la cuenta del cliente'
 
 /** Devuelve el primer mensaje de error de las líneas de producto, o `undefined` si son válidas. */
 function validateItems(items: OrderItemFormValue[], products: Product[]): string | undefined {
@@ -88,8 +88,9 @@ export function validateOrder(
 ): FieldErrors<OrderFormValues> {
   const errors: FieldErrors<OrderFormValues> = {}
 
-  if (values.buyerType === 'REGISTERED_CLIENT') errors.buyerType = REGISTERED_BUYER_PENDING
-  else {
+  if (values.buyerType === 'REGISTERED_CLIENT') {
+    if (values.client === null) errors.client = CLIENT_REQUIRED
+  } else {
     const name = requiredText(values.buyerName, MAX_NAME_LENGTH, 'Escribe el nombre del comprador')
     if (name) errors.buyerName = name
   }
@@ -153,18 +154,20 @@ export function toCreateAdminPurchaseInput(values: OrderFormValues): CreateAdmin
     values.location === null ||
     scheduledDeliveryDate === null ||
     values.paymentMethod === '' ||
-    values.buyerType !== 'GUEST'
+    (values.buyerType === 'REGISTERED_CLIENT' && values.client === null)
   ) {
     throw new AppError('La venta tiene datos incompletos')
   }
   const note = values.paymentNote.trim()
+  const contactPhone = values.buyerPhone.trim()
 
   return {
-    buyer: {
-      type: 'GUEST',
-      name: values.buyerName.trim(),
-      contactPhone: values.buyerPhone.trim(),
-    },
+    // Con cuenta, el nombre y el correo los toma el servidor de la cuenta; el teléfono no existe en
+    // la cuenta y es obligatorio.
+    buyer:
+      values.buyerType === 'REGISTERED_CLIENT' && values.client
+        ? { type: 'REGISTERED_CLIENT', clientId: values.client.id, contactPhone }
+        : { type: 'GUEST', name: values.buyerName.trim(), contactPhone },
     ...(values.giftToOther && {
       giftRecipient: {
         name: values.recipientName.trim(),

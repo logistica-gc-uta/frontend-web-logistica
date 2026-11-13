@@ -62,6 +62,19 @@ export function describePurchaseError(error: unknown): PurchaseProblem {
   if (status === 403) {
     return { action: 'fix', message: 'Solo un ADMIN puede registrar ventas.' }
   }
+  const backendMessage = getErrorMessage(error, '')
+  if (/Registered client not found/i.test(backendMessage)) {
+    return {
+      action: 'fix',
+      message: 'No se registró la venta: la cuenta del cliente ya no existe. Búscala de nuevo.',
+    }
+  }
+  if (/Registered owner must be a CLIENT/i.test(backendMessage)) {
+    return {
+      action: 'fix',
+      message: 'No se registró la venta: esa cuenta no es de un cliente. Elige otra.',
+    }
+  }
   if (status === 404) {
     return {
       action: 'fix',
