@@ -18,7 +18,7 @@ import type { ConfirmationState } from './useRouteConfirmations'
 
 describe('DistanceNotice', () => {
   it('aclara que las distancias son estimadas en línea recta y que el ahorro no es de combustible', () => {
-    render(<DistanceNotice />)
+    render(<DistanceNotice method="HAVERSINE_STRAIGHT_LINE" />)
 
     const notice = screen.getByRole('note')
     expect(notice).toHaveTextContent('Km geodésicos estimados')
@@ -30,22 +30,30 @@ describe('DistanceNotice', () => {
 
 describe('PlanningSummary', () => {
   it('muestra los pedidos, las rutas y el ahorro del día', () => {
-    render(<PlanningSummary summary={proposalsResponse.summary} />)
+    render(<PlanningSummary summary={proposalsResponse.summary} method="HAVERSINE_STRAIGHT_LINE" />)
 
     const summary = within(screen.getByLabelText('Resumen de la propuesta del día'))
     expect(summary.getByText('Pedidos candidatos').nextSibling).toHaveTextContent('6')
     expect(summary.getByText('Pedidos planificados').nextSibling).toHaveTextContent('5')
     expect(summary.getByText('Pedidos excluidos').nextSibling).toHaveTextContent('1')
     expect(summary.getByText('Rutas propuestas').nextSibling).toHaveTextContent('2')
-    expect(summary.getByText('Km sin optimizar').nextSibling).toHaveTextContent('8,40 km')
-    expect(summary.getByText('Km propuestos').nextSibling).toHaveTextContent('3,70 km')
+    expect(summary.getByText('Km sin optimizar (en línea recta)').nextSibling).toHaveTextContent(
+      '8,40 km',
+    )
+    expect(summary.getByText('Km propuestos (en línea recta)').nextSibling).toHaveTextContent(
+      '3,70 km',
+    )
     expect(summary.getByText('Ahorro estimado').nextSibling).toHaveTextContent(/4,70 km \(56 %\)/)
   })
 
   it('muestra ceros cuando no hay nada que planificar', () => {
-    render(<PlanningSummary summary={emptyProposalsResponse.summary} />)
+    render(
+      <PlanningSummary summary={emptyProposalsResponse.summary} method="HAVERSINE_STRAIGHT_LINE" />,
+    )
 
-    expect(screen.getByText('Km propuestos').nextSibling).toHaveTextContent('0,00 km')
+    expect(screen.getByText('Km propuestos (en línea recta)').nextSibling).toHaveTextContent(
+      '0,00 km',
+    )
   })
 })
 
@@ -89,6 +97,7 @@ describe('ProposalCard', () => {
         label="Ruta 1"
         color="#2563eb"
         capacity={4}
+        method="HAVERSINE_STRAIGHT_LINE"
         isSelected={isSelected}
         confirmation={confirmation}
         onSelect={onSelect}
@@ -104,7 +113,7 @@ describe('ProposalCard', () => {
     const card = within(screen.getByRole('article', { name: 'Ruta 1' }))
     expect(card.getByRole('heading', { name: 'Ruta 1 · FIC-02' })).toBeInTheDocument()
     expect(card.getByText('3/4 paradas')).toBeInTheDocument()
-    expect(card.getByText('Distancia propuesta').nextSibling).toHaveTextContent('2,50 km')
+    expect(card.getByText('Distancia en línea recta').nextSibling).toHaveTextContent('2,50 km')
     expect(card.getByText('Sin optimizar').nextSibling).toHaveTextContent('6,00 km')
     expect(card.getByText('Ahorro estimado').nextSibling).toHaveTextContent('3,50 km (58,3 %)')
     expect(card.getByText('Entrega').nextSibling).toHaveTextContent(/14\/02\/2030.*10:00/)
@@ -125,6 +134,7 @@ describe('ProposalCard', () => {
         label="Ruta 1"
         color="#2563eb"
         capacity={4}
+        method="HAVERSINE_STRAIGHT_LINE"
         isSelected={false}
         confirmation={undefined}
         onSelect={() => {}}

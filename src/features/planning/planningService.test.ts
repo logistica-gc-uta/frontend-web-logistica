@@ -10,7 +10,10 @@ describe('planningService', () => {
     const query = { date: '2030-02-14', zoneId: 'zone-1' }
 
     await expect(planningService.getProposals(query)).resolves.toEqual(proposalsResponse)
-    expect(get).toHaveBeenCalledWith('/route-proposals', { params: query, timeout: 30_000 })
+    expect(get).toHaveBeenCalledWith('/route-proposals', {
+      params: { ...query, includeGeometry: true },
+      timeout: 30_000,
+    })
   })
 
   it('confirmRoute envía la propuesta a POST /routes y devuelve la ruta DRAFT', async () => {

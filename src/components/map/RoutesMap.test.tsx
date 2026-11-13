@@ -206,6 +206,28 @@ describe('RoutesMap', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
+  it('con trazado por calles dibuja ese recorrido completo, sin rectas ni regreso punteado', () => {
+    const trace = [depotA, { lat: -1.25, lng: -78.631 }, { lat: -1.251, lng: -78.63 }, depotA]
+    renderMap([makeRoute(0, { trace })])
+
+    const lines = screen.getAllByTestId('route-line')
+    expect(lines).toHaveLength(1)
+    expect(JSON.parse(lines[0].dataset.positions ?? '[]')).toEqual(
+      trace.map(({ lat, lng }) => [lat, lng]),
+    )
+    expect(screen.queryByTestId('return-line')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('stop-marker')).toHaveLength(2)
+    expect(screen.getByText(/Recorrido por calles calculado por el motor vial/)).toBeInTheDocument()
+    expect(screen.queryByText(/líneas rectas entre puntos/)).not.toBeInTheDocument()
+  })
+
+  it('si solo algunas rutas traen trazado, aclara cuáles van en línea recta', () => {
+    renderMap([makeRoute(0, { trace: [depotA, depotB, depotA] }), makeRoute(1)])
+
+    expect(screen.getByText(/Recorrido por calles calculado/)).toBeInTheDocument()
+    expect(screen.getByText(/Rutas sin recorrido por calles: trazo continuo/)).toBeInTheDocument()
+  })
+
   it('con demasiadas rutas dibuja solo la elegida y lo avisa', () => {
     const many = Array.from({ length: MAX_ROUTES_DRAWN_AT_ONCE + 1 }, (_, index) =>
       makeRoute(index),
