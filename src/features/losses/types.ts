@@ -28,10 +28,14 @@ export interface OrderItemLoss {
   }
   /** Movimientos de existencias que registró el servidor por esta pérdida. */
   movements: StockMovement[]
+  /** Pérdida anulada por error (backend #51 `LOSS_CANCEL`); `null` si sigue vigente. */
+  cancelledAt?: string | null
+  cancelReason?: string | null
 }
 
 export interface StockMovement {
-  kind: 'REPLACEMENT_OUT' | 'RECOVERY_IN'
+  /** `REPLACEMENT_CANCEL_IN`: al anular una pérdida con reemplazo preparado vuelve la unidad. */
+  kind: 'REPLACEMENT_OUT' | 'RECOVERY_IN' | 'REPLACEMENT_CANCEL_IN'
   /** −1 al preparar el reemplazo, +1 al recuperar un original vendible. */
   delta: number
   /** Existencia del producto después del movimiento. */

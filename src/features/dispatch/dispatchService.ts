@@ -14,6 +14,7 @@ import type {
   UrgencyProposal,
 } from './types'
 import type { DeclareLossInput, OrderItemLoss, RecoveryCondition } from '../losses/types'
+import type { RouteEmergency, RouteEmergencyDetail } from '../emergencies/types'
 
 /** Las decisiones se validan con bloqueos en el servidor; más de esto se considera una falla. */
 const REQUEST_TIMEOUT_MS = 30_000
@@ -224,6 +225,49 @@ export const dispatchService = {
   /** El original apareció: vendible vuelve al stock una sola vez; dañado no suma. */
   recoverOriginal: (lossId: string, recoveryCondition: RecoveryCondition, reason: string) =>
     intervene('ORIGINAL_RECOVER', { lossId, recoveryCondition, reason }),
+
+  /**
+   * Anula una pérdida declarada por error (backend #51). Si su reemplazo estaba preparado, el
+   * servidor devuelve esa unidad al stock (`REPLACEMENT_CANCEL_IN`).
+   */
+  cancelLoss: (lossId: string, reason: string) => intervene('LOSS_CANCEL', { lossId, reason }),
+
+  /** Emergencias declaradas, con sus conteos y las unidades pendientes (backend #51). */
+  async emergencies(): Promise<RouteEmergency[]> {
+    const { data } = await apiClient.get<RouteEmergency[]>('/dispatch/emergencies')
+    return data
+  },
+
+  /** Emergencia de una ruta con todas sus unidades. */
+  async routeEmergency(routeId: string): Promise<RouteEmergencyDetail> {
+    const { data } = await apiClient.get<RouteEmergencyDetail>(
+      `/dispatch/routes/${encodeURIComponent(routeId)}/emergency`,
+    )
+    return data
+  },
+
+  /**
+   * Interrumpe una ruta en curso: lo entregado y lo fallido se conservan; los pedidos pendientes
+   * salen de la ruta y sus unidades quedan en custodia hasta confirmar su retorno.
+   */
+  declareEmergency: (routeId: string, reason: string) =>
+    intervene('EMERGENCY_DECLARE', { routeId, reason }),
+
+  /** Confirma el retorno físico de UNA unidad. No toca el stock ni otros pedidos. */
+  confirmUnitRecovery: (recoveryId: string, reason: string) =>
+    intervene('UNIT_RECOVERY_CONFIRM', { recoveryId, reason }),
+
+  /** Cierra el incidente. Las unidades pendientes siguen visibles y sus pedidos, bloqueados. */
+  closeEmergency: (routeId: string, reason: string) =>
+    intervene('EMERGENCY_CLOSE', { routeId, reason }),
+
+  /** Confirma el retorno del repartidor: independiente de recuperar productos y de cerrar. */
+  releaseEmergencyDriver: (routeId: string, reason: string) =>
+    intervene('EMERGENCY_DRIVER_RELEASE', { routeId, reason }),
+
+  /** Habilita un pedido de una emergencia para planificar cuando todas sus unidades están resueltas. */
+  requeueOrder: (orderId: string, emergencyId: string, reason: string) =>
+    intervene('EMERGENCY_REQUEUE', { orderId, emergencyId, reason }),
 }
 
 export interface PickupInput {

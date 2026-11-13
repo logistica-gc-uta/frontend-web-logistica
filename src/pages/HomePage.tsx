@@ -19,6 +19,7 @@ import { todayInGuayaquil } from '../lib/time/guayaquil'
 const ROUTE_STATUS: Partial<Record<MonitorRouteStatus, string>> = {
   ASSIGNED: 'Sin iniciar',
   IN_PROGRESS: 'En curso',
+  INTERRUPTED: 'Interrumpida',
   COMPLETED: 'Completada',
 }
 

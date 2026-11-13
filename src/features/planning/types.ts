@@ -130,7 +130,8 @@ export interface ConfirmRouteInput {
   orderIds: string[]
 }
 
-export type RouteStatus = 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED'
+/** `INTERRUPTED`: una emergencia detuvo la ruta en curso (backend #51). */
+export type RouteStatus = 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERRUPTED' | 'COMPLETED'
 
 /** Parada de una ruta guardada. */
 export interface RouteOrderSummary {
