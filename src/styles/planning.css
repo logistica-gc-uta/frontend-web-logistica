@@ -260,3 +260,26 @@
   align-items: flex-end;
   gap: 12px;
 }
+
+/* Motor vial (#37 / backend #47): estado antes de planificar y tramos por calles. */
+.road-engine--ok {
+  border-left-color: var(--color-success);
+}
+
+.road-engine--down {
+  border-left-color: var(--color-danger);
+}
+
+.road-engine--down p {
+  margin: 0 0 8px;
+}
+
+.proposal__leg {
+  color: var(--color-muted);
+}
+
+.proposal__return {
+  margin: -4px 0 12px;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}

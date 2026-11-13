@@ -1,8 +1,8 @@
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { formatDateTime } from '../../lib/format/formatDateTime'
-import { formatKm, formatPercent } from '../../lib/format/formatDistance'
-import type { RouteProposal } from './types'
+import { formatDuration, formatKm, formatPercent } from '../../lib/format/formatDistance'
+import type { DistanceMethod, RouteProposal } from './types'
 import type { ConfirmationState } from './useRouteConfirmations'
 
 interface ProposalCardProps {
@@ -11,6 +11,8 @@ interface ProposalCardProps {
   color: string
   /** Máximo de paradas por ruta, para mostrar N/capacidad. */
   capacity: number
+  /** Con red vial se muestran duración, tramos y el contraste con la línea recta. */
+  method: DistanceMethod
   isSelected: boolean
   confirmation: ConfirmationState | undefined
   onSelect: () => void
@@ -24,16 +26,22 @@ function formatSchedule(instants: string[]): string {
   return first === last ? first : `${first} – ${last}`
 }
 
+/** Un tramo por calles: "1,48 km, ≈ 4 min" (la duración solo si el backend la envía). */
+const formatLeg = (km: number, seconds?: number) =>
+  seconds === undefined ? formatKm(km) : `${formatKm(km)}, ${formatDuration(seconds)}`
+
 export function ProposalCard({
   proposal,
   label,
   color,
   capacity,
+  method,
   isSelected,
   confirmation,
   onSelect,
   onConfirm,
 }: ProposalCardProps) {
+  const isRoad = method === 'OSRM_ROAD_NETWORK'
   const isSaving = confirmation?.status === 'saving'
   const isSaved = confirmation?.status === 'saved'
 
@@ -51,9 +59,21 @@ export function ProposalCard({
 
       <dl className="proposal__metrics">
         <div>
-          <dt>Distancia propuesta</dt>
+          <dt>{isRoad ? 'Distancia por calles' : 'Distancia en línea recta'}</dt>
           <dd>{formatKm(proposal.totalDistanceKm)}</dd>
         </div>
+        {isRoad && proposal.straightLineKm !== undefined && (
+          <div>
+            <dt>En línea recta</dt>
+            <dd>{formatKm(proposal.straightLineKm)}</dd>
+          </div>
+        )}
+        {isRoad && proposal.totalDurationSeconds !== undefined && (
+          <div>
+            <dt>Duración estimada</dt>
+            <dd>{formatDuration(proposal.totalDurationSeconds)}</dd>
+          </div>
+        )}
         <div>
           <dt>Sin optimizar</dt>
           <dd>{formatKm(proposal.baselineKm)}</dd>
@@ -75,9 +95,22 @@ export function ProposalCard({
           <li key={stop.orderId}>
             {stop.deliveryAddress}
             <small> · {formatDateTime(stop.scheduledDeliveryDate)}</small>
+            {isRoad && stop.legDistanceKm !== undefined && (
+              <small className="proposal__leg">
+                {' '}
+                · {formatLeg(stop.legDistanceKm, stop.legDurationSeconds)} desde{' '}
+                {stop.sequence === 1 ? 'el depósito' : 'la parada anterior'}
+              </small>
+            )}
           </li>
         ))}
       </ol>
+      {isRoad && proposal.returnLegDistanceKm !== undefined && (
+        <p className="proposal__return">
+          Regreso al depósito:{' '}
+          {formatLeg(proposal.returnLegDistanceKm, proposal.returnLegDurationSeconds)}
+        </p>
+      )}
 
       <div className="proposal__actions">
         <Button variant="secondary" aria-pressed={isSelected} onClick={onSelect}>

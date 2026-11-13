@@ -68,6 +68,8 @@ export function PlanningResult({ data }: PlanningResultProps) {
           location: stop.location,
           description: `${stop.deliveryAddress} (${formatDateTime(stop.scheduledDeliveryDate)})`,
         })),
+        // GeoJSON viene como [lng, lat].
+        trace: proposal.geometry?.coordinates.map(([lng, lat]) => ({ lat, lng })),
       })),
     [routes],
   )
@@ -90,8 +92,8 @@ export function PlanningResult({ data }: PlanningResultProps) {
           <strong>Vista previa.</strong> Estas rutas todavía no están guardadas: nada se registra
           hasta que confirmes.
         </p>
-        <DistanceNotice />
-        <PlanningSummary summary={data.summary} />
+        <DistanceNotice method={data.distanceMethod} />
+        <PlanningSummary summary={data.summary} method={data.distanceMethod} />
       </section>
 
       {routes.length === 0 ? (
@@ -123,6 +125,7 @@ export function PlanningResult({ data }: PlanningResultProps) {
                   label={label}
                   color={color}
                   capacity={data.capacity}
+                  method={data.distanceMethod}
                   isSelected={selectedKey === key}
                   confirmation={states[key]}
                   onSelect={() => toggleSelection(key)}

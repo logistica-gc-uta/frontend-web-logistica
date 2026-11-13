@@ -3,6 +3,7 @@ import type {
   ConfirmRouteInput,
   ProposalsQuery,
   RouteOrderSummary,
+  RoadEngineStatus,
   RouteProposalsResponse,
   RouteStatus,
   SavedRoute,
@@ -48,10 +49,17 @@ const toRouteDetail = (raw: RawRoute): SavedRouteDetail => ({
 export const planningService = {
   /** Calcula las propuestas del día. No escribe nada: se puede repetir sin duplicar registros. */
   async getProposals(query: ProposalsQuery): Promise<RouteProposalsResponse> {
+    // Con motor vial pide también el trazado por calles para el mapa (sin motor no llega).
     const { data } = await apiClient.get<RouteProposalsResponse>('/route-proposals', {
-      params: query,
+      params: { ...query, includeGeometry: true },
       timeout: REQUEST_TIMEOUT_MS,
     })
+    return data
+  },
+
+  /** Si las propuestas usan la red vial o la línea recta, y si el motor responde ahora. */
+  async roadEngine(): Promise<RoadEngineStatus> {
+    const { data } = await apiClient.get<RoadEngineStatus>('/route-proposals/road-engine')
     return data
   },
 

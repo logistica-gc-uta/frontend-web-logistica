@@ -8,6 +8,42 @@ export interface RouteProposalStop {
   deliveryAddress: string
   /** Instante ISO 8601 programado para la entrega. */
   scheduledDeliveryDate: string
+  /** Km por calles desde el punto anterior (el depósito para la primera). Solo con motor vial. */
+  legDistanceKm?: number
+  /** Segundos estimados desde el punto anterior, sin tráfico en vivo. Solo con motor vial. */
+  legDurationSeconds?: number
+}
+
+/** Cómo se midieron las distancias: en línea recta o por la red vial (backend #47). */
+export type DistanceMethod = 'HAVERSINE_STRAIGHT_LINE' | 'OSRM_ROAD_NETWORK'
+
+/** Trazado por calles (GeoJSON, `[lng, lat]`): depósito → paradas → depósito. */
+export interface RoadGeometry {
+  type: 'LineString'
+  coordinates: [number, number][]
+}
+
+/** Qué significan las métricas viales: siempre estimadas y sin tráfico en vivo. */
+export interface RoadMetricsInfo {
+  provider: string
+  profile: string
+  distanceUnit: string
+  durationUnit: string
+  directional: boolean
+  trafficAware: boolean
+  estimate: boolean
+  maxSnapDistanceM: number
+}
+
+/** Estado del motor vial (`GET /route-proposals/road-engine`). */
+export interface RoadEngineStatus {
+  engine: 'HAVERSINE' | 'OSRM'
+  configured: boolean
+  available: boolean
+  profile: string | null
+  latencyMs: number | null
+  checkedAt: string
+  message: string
 }
 
 /** Ruta propuesta por el planificador (Clarke & Wright). Es temporal: no se guarda hasta confirmarla. */
@@ -19,8 +55,17 @@ export interface RouteProposal {
   /** Pedidos en orden de visita (1 a 4). */
   orderIds: string[]
   stops: RouteProposalStop[]
-  /** Recorrido depósito → paradas → depósito, en km en línea recta. */
+  /** Recorrido depósito → paradas → depósito, en km: por calles con motor vial o en línea recta. */
   totalDistanceKm: number
+  /** La misma visita en línea recta, para contrastar. Solo con motor vial. */
+  straightLineKm?: number
+  /** Duración estimada de la vuelta completa, en segundos. Solo con motor vial. */
+  totalDurationSeconds?: number
+  /** Tramo de regreso al depósito. Solo con motor vial. */
+  returnLegDistanceKm?: number
+  returnLegDurationSeconds?: number
+  /** Trazado por calles para el mapa. Solo con motor vial activo. */
+  geometry?: RoadGeometry
   /** Km sin optimizar: un viaje depósito → pedido → depósito por cada pedido. */
   baselineKm: number
   savingsKm: number
@@ -54,8 +99,10 @@ export interface RouteProposalsResponse {
   timeZone: string
   /** Máximo de paradas por ruta. */
   capacity: number
-  /** Siempre `HAVERSINE_STRAIGHT_LINE`: distancia en línea recta, no por calles. */
-  distanceMethod: string
+  /** `OSRM_ROAD_NETWORK` con motor vial; `HAVERSINE_STRAIGHT_LINE` sin él. */
+  distanceMethod: DistanceMethod
+  /** Solo con motor vial. */
+  roadMetrics?: RoadMetricsInfo
   proposals: RouteProposal[]
   excluded: ExcludedOrder[]
   summary: PlanningSummary
