@@ -54,6 +54,7 @@ describe('validación y cambios de la configuración', () => {
       maxUnits: '10',
       startTime: '07:00',
       endTime: '17:00',
+      marginMinutes: '30',
     })
     expect(validateSettings(values)).toEqual({})
   })

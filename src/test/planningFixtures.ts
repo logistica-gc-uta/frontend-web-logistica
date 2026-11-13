@@ -53,6 +53,10 @@ export const proposalsResponse: RouteProposalsResponse = {
   timeZone: 'America/Guayaquil',
   capacity: 4,
   distanceMethod: 'HAVERSINE_STRAIGHT_LINE',
+  // Las pruebas existentes confirman y asignan: se simula que la fecha consultada es hoy.
+  isToday: true,
+  canConfirm: true,
+  timeWindowMarginMinutes: 30,
   proposals: [firstProposal, secondProposal],
   excluded: [
     {
