@@ -1,4 +1,8 @@
+import '../../styles/emergencies.css'
+import { Link } from 'react-router'
+import { paths } from '../../app/paths'
 import { formatDateTime } from '../../lib/format/formatDateTime'
+import { DeclareEmergency } from '../emergencies/DeclareEmergency'
 import type { Driver } from '../planning/types'
 import {
   describeFailureReason,
@@ -23,13 +27,15 @@ interface MonitorRouteCardProps {
   /** Nombre visible de la ruta (único en el día). */
   name: string
   driver: Driver | undefined
+  /** Vuelve a consultar el tablero tras declarar una emergencia (#51). */
+  onChanged?: () => void
 }
 
 /**
  * Seguimiento de una ruta: estado de la ruta, entregas exitosas, visitas resueltas e incidencias,
  * y estado del chofer, por separado. Todo sale de lo que guardó el backend.
  */
-export function MonitorRouteCard({ route, name, driver }: MonitorRouteCardProps) {
+export function MonitorRouteCard({ route, name, driver, onChanged }: MonitorRouteCardProps) {
   const progress = routeProgress(route)
   const state = driverState(route, driver)
 
@@ -41,6 +47,13 @@ export function MonitorRouteCard({ route, name, driver }: MonitorRouteCardProps)
           {MONITOR_ROUTE_STATUS_LABELS[route.status] ?? route.status}
         </span>
       </header>
+
+      {route.status === 'INTERRUPTED' && (
+        <p className="notice" role="note">
+          <strong>Ruta interrumpida por una emergencia.</strong> Lo entregado se conserva; los
+          pendientes se gestionan en <Link to={paths.emergencies}>Emergencias</Link>.
+        </p>
+      )}
 
       <div className="monitor-route__progress">
         <p>
@@ -102,6 +115,10 @@ export function MonitorRouteCard({ route, name, driver }: MonitorRouteCardProps)
           </div>
         )}
       </dl>
+
+      {route.status === 'IN_PROGRESS' && onChanged && (
+        <DeclareEmergency routeId={route.id} name={name} onDeclared={onChanged} />
+      )}
     </article>
   )
 }

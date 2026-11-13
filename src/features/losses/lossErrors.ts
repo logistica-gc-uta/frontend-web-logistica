@@ -8,6 +8,12 @@ const LOSS_ERRORS: Record<string, string> = {
     'No hay stock libre de ese producto: el reemplazo sigue pendiente y no se descontó nada.',
   REPLACEMENT_ALREADY_PREPARED:
     'El reemplazo de esta pérdida ya estaba preparado: no se descontó otra unidad.',
+  LOSS_ALREADY_CANCELLED: 'Esa pérdida ya estaba anulada.',
+  LOSS_ALREADY_RECOVERED: 'No se puede anular: el original ya se registró como recuperado.',
+  LOSS_CANCEL_ORDER_STATE:
+    'No se puede anular la pérdida con el pedido en camino, entregado o cancelado.',
+  LOSS_CANCEL_ACTIVE_CLAIM: 'No se puede anular mientras el pedido esté reservado en una ruta.',
+  LOSS_CANCEL_PICKUP_EXISTS: 'No se puede anular: el pedido tiene un retiro en tienda acordado.',
   ORIGINAL_ALREADY_RECOVERED:
     'El original ya estaba registrado como recuperado: no se volvió a sumar al stock.',
 }

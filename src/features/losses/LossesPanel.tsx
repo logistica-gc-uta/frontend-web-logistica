@@ -24,6 +24,7 @@ interface LossesData {
 const MOVEMENT_LABELS: Record<StockMovement['kind'], string> = {
   REPLACEMENT_OUT: 'Salida por reemplazo',
   RECOVERY_IN: 'Ingreso por original recuperado',
+  REPLACEMENT_CANCEL_IN: 'Devolución al anular la pérdida',
 }
 
 const replacementText = (loss: OrderItemLoss) =>
@@ -40,6 +41,7 @@ type Action =
   | { kind: 'declare'; item: OrderItem }
   | { kind: 'prepare'; loss: OrderItemLoss }
   | { kind: 'recover'; loss: OrderItemLoss }
+  | { kind: 'cancel'; loss: OrderItemLoss }
 
 /**
  * Formulario de una acción con motivo. Mientras se guarda queda bloqueado: un doble clic no puede
@@ -66,7 +68,8 @@ function ActionForm({
 
   const submit = () => {
     const found: Record<string, string> = {}
-    if (action.kind === 'declare' && quantity > 1 && unit === '') found.unit = 'Elige qué unidad se perdió'
+    if (action.kind === 'declare' && quantity > 1 && unit === '')
+      found.unit = 'Elige qué unidad se perdió'
     if (action.kind === 'recover' && condition === null) {
       found.condition = 'Indica cómo está el original tras revisarlo'
     }
@@ -85,7 +88,9 @@ function ActionForm({
       ? `Declarar pérdida de ${name}`
       : action.kind === 'prepare'
         ? `Preparar reemplazo de ${name}`
-        : `Recuperación del original de ${name}`
+        : action.kind === 'cancel'
+          ? `Anular pérdida de ${name}`
+          : `Recuperación del original de ${name}`
 
   return (
     <fieldset className="losses__form" disabled={saving}>
@@ -209,7 +214,9 @@ export function LossesPanel({ orderId, attemptId }: { orderId: string; attemptId
               <h3>Productos del pedido</h3>
               <ul className="losses__items" aria-label="Productos del pedido">
                 {order.items.map((item) => {
-                  const declared = losses.filter((loss) => loss.orderItemId === item.id).length
+                  const declared = losses.filter(
+                    (loss) => loss.orderItemId === item.id && !loss.cancelledAt,
+                  ).length
                   return (
                     <li key={item.id}>
                       <span>
@@ -297,8 +304,24 @@ export function LossesPanel({ orderId, attemptId }: { orderId: string; attemptId
                             ))}
                           </ul>
                         )}
+                        {loss.cancelledAt && (
+                          <p className="badge" role="note">
+                            Anulada el {formatDateTime(loss.cancelledAt)}
+                            {loss.cancelReason ? ` · ${loss.cancelReason}` : ''}
+                          </p>
+                        )}
                         <div className="losses__buttons">
-                          {loss.replacement.state === 'PENDING' && (
+                          {!loss.cancelledAt && loss.original.state === 'LOST' && (
+                            <Button
+                              variant="secondary"
+                              disabled={saving}
+                              aria-label={`Anular pérdida de ${name}`}
+                              onClick={() => setAction({ kind: 'cancel', loss })}
+                            >
+                              Anular pérdida
+                            </Button>
+                          )}
+                          {!loss.cancelledAt && loss.replacement.state === 'PENDING' && (
                             <Button
                               variant="secondary"
                               disabled={saving}
@@ -308,7 +331,7 @@ export function LossesPanel({ orderId, attemptId }: { orderId: string; attemptId
                               Preparar reemplazo
                             </Button>
                           )}
-                          {loss.original.state === 'LOST' && (
+                          {!loss.cancelledAt && loss.original.state === 'LOST' && (
                             <Button
                               variant="secondary"
                               disabled={saving}
@@ -332,14 +355,26 @@ export function LossesPanel({ orderId, attemptId }: { orderId: string; attemptId
                                     'Reemplazo preparado: se descontó una unidad del stock.',
                                     'No se pudo preparar el reemplazo',
                                   )
-                                : void run(
-                                    () =>
-                                      dispatchService.recoverOriginal(loss.id, condition!, reason),
-                                    condition === 'SELLABLE'
-                                      ? 'Original recuperado vendible: volvió una unidad al stock.'
-                                      : 'Original recuperado dañado: no se sumó al stock.',
-                                    'No se pudo registrar la recuperación',
-                                  )
+                                : action.kind === 'cancel'
+                                  ? void run(
+                                      () => dispatchService.cancelLoss(loss.id, reason),
+                                      loss.replacement.state === 'PREPARED'
+                                        ? 'Pérdida anulada: la unidad del reemplazo volvió al stock.'
+                                        : 'Pérdida anulada: no había reemplazo preparado, el stock no cambia.',
+                                      'No se pudo anular la pérdida',
+                                    )
+                                  : void run(
+                                      () =>
+                                        dispatchService.recoverOriginal(
+                                          loss.id,
+                                          condition!,
+                                          reason,
+                                        ),
+                                      condition === 'SELLABLE'
+                                        ? 'Original recuperado vendible: volvió una unidad al stock.'
+                                        : 'Original recuperado dañado: no se sumó al stock.',
+                                      'No se pudo registrar la recuperación',
+                                    )
                             }
                           />
                         )}

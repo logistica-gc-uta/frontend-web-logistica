@@ -7,6 +7,7 @@ export const MONITOR_ROUTE_STATUS_LABELS: Record<MonitorRouteStatus, string> = {
   DRAFT: 'Borrador (DRAFT)',
   ASSIGNED: 'Asignada, sin iniciar (ASSIGNED)',
   IN_PROGRESS: 'En curso (IN_PROGRESS)',
+  INTERRUPTED: 'Interrumpida por emergencia',
   COMPLETED: 'Completada (COMPLETED)',
 }
 

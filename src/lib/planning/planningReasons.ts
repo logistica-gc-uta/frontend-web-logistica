@@ -10,6 +10,8 @@ const PLANNING_REASON_LABELS: Record<string, string> = {
   NOT_TODAY: 'no está programado para hoy',
   ORDER_NOT_PENDING: 'el pedido ya no está pendiente',
   NO_AVAILABLE_DRIVER: 'no hay choferes disponibles para una salida nueva',
+  // Emergencia en ruta (#51): el pedido espera que vuelvan o se reemplacen sus productos.
+  RECOVERY_PENDING: 'tiene productos de una emergencia sin recuperar ni reemplazar',
   // Motor vial (#47): sin datos viales no se propone una salida; el pedido sigue pendiente.
   ROAD_ENGINE_UNAVAILABLE: 'el motor vial no responde: no se puede medir por calles ahora',
   ROAD_ENGINE_BAD_RESPONSE: 'el motor vial devolvió datos incompletos',

@@ -18,7 +18,7 @@ export interface MonitorBoard {
   loadedAt: string
 }
 
-const TRACKED = new Set(['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'])
+const TRACKED = new Set(['ASSIGNED', 'IN_PROGRESS', 'INTERRUPTED', 'COMPLETED'])
 
 export async function loadMonitorBoard(now: Date = new Date()): Promise<MonitorBoard> {
   const day = todayInGuayaquil(now)

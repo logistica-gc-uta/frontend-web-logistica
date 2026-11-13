@@ -14,7 +14,9 @@ export interface MonitorStop {
   failureReason: string | null
 }
 
-export type MonitorRouteStatus = 'UNVERIFIED' | 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED'
+/** `INTERRUPTED`: se declaró una emergencia en ruta (backend #51). */
+export type MonitorRouteStatus =
+  'UNVERIFIED' | 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERRUPTED' | 'COMPLETED'
 
 /** Ruta tal como la sigue el monitor (solo lo necesario de `GET /routes`). */
 export interface MonitorRoute {

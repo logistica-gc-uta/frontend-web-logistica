@@ -54,6 +54,7 @@ export function MonitorPage() {
                       route={route}
                       name={name}
                       driver={route.driverId ? drivers[route.driverId] : undefined}
+                      onChanged={board.reload}
                     />
                   ))}
                 </div>

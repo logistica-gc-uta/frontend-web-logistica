@@ -4,6 +4,7 @@ export const ROUTE_STATUS_LABELS: Record<RouteStatus, string> = {
   DRAFT: 'Borrador (DRAFT)',
   ASSIGNED: 'Asignada (ASSIGNED)',
   IN_PROGRESS: 'En curso (IN_PROGRESS)',
+  INTERRUPTED: 'Interrumpida por emergencia',
   COMPLETED: 'Completada (COMPLETED)',
 }
 
@@ -12,6 +13,8 @@ export const ROUTE_STATUS_HELP: Record<RouteStatus, string> = {
   DRAFT: 'Guardada, sin chofer. Aún se puede asignar y corregir.',
   ASSIGNED: 'Con chofer, todavía sin iniciar. Sus paradas aún se pueden corregir.',
   IN_PROGRESS: 'En ejecución: sus paradas y su composición no se pueden modificar.',
+  INTERRUPTED:
+    'Detenida por una emergencia: lo entregado se conserva y los pendientes se gestionan en Emergencias.',
   COMPLETED: 'Terminada: no se puede modificar.',
 }
 
