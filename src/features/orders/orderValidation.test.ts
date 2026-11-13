@@ -5,7 +5,7 @@ import { shopSettings } from '../../test/shopFixtures'
 import {
   estimateOrderTotal,
   INITIAL_ORDER_FORM,
-  REGISTERED_BUYER_PENDING,
+  CLIENT_REQUIRED,
   toCreateAdminPurchaseInput,
   validateOrder,
 } from './orderValidation'
@@ -27,6 +27,8 @@ const validValues: OrderFormValues = {
   location: { lat: -1.25, lng: -78.63 },
   locationConfirmed: true,
 }
+
+const ANA = { id: 'client-1', name: 'Ana Cliente', email: 'ana@regalia.test' }
 
 const validate = (patch: Partial<OrderFormValues> = {}, coverageError?: string) =>
   validateOrder({ ...validValues, ...patch }, products, SCHEDULE, coverageError, NOW)
@@ -78,8 +80,12 @@ describe('validateOrder · venta ADMIN', () => {
     ).toEqual({})
   })
 
-  it('un cliente con cuenta todavía no se puede elegir (falta el buscador en el backend)', () => {
-    expect(validate({ buyerType: 'REGISTERED_CLIENT' }).buyerType).toBe(REGISTERED_BUYER_PENDING)
+  it('un cliente con cuenta exige elegir la cuenta y el teléfono, pero no un nombre escrito', () => {
+    expect(validate({ buyerType: 'REGISTERED_CLIENT', buyerName: '', buyerPhone: '' })).toEqual({
+      client: CLIENT_REQUIRED,
+      buyerPhone: 'El teléfono del comprador es obligatorio',
+    })
+    expect(validate({ buyerType: 'REGISTERED_CLIENT', buyerName: '', client: ANA })).toEqual({})
   })
 
   describe('fecha y hora aproximada', () => {
@@ -194,7 +200,29 @@ describe('toCreateAdminPurchaseInput', () => {
     expect(input.payment).toEqual({ method: 'CASH' })
   })
 
+  it('con cliente registrado envía solo su cuenta y el teléfono: el nombre lo pone el servidor', () => {
+    const input = toCreateAdminPurchaseInput({
+      ...validValues,
+      buyerType: 'REGISTERED_CLIENT',
+      client: ANA,
+      buyerName: 'Escrito antes como invitado',
+      giftToOther: true,
+      recipientName: 'Luis Regalo',
+      recipientPhone: '0987654321',
+    })
+
+    expect(input.buyer).toEqual({
+      type: 'REGISTERED_CLIENT',
+      clientId: 'client-1',
+      contactPhone: '0991234567',
+    })
+    expect(input.giftRecipient).toEqual({ name: 'Luis Regalo', contactPhone: '0987654321' })
+  })
+
   it('falla si faltan datos (no debería ocurrir tras validar)', () => {
+    expect(() =>
+      toCreateAdminPurchaseInput({ ...validValues, buyerType: 'REGISTERED_CLIENT', client: null }),
+    ).toThrow(AppError)
     expect(() => toCreateAdminPurchaseInput({ ...validValues, location: null })).toThrow(AppError)
     expect(() => toCreateAdminPurchaseInput({ ...validValues, scheduledAt: '' })).toThrow(AppError)
     expect(() => toCreateAdminPurchaseInput({ ...validValues, paymentMethod: '' })).toThrow(
