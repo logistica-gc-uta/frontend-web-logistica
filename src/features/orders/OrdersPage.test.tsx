@@ -232,8 +232,7 @@ describe('OrdersPage · nueva venta', () => {
 
     expect(form.queryByLabelText('Zona')).not.toBeInTheDocument()
     expect(form.getByRole('radio', { name: 'Invitado (sin cuenta)' })).toBeChecked()
-    expect(form.getByRole('radio', { name: 'Cliente con cuenta' })).toBeDisabled()
-    expect(form.getByText(/falta el buscador de clientes en el backend/)).toBeInTheDocument()
+    expect(form.getByRole('radio', { name: 'Cliente con cuenta' })).toBeEnabled()
     expect(form.getByRole('note')).toHaveTextContent(
       'Se registra el pago que declara el cliente. No se valida en el banco ni se cobra con tarjeta.',
     )

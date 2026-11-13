@@ -177,3 +177,39 @@
     color: #000000;
   }
 }
+
+/* Buscador de cliente registrado en la venta ADMIN (#34). */
+.client-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.client-picker__results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.client-picker__results li,
+.client-picker__chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+.client-picker__chosen {
+  border-color: var(--color-sand);
+  background: var(--color-sand-soft);
+}

@@ -1,4 +1,5 @@
 import type { GeoPoint } from '../../types/geo'
+import type { AdminClient } from './adminClientsService'
 
 export type OrderStatus = 'PENDING' | 'ASSIGNED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED'
 
@@ -199,6 +200,9 @@ export type OrderItemFormValue = {
 /** Valores del formulario de venta ADMIN. */
 export type OrderFormValues = {
   buyerType: 'GUEST' | 'REGISTERED_CLIENT'
+  /** Cuenta elegida en el buscador cuando el comprador es un cliente registrado. */
+  client: AdminClient | null
+  /** Nombre del invitado (con cliente registrado se usa el de su cuenta). */
   buyerName: string
   buyerPhone: string
   /** El regalo lo recibe otra persona distinta del comprador. */

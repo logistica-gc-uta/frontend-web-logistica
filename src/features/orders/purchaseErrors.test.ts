@@ -27,6 +27,21 @@ describe('describePurchaseError', () => {
     expect(describePurchaseError(coded(409, 'IDEMPOTENCY_KEY_REUSED')).action).toBe('newKey')
   })
 
+  it('traduce el rechazo de una cuenta de cliente inexistente o que no es CLIENT', () => {
+    const notFound = createHttpError(404, { data: { message: 'Registered client not found' } })
+    const notClient = createHttpError(400, {
+      data: { message: 'Registered owner must be a CLIENT' },
+    })
+
+    expect(describePurchaseError(notFound)).toEqual({
+      action: 'fix',
+      message: 'No se registró la venta: la cuenta del cliente ya no existe. Búscala de nuevo.',
+    })
+    expect(describePurchaseError(notClient).message).toBe(
+      'No se registró la venta: esa cuenta no es de un cliente. Elige otra.',
+    )
+  })
+
   it('traduce el rechazo de un producto antiguo sin precio en centavos', () => {
     const error = createHttpError(400, {
       data: { message: "Product 'Laptop HP Pavilion 15' has no valid price in cents configured" },
@@ -37,5 +52,20 @@ describe('describePurchaseError', () => {
       message:
         'No se registró la venta: «Laptop HP Pavilion 15» no tiene un precio en centavos configurado. Corrige su precio en Productos o elige otro producto.',
     })
+  })
+
+  it('traduce el rechazo de una cuenta de cliente inexistente o que no es CLIENT', () => {
+    const notFound = createHttpError(404, { data: { message: 'Registered client not found' } })
+    const notClient = createHttpError(400, {
+      data: { message: 'Registered owner must be a CLIENT' },
+    })
+
+    expect(describePurchaseError(notFound)).toEqual({
+      action: 'fix',
+      message: 'No se registró la venta: la cuenta del cliente ya no existe. Búscala de nuevo.',
+    })
+    expect(describePurchaseError(notClient).message).toBe(
+      'No se registró la venta: esa cuenta no es de un cliente. Elige otra.',
+    )
   })
 })

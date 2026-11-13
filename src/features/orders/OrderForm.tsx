@@ -14,11 +14,11 @@ import {
   COVERAGE_STATUS_TEXT,
   useCoverageCheck,
 } from '../store-coverage/useCoverageCheck'
+import { ClientPicker } from './ClientPicker'
 import { OrderItemsEditor } from './OrderItemsEditor'
 import {
   estimateOrderTotal,
   INITIAL_ORDER_FORM,
-  REGISTERED_BUYER_PENDING,
   toCreateAdminPurchaseInput,
   validateOrder,
 } from './orderValidation'
@@ -152,20 +152,39 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
               />
               Invitado (sin cuenta)
             </label>
-            <label className="is-disabled">
-              <input type="radio" name="buyerType" value="REGISTERED_CLIENT" disabled />
+            <label>
+              <input
+                type="radio"
+                name="buyerType"
+                value="REGISTERED_CLIENT"
+                checked={values.buyerType === 'REGISTERED_CLIENT'}
+                onChange={() => setFields({ buyerType: 'REGISTERED_CLIENT' })}
+              />
               Cliente con cuenta
             </label>
           </div>
-          <p className="text-muted order-form__hint">{REGISTERED_BUYER_PENDING}</p>
-          <TextField
-            label="Nombre del comprador"
-            name="buyerName"
-            autoComplete="off"
-            value={values.buyerName}
-            onChange={handleChange}
-            error={fieldErrors.buyerName ?? fieldErrors.buyerType}
-          />
+          {values.buyerType === 'REGISTERED_CLIENT' ? (
+            <>
+              <ClientPicker
+                value={values.client}
+                onChange={(client) => setFields({ client })}
+                error={fieldErrors.client}
+              />
+              <p className="text-muted order-form__hint">
+                La venta queda en el historial de su cuenta con su nombre y correo. El teléfono no
+                está en la cuenta: escríbelo para esta venta.
+              </p>
+            </>
+          ) : (
+            <TextField
+              label="Nombre del comprador"
+              name="buyerName"
+              autoComplete="off"
+              value={values.buyerName}
+              onChange={handleChange}
+              error={fieldErrors.buyerName}
+            />
+          )}
           <TextField
             label="Teléfono del comprador"
             name="buyerPhone"
