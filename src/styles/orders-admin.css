@@ -213,3 +213,91 @@
   border-color: var(--color-sand);
   background: var(--color-sand-soft);
 }
+
+/* Pérdidas y reemplazos de un pedido (#39, backend #52). */
+.losses {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.losses h3 {
+  margin: 8px 0 0;
+}
+
+.losses__items,
+.losses__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.losses__items li,
+.losses__list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+.losses__list > li {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.losses__list p {
+  margin: 0;
+}
+
+.losses__state {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.losses__state dt {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.losses__state dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.losses__movements {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.875rem;
+}
+
+.losses__buttons,
+.losses__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.losses__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.losses__form legend {
+  padding: 0 4px;
+  font-weight: 600;
+}

@@ -13,6 +13,7 @@ import type {
   UrgencyInbox,
   UrgencyProposal,
 } from './types'
+import type { DeclareLossInput, OrderItemLoss, RecoveryCondition } from '../losses/types'
 
 /** Las decisiones se validan con bloqueos en el servidor; más de esto se considera una falla. */
 const REQUEST_TIMEOUT_MS = 30_000
@@ -194,6 +195,35 @@ export const dispatchService = {
   /** Retiro físico confirmado: es lo único que entrega el pedido (pasa a DELIVERED). */
   confirmPickup: (orderId: string, reason: string) =>
     intervene('PICKUP_CONFIRM', { orderId, reason }),
+
+  /** Pérdidas del pedido con su reemplazo, el original y los movimientos de stock (backend #52). */
+  async losses(orderId: string): Promise<OrderItemLoss[]> {
+    const { data } = await apiClient.get<OrderItemLoss[]>(
+      `/dispatch/orders/${encodeURIComponent(orderId)}/losses`,
+    )
+    return data
+  },
+
+  /**
+   * Declara la pérdida de una unidad. Con stock libre el servidor descuenta una unidad y deja el
+   * reemplazo preparado; sin stock queda pendiente. No crea otra compra ni otro comprobante.
+   */
+  declareLoss: ({ orderId, orderItemId, unitNumber, attemptId, reason }: DeclareLossInput) =>
+    intervene('LOSS_DECLARE', {
+      orderId,
+      orderItemId,
+      ...(unitNumber !== undefined ? { unitNumber } : {}),
+      ...(attemptId ? { attemptId } : {}),
+      reason,
+    }),
+
+  /** Prepara el reemplazo de una pérdida pendiente cuando ya hay stock (si no, 409 `NO_FREE_STOCK`). */
+  prepareReplacement: (lossId: string, reason: string) =>
+    intervene('REPLACEMENT_PREPARE', { lossId, reason }),
+
+  /** El original apareció: vendible vuelve al stock una sola vez; dañado no suma. */
+  recoverOriginal: (lossId: string, recoveryCondition: RecoveryCondition, reason: string) =>
+    intervene('ORIGINAL_RECOVER', { lossId, recoveryCondition, reason }),
 }
 
 export interface PickupInput {

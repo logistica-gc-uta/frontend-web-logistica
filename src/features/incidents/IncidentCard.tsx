@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
+import { orderReceiptPath } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
@@ -274,6 +276,15 @@ export function IncidentCard({
           </div>
         </>
       )}
+
+      <p className="incident__losses">
+        ¿Se perdió o se dañó un producto?{' '}
+        <Link
+          to={`${orderReceiptPath(incident.orderId)}${latestAttempt ? `?intento=${encodeURIComponent(latestAttempt.id)}` : ''}#perdidas`}
+        >
+          Pérdida o reemplazo
+        </Link>
+      </p>
 
       <PickupSection
         title={title}
