@@ -8,9 +8,15 @@ export type SettingsForm = {
   maxUnits: string
   startTime: string
   endTime: string
+  /** Minutos para agrupar horas pedidas en una misma ruta (backend #48). */
+  marginMinutes: string
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+
+/** Límites del margen de agrupación horaria que acepta el backend (#48). */
+export const MARGIN_MIN = 5
+export const MARGIN_MAX = 180
 
 /** Porcentaje con hasta 2 decimales → puntos básicos, sin decimales binarios ("12,5" → 1250). */
 export const percentToBps = (text: string): number | null => dollarsToCents(text)
@@ -30,6 +36,7 @@ export const formFromSettings = (settings: AdminShopSettings): SettingsForm => (
   maxUnits: String(settings.maxUnitsPerSkuPerOrder),
   startTime: settings.deliverySchedule.startTime,
   endTime: settings.deliverySchedule.endTime,
+  marginMinutes: String(settings.routeTimeWindowMarginMinutes),
 })
 
 export function validateSettings(values: SettingsForm): FieldErrors<SettingsForm> {
@@ -47,6 +54,10 @@ export function validateSettings(values: SettingsForm): FieldErrors<SettingsForm
     errors.endTime = 'El fin debe ser posterior al inicio (no se admiten franjas nocturnas)'
   }
   if (values.startTime === '00:00') errors.startTime = 'El inicio debe ser posterior a las 00:00'
+  const margin = Number(values.marginMinutes)
+  if (!/^\d+$/.test(values.marginMinutes.trim()) || margin < MARGIN_MIN || margin > MARGIN_MAX) {
+    errors.marginMinutes = `Escribe un entero de ${MARGIN_MIN} a ${MARGIN_MAX} minutos`
+  }
   return errors
 }
 
@@ -67,6 +78,10 @@ export function settingsChanges(
     values.endTime !== saved.deliverySchedule.endTime
   ) {
     changes.deliverySchedule = { startTime: values.startTime, endTime: values.endTime }
+  }
+  const margin = Number(values.marginMinutes)
+  if (margin !== saved.routeTimeWindowMarginMinutes) {
+    changes.routePlanning = { timeWindowMarginMinutes: margin }
   }
   return changes
 }

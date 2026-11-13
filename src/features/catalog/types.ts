@@ -80,6 +80,8 @@ export interface AdminShopSettings {
   maxUnitsPerSkuPerOrder: number
   deliverySchedule: { timeZone: string; startTime: string; endTime: string }
   shippingFreeIncluded: boolean
+  /** Minutos máximos entre horas pedidas de una misma ruta propuesta (backend #48, 5–180). */
+  routeTimeWindowMarginMinutes: number
   updatedAt: string
   updatedById: string | null
 }
@@ -88,4 +90,5 @@ export interface ShopSettingsChanges {
   tax?: { enabled: boolean; rateBps: number }
   limits?: { maxUnitsPerSkuPerOrder: number }
   deliverySchedule?: { startTime: string; endTime: string }
+  routePlanning?: { timeWindowMarginMinutes: number }
 }
