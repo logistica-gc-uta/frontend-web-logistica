@@ -21,6 +21,11 @@ export interface MapRoute {
   depot: GeoPoint
   depotLabel: string
   stops: MapRouteStop[]
+  /**
+   * Recorrido por calles devuelto por el motor vial (depósito → paradas → depósito). Sin él se
+   * unen los puntos en línea recta y la leyenda lo aclara: nunca se presenta como camino vial.
+   */
+  trace?: GeoPoint[]
 }
 
 /** Con más rutas que esto se dibuja solo la elegida, para que el mapa siga siendo fluido. */
@@ -90,6 +95,7 @@ export function RoutesMap({ routes, selectedId, onSelect }: RoutesMapProps) {
   const isTruncated = routes.length > MAX_ROUTES_DRAWN_AT_ONCE
   const drawn = isTruncated ? routes.filter((route) => route.id === selectedId) : routes
   const hasSelection = selectedId !== null
+  const withTrace = routes.filter((route) => route.trace && route.trace.length > 1).length
 
   const depots = useMemo(() => {
     const byPosition = new Map<string, MapRoute>()
@@ -137,6 +143,21 @@ export function RoutesMap({ routes, selectedId, onSelect }: RoutesMapProps) {
             const path = [route.depot, ...route.stops.map((stop) => stop.location)]
             const lastStop = path[path.length - 1]
 
+            if (route.trace && route.trace.length > 1) {
+              return (
+                <Fragment key={route.id}>
+                  <Polyline
+                    positions={route.trace.map(toLatLng)}
+                    pathOptions={{ color: route.color, weight, opacity }}
+                    eventHandlers={{ click: () => onSelect(route.id) }}
+                  />
+                  {route.stops.map((stop) => (
+                    <StopMarker key={stop.sequence} route={route} stop={stop} onSelect={onSelect} />
+                  ))}
+                </Fragment>
+              )
+            }
+
             return (
               <Fragment key={route.id}>
                 <Polyline
@@ -157,10 +178,19 @@ export function RoutesMap({ routes, selectedId, onSelect }: RoutesMapProps) {
         </MapContainer>
       </div>
 
-      <p className="routes-map__legend">
-        Trazo continuo: recorrido depósito → paradas. Trazo punteado: regreso al depósito. Los
-        trazos son líneas rectas entre puntos, no el camino por las calles.
-      </p>
+      {withTrace > 0 && (
+        <p className="routes-map__legend">
+          Recorrido por calles calculado por el motor vial: sale del depósito, visita las paradas en
+          orden y regresa. Es estimado: no considera tráfico ni cierres de vías.
+        </p>
+      )}
+      {withTrace < routes.length && (
+        <p className="routes-map__legend">
+          {withTrace > 0 ? 'Rutas sin recorrido por calles: trazo' : 'Trazo'} continuo del depósito
+          a las paradas y punteado de regreso. Son líneas rectas entre puntos, no el camino por las
+          calles.
+        </p>
+      )}
       {isTruncated && (
         <p className="routes-map__legend" role="status">
           Hay {routes.length} rutas: para mantener el mapa fluido solo se dibuja la ruta que elijas

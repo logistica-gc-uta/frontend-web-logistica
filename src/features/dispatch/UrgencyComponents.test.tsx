@@ -44,7 +44,9 @@ describe('UrgencyCard', () => {
     expect(card().getByText('María Pérez')).toBeInTheDocument()
     expect(card().getByText('FIC-02')).toBeInTheDocument()
     expect(card().getByText('Ruta guardada 1 · FIC-02')).toBeInTheDocument()
-    expect(card().getByText(/quedaría con 2 paradas \(2,40 km estimados\)/)).toBeInTheDocument()
+    expect(
+      card().getByText(/quedaría con 2 paradas \(2,40 km estimados en línea recta\)/),
+    ).toBeInTheDocument()
   })
 
   it('exige el motivo antes de cualquier decisión', async () => {

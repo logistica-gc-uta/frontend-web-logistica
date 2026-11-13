@@ -42,6 +42,16 @@ vi.mock('../../components/map/RoutesMap', () => ({
   ),
 }))
 
+const HAVERSINE_ENGINE = {
+  engine: 'HAVERSINE' as const,
+  configured: false,
+  available: true,
+  profile: null,
+  latencyMs: null,
+  checkedAt: '2030-02-14T12:00:00Z',
+  message: 'Motor vial desactivado',
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((res) => {
@@ -54,6 +64,7 @@ const mockApi = (response: RouteProposalsResponse = proposalsResponse) => {
   vi.spyOn(zonesService, 'list').mockResolvedValue(zones)
   vi.spyOn(planningService, 'listRoutes').mockResolvedValue([])
   vi.spyOn(driversService, 'list').mockResolvedValue([])
+  vi.spyOn(planningService, 'roadEngine').mockResolvedValue(HAVERSINE_ENGINE)
   return vi.spyOn(planningService, 'getProposals').mockResolvedValue(response)
 }
 
@@ -147,7 +158,9 @@ describe('PlanningPage · previsualizar', () => {
 
     const summary = within(screen.getByLabelText('Resumen de la propuesta del día'))
     expect(summary.getByText('Pedidos planificados').nextSibling).toHaveTextContent('5')
-    expect(summary.getByText('Km sin optimizar').nextSibling).toHaveTextContent('8,40 km')
+    expect(summary.getByText('Km sin optimizar (en línea recta)').nextSibling).toHaveTextContent(
+      '8,40 km',
+    )
     expect(summary.getByText('Ahorro estimado').nextSibling).toHaveTextContent(/4,70 km/)
   })
 
