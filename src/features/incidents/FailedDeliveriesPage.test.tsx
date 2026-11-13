@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
 import { auditRecord, failedDelivery } from '../../test/dispatchFixtures'
@@ -61,7 +62,11 @@ const renderCard = (overrides: Partial<IncidentCardProps> = {}) => {
     onPickupConfirm: vi.fn().mockResolvedValue(true),
     ...overrides,
   }
-  render(<IncidentCard {...props} />)
+  render(
+    <MemoryRouter>
+      <IncidentCard {...props} />
+    </MemoryRouter>,
+  )
   return props
 }
 

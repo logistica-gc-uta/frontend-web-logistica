@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
 import { apiClient } from '../../lib/http/apiClient'
@@ -59,7 +60,11 @@ const renderCard = (pickup: OrderPickup | null = null) => {
     onPickupDecision: vi.fn().mockResolvedValue(true),
     onPickupConfirm: vi.fn().mockResolvedValue(true),
   }
-  render(<IncidentCard {...props} />)
+  render(
+    <MemoryRouter>
+      <IncidentCard {...props} />
+    </MemoryRouter>,
+  )
   return { props, user: userEvent.setup() }
 }
 
