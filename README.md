@@ -25,6 +25,20 @@ La aplicación queda disponible en `http://localhost:5173`.
 | :------------- | :---------------------- | :----------------------------- |
 | `VITE_API_URL` | URL base de la API REST | `http://localhost:3000/api/v1` |
 
+## Despliegue en producción (Docker / Coolify)
+
+La imagen multi-stage (`Dockerfile` + `nginx.conf`) compila el bundle estático con Node 26 / pnpm 12 y lo sirve con Nginx en el puerto `80`, con respaldo SPA (`try_files $uri $uri/ /index.html`) y chequeo en `/healthz`.
+
+1. **Build pack en Coolify:** `Dockerfile` (puerto expuesto `80`).
+2. **Dominio:** `https://regalia.sjproyects.me` (o el dominio HTTPS correspondiente).
+3. **Variable de compilación (`Buildtime`):** `VITE_API_URL=https://api-regalia.sjproyects.me/api/v1` (Vite la incrusta al compilar; también deriva el origen de Socket.IO `/realtime`).
+
+Verificación local de la imagen:
+
+```bash
+docker build --build-arg VITE_API_URL=https://api-regalia.sjproyects.me/api/v1 -t regalia-frontend:check .
+```
+
 ## Scripts
 
 | Script                  | Descripción                                                                 |
