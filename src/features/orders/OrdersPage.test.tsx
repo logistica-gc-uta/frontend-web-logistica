@@ -181,17 +181,14 @@ describe('OrdersPage · listado', () => {
     expect(ordersList).toHaveBeenLastCalledWith({ page: 2, pageSize: 10 })
   })
 
-  it('aplica los filtros de fecha, zona y estado, y vuelve a la primera página', async () => {
+  it('aplica los filtros de fecha y estado, y vuelve a la primera página', async () => {
     const { ordersList } = mockApi(pageOf(orders, 25))
     const { user } = renderOrdersPage()
     await findTable()
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     await screen.findByText('Página 2 de 3 · 25 registros')
 
-    await user.selectOptions(getFilters().getByLabelText('Zona'), 'zone-1')
-    await waitFor(() =>
-      expect(ordersList).toHaveBeenLastCalledWith({ page: 1, pageSize: 10, zoneId: 'zone-1' }),
-    )
+    expect(getFilters().queryByLabelText('Zona')).not.toBeInTheDocument()
 
     fireEvent.change(getFilters().getByLabelText('Fecha de entrega'), {
       target: { value: '2030-02-14' },
@@ -203,7 +200,6 @@ describe('OrdersPage · listado', () => {
         page: 1,
         pageSize: 10,
         date: '2030-02-14',
-        zoneId: 'zone-1',
         status: 'PENDING',
       }),
     )

@@ -92,7 +92,7 @@ const renderPlanning = () =>
   renderWithProviders(<App />, { route: paths.planning, session: adminSession })
 
 const preview = async (user: ReturnType<typeof renderPlanning>['user']) => {
-  await screen.findByRole('option', { name: /Ficoa/ })
+  await screen.findByLabelText('Día a planificar')
   await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 }
 
@@ -110,7 +110,9 @@ describe('motor vial · formato y errores', () => {
     expect(
       describeRoadError(roadError(422, 'ROAD_POINT_OFF_NETWORK', { orderIds: ['o1', 'o2'] })),
     ).toMatch(/lejos de cualquier calle\. Pedidos afectados: 2\. Revisa su ubicación en Pedidos\./)
-    expect(describeRoadError(roadError(422, 'ROAD_MATRIX_TOO_LARGE'))).toMatch(/planifica por zona/)
+    expect(describeRoadError(roadError(422, 'ROAD_MATRIX_TOO_LARGE'))).toBe(
+      `Hay demasiados pedidos para medirlos de una vez. Contacta al administrador para revisar el límite de planificación. ${ROAD_ERROR_SAFE}`,
+    )
     expect(describeRoadError(roadError(502, 'ROAD_ENGINE_BAD_RESPONSE'))).toMatch(/incompletos/)
     expect(describeRoadError(roadError(422, 'ROAD_ROUTE_NOT_FOUND'))).toMatch(/No hay un recorrido/)
     expect(describeRoadError(createHttpError(500))).toBeNull()

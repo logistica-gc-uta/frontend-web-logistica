@@ -12,7 +12,7 @@ const ROAD_MESSAGES: Record<string, string> = {
   ROAD_ROUTE_NOT_FOUND: 'No hay un recorrido por calles hasta algunos pedidos.',
   ROAD_POINT_OFF_NETWORK: 'Algunas ubicaciones de entrega están lejos de cualquier calle.',
   ROAD_MATRIX_TOO_LARGE:
-    'Hay demasiados pedidos para medirlos de una vez: planifica por zona para reducir la cantidad.',
+    'Hay demasiados pedidos para medirlos de una vez. Contacta al administrador para revisar el límite de planificación.',
 }
 
 /** Rechazos de `GET /route-proposals` (`{statusCode, error, code, message, details}`). */

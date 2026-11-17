@@ -43,7 +43,10 @@ describe('App', () => {
 
     expect(homeHeading()).toBeInTheDocument()
     expect(screen.getByRole('banner')).toHaveTextContent(adminSession.user.name)
-    expect(screen.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
   })
 
   it('cierra sesión desde el encabezado y vuelve al login', async () => {
@@ -73,7 +76,6 @@ describe('App', () => {
     { link: 'Urgencias', heading: 'Urgencias' },
     { link: 'Entregas fallidas', heading: 'Entregas fallidas' },
     { link: 'Seguimiento', heading: 'Seguimiento de rutas' },
-    { link: 'Zonas', heading: 'Zonas de entrega' },
     { link: 'Productos', heading: 'Productos' },
   ])(
     'navega a $link desde el menú principal y marca la opción activa',

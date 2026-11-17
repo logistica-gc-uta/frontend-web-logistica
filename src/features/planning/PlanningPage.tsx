@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { Alert } from '../../components/ui/Alert'
-import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
 import { useAsyncAction } from '../../hooks/useAsyncAction'
-import { useFetch } from '../../hooks/useFetch'
 import { AppError } from '../../lib/errors/AppError'
-import { zonesService } from '../zones/zonesService'
 import { PlanningFilters } from './PlanningFilters'
 import { PlanningResult } from './PlanningResult'
 import { planningService } from './planningService'
@@ -24,7 +21,6 @@ async function loadProposals(query: ProposalsQuery) {
 }
 
 export function PlanningPage() {
-  const zones = useFetch(zonesService.list, 'No se pudieron cargar las zonas')
   const preview = useAsyncAction(loadProposals, 'No se pudo calcular la propuesta de rutas')
   /** Cambia en cada cálculo: el resultado nuevo empieza sin selección ni confirmaciones previas. */
   const [calculation, setCalculation] = useState(0)
@@ -48,9 +44,7 @@ export function PlanningPage() {
         <section className="card" aria-labelledby="planning-form-title">
           <h2 id="planning-form-title">Previsualizar</h2>
           <RoadEngineNotice />
-          <AsyncContent {...zones} onRetry={zones.reload} loadingText="Cargando zonas...">
-            {(zoneList) => <PlanningFilters zones={zoneList} onPreview={handlePreview} />}
-          </AsyncContent>
+          <PlanningFilters onPreview={handlePreview} />
         </section>
 
         {preview.isRunning && (

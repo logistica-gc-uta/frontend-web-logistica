@@ -35,6 +35,22 @@ describe('useRouteConfirmations', () => {
     expect(onSaved).toHaveBeenCalledWith(savedDraft())
   })
 
+  it('preserves a zone-free proposal when confirming from the store', async () => {
+    const confirmRoute = vi.spyOn(planningService, 'confirmRoute').mockResolvedValue(savedDraft())
+    const proposal = { ...firstProposal, zoneId: null, zoneCode: null }
+    const { result } = renderHook(() => useRouteConfirmations())
+
+    await act(() => result.current.confirm(proposal))
+
+    expect(confirmRoute).toHaveBeenCalledOnce()
+    expect(confirmRoute).toHaveBeenCalledWith({
+      zoneId: null,
+      routeDate: proposal.routeDate,
+      orderIds: proposal.orderIds,
+    })
+    expect(result.current.states[proposalKey(proposal)].status).toBe('saved')
+  })
+
   it('marca la propuesta como "guardando" mientras la petición está en curso', async () => {
     const pending = deferred<ReturnType<typeof savedDraft>>()
     vi.spyOn(planningService, 'confirmRoute').mockReturnValue(pending.promise)

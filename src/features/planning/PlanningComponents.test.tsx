@@ -7,7 +7,6 @@ import {
   proposalsResponse,
   savedDraft,
 } from '../../test/planningFixtures'
-import { zones } from '../../test/fixtures'
 import { todayInGuayaquil } from '../../lib/time/guayaquil'
 import { DistanceNotice } from './DistanceNotice'
 import { ExcludedOrders } from './ExcludedOrders'
@@ -186,20 +185,16 @@ describe('ProposalCard', () => {
 })
 
 describe('PlanningFilters', () => {
-  it('propone el día de hoy en horario de Guayaquil y permite elegir una zona', () => {
-    render(<PlanningFilters zones={zones} onPreview={vi.fn()} />)
+  it('propone el día de hoy en horario de Guayaquil sin selector de zona', () => {
+    render(<PlanningFilters onPreview={vi.fn()} />)
 
     expect(screen.getByLabelText('Día a planificar')).toHaveValue(todayInGuayaquil())
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'Todas las zonas',
-      'FIC-02 · Ficoa',
-      'HUA-03 · Huachi (sin depósito)',
-    ])
+    expect(screen.queryByLabelText('Zona')).not.toBeInTheDocument()
   })
 
   it('previsualiza solo con el día cuando no se elige zona', async () => {
     const onPreview = vi.fn().mockResolvedValue(undefined)
-    render(<PlanningFilters zones={zones} onPreview={onPreview} />)
+    render(<PlanningFilters onPreview={onPreview} />)
     fireEvent.change(screen.getByLabelText('Día a planificar'), { target: { value: '2030-02-14' } })
 
     await userEvent.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
@@ -207,20 +202,9 @@ describe('PlanningFilters', () => {
     expect(onPreview).toHaveBeenCalledWith({ date: '2030-02-14' })
   })
 
-  it('incluye la zona elegida', async () => {
-    const onPreview = vi.fn().mockResolvedValue(undefined)
-    render(<PlanningFilters zones={zones} onPreview={onPreview} />)
-    fireEvent.change(screen.getByLabelText('Día a planificar'), { target: { value: '2030-02-14' } })
-    await userEvent.selectOptions(screen.getByLabelText('Zona'), 'zone-1')
-
-    await userEvent.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
-
-    expect(onPreview).toHaveBeenCalledWith({ date: '2030-02-14', zoneId: 'zone-1' })
-  })
-
   it('exige elegir el día', async () => {
     const onPreview = vi.fn()
-    render(<PlanningFilters zones={zones} onPreview={onPreview} />)
+    render(<PlanningFilters onPreview={onPreview} />)
     fireEvent.change(screen.getByLabelText('Día a planificar'), { target: { value: '' } })
 
     await userEvent.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
