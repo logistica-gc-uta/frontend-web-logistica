@@ -12,8 +12,8 @@ S3. "en esa rama acual ya estan todos los cambios en la nube?"
 ## Tasks
 
 T1 [done] S2-S3 — route: parent Git preparation + read-only explorers; commit: n/a (branch preparation).
-T2 [done] S1-S2 — route: inline test-first frontend decoupling, docs and compatibility tests; commit: pending.
-T3 [in_progress] S1-S2 — route: focused/full unit checks, typecheck/build/lint and independent verification, reviewable commit; commit: pending.
+T2 [done] S1-S2 — route: inline test-first frontend decoupling, docs and compatibility tests; commit: d173b1312122c0fe8004bc0cf6bd68356aed6975.
+T3 [done] S1-S2 — route: focused/full unit checks, typecheck/build/lint and independent verification, reviewable commit; commit: d173b1312122c0fe8004bc0cf6bd68356aed6975.
 
 ## Log
 
@@ -33,3 +33,5 @@ L6. RED: job-5 exited 1, four expected behavior failures and two authentication 
 L7. Corrected job-9 exited 0: focused checks passed, full unit suite 91 files / 850 tests passed. Existing Shop render warning and jsdom scrollTo notices were emitted; no test failures. Job-10 build (TypeScript + Vite) and git diff --check passed, with >500 kB bundle warning. Lint passed with six warnings in unchanged Shop code. Independent verifier mwkt0ht9-7-gruw is active; no completion claim yet. Integration/E2E and live deployment checks intentionally excluded (persistent fixtures/production are outside this stage).
 
 L8. Independent verifier mwkt0ht9-7-gruw: no findings; S1 PASS for frontend-only scope; local branches/base refs consistent for S2; remote publication of NEW changes explicitly not claimed for S3. Independently executed ZoneDecoupling, useRouteConfirmations and SavedRoutes: 3 files / 36 tests passed, exit 0, no warnings/errors. No blockers. Parent observed Git fetch/pull/branch creation events recorded in L2. No CLI commands/parsers/options changed, so CLI differential check is not applicable; historical UI behaviors are covered by unit regressions.
+
+L9. Implementation and verification committed locally as d173b1312122c0fe8004bc0cf6bd68356aed6975 (22 files, 215 additions / 128 deletions). Frontend worktree was clean immediately after commit. Backend remains unchanged except for its pre-existing three untracked APE4 files. Feature tracking closed; no push, PR, deployment, schema migration or live-system check performed.
