@@ -327,26 +327,35 @@
   right: 0;
   z-index: 30;
   display: grid;
-  min-width: 196px;
-  padding: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: 0 10px 28px rgb(20 40 20 / 10%);
+  min-width: 208px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 12px 32px -12px rgb(20 40 20 / 22%);
 }
 
 .shop .shop-header__account-panel .shop-header__account-link {
   justify-content: flex-start;
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
   font: inherit;
   font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.shop .shop-header__account-panel .shop-header__account-link:hover {
-  background: var(--color-accent-soft);
+.shop .shop-header__account-panel .shop-header__account-link:hover,
+.shop .shop-header__account-panel .shop-header__account-link:focus-visible {
+  border-left-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent-soft) 70%, transparent);
   text-decoration: none;
 }
 
@@ -1848,6 +1857,92 @@
   margin-top: 0;
 }
 
+/* Mi cuenta (inicio): perfil, dos accesos y cerrar sesión. */
+.shop .account-home {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  gap: 32px;
+  padding-top: 8px;
+}
+
+/* Acceso (iniciar sesión / crear cuenta): sin pie, el recuadro queda centrado en la pantalla. */
+.shop .shop-main:has(.account-presentation) {
+  display: flex;
+  flex-direction: column;
+  padding-block: 24px;
+}
+
+.shop .shop-main:has(.account-presentation) .account-presentation {
+  flex: 1;
+  justify-content: center;
+}
+
+/* La información de la cuenta queda centrada en el medio del espacio entre la cabecera y el pie. */
+.shop .shop-main:has(.account-home) {
+  display: flex;
+  flex-direction: column;
+}
+
+.shop .shop-main:has(.account-home) .account-home {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0;
+}
+
+.shop .account-home h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 4.4vw, 48px);
+  line-height: 1.15;
+  text-align: center;
+}
+
+.shop .account-home__profile {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.shop .account-home__name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--color-heading);
+}
+
+.shop .account-home__email {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Cerrar sesión: solo texto con ícono, discreto. */
+.shop .account-home__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.shop .account-home__logout:hover {
+  color: var(--color-heading);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+
 /* Carrito */
 .shop .cart__layout {
   display: grid;
@@ -2271,19 +2366,41 @@
     border-radius: 8px;
   }
 
+  /* Logo | cuenta y carrito | botón de menú: el logo nunca se encoge ni queda tapado. */
   .shop .shop-header__top {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 12px;
     padding-block: 16px;
   }
 
   .shop .shop-header__brand {
-    font-size: 26px;
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 24px;
   }
 
   .shop .shop-tools {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
     min-width: 0;
-    gap: 12px;
+    gap: 8px;
+  }
+
+  .shop .shop-header__menu-toggle {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .shop .shop-header__customer-name {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shop .shop-header__customer {
+    min-width: 0;
   }
 
   /* El menú se pliega bajo la fila principal y se abre con el botón. */

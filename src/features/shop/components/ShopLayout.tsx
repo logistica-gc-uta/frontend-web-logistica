@@ -10,6 +10,21 @@ import { catalogSearch } from '../catalogQuery'
 import { shopService } from '../shopService'
 import { shopDocumentTitle } from '../shopTitles'
 
+/**
+ * El pie con marca y redes va solo donde se explora (inicio, catálogo, producto). En las pantallas
+ * de una tarea o de la cuenta (acceso, carrito, pago, cuenta y pedidos) se omite para no distraer.
+ */
+const NO_FOOTER_PREFIXES = [
+  paths.shopLogin,
+  paths.shopRegister,
+  paths.shopCart,
+  paths.shopCheckout,
+  paths.shopAccount,
+] as const
+
+const hasFooter = (pathname: string) =>
+  !NO_FOOTER_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+
 function CartCounter() {
   const { count } = useCart()
   const label =
@@ -96,7 +111,7 @@ function AccountMenu() {
           aria-controls="shop-account-menu"
           onClick={() => setOpen((current) => !current)}
         >
-          Hola, {customer.name}
+          Hola, <span className="shop-header__customer-name">{customer.name}</span>
           <svg className="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="m6 9 6 6 6-6" />
           </svg>
@@ -249,20 +264,22 @@ export function ShopLayout() {
           <main id="shop-main" className="shop-main">
             <Outlet />
           </main>
-          <footer className="shop-footer">
-            <div className="shop-wrap shop-footer__content">
-              <div className="shop-footer__top">
-                <div className="shop-footer__brand">
-                  <Link to={paths.shop} className="shop-footer__logo" aria-label="REGALÍA">
-                    REGALÍA
-                  </Link>
-                  <p>El arte de tener un detalle.</p>
+          {hasFooter(location.pathname) && (
+            <footer className="shop-footer">
+              <div className="shop-wrap shop-footer__content">
+                <div className="shop-footer__top">
+                  <div className="shop-footer__brand">
+                    <Link to={paths.shop} className="shop-footer__logo" aria-label="REGALÍA">
+                      REGALÍA
+                    </Link>
+                    <p>El arte de tener un detalle.</p>
+                  </div>
+                  <SocialLinks />
                 </div>
-                <SocialLinks />
+                <p className="shop-footer__copy">© {new Date().getFullYear()} REGALÍA</p>
               </div>
-              <p className="shop-footer__copy">© {new Date().getFullYear()} REGALÍA</p>
-            </div>
-          </footer>
+            </footer>
+          )}
         </div>
       </CartProvider>
     </CustomerProvider>

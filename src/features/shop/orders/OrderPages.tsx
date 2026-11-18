@@ -392,11 +392,6 @@ export function MyOrdersPage() {
 
   return (
     <div className="shop-page order-page order-history-page">
-      <nav aria-label="Ruta de navegación" className="breadcrumb">
-        <Link to={paths.shopCatalog}>Inicio</Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">Mis pedidos</span>
-      </nav>
       <header className="intro order-page-heading">
         <p className="eyebrow order-eyebrow">Tu cuenta</p>
         <h1>Mis pedidos</h1>
