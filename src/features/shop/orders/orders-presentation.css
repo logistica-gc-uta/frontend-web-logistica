@@ -227,10 +227,25 @@
   font: inherit;
 }
 
-.shop .order-history-page .filter-bar .button {
+/* "Limpiar filtros": solo texto subrayado y gris, como "Quitar filtros" del catálogo. */
+.shop .order-history-page .filter-bar .button,
+.shop .order-history-page .filter-bar .button:hover {
   min-height: 44px;
-  padding: 10px 16px;
-  font-size: 14px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.shop .order-history-page .filter-bar .button {
+  color: var(--color-muted);
+}
+
+.shop .order-history-page .filter-bar .button:hover {
+  color: var(--color-heading);
 }
 
 .shop .order-history-page .results-bar {

@@ -10,7 +10,11 @@ interface ProductCardProps {
   fromSearch?: string
 }
 
-/** Tarjeta de un regalo: imagen, nombre, categoría, precio, disponibilidad y enlace al detalle. */
+/**
+ * Tarjeta de un regalo: sobre la imagen van la categoría (arriba a la izquierda) y la
+ * disponibilidad (arriba a la derecha); debajo, el nombre, la descripción breve y el precio. El
+ * envío gratis es un aviso general de la página, no de cada tarjeta.
+ */
 export function ProductCard({ product, fromSearch = '' }: ProductCardProps) {
   const primary = product.images.find((image) => image.isPrimary)
 
@@ -24,20 +28,23 @@ export function ProductCard({ product, fromSearch = '' }: ProductCardProps) {
       >
         <figure className="product-figure">
           <ProductImage src={product.primaryImageUrl} alt={primary?.altText || product.name} />
+          {product.category && (
+            <span className="product-card__tag product-card__category">{product.category.name}</span>
+          )}
+          <span
+            className={`product-card__tag product-card__status${product.isAvailable ? '' : ' product-card__status--out'}`}
+          >
+            {product.isAvailable ? 'Disponible' : 'Agotado'}
+          </span>
         </figure>
         <div className="product-body product-card__body">
-          {product.category && <p className="category product-card__category">{product.category.name}</p>}
-          <h3 className="product-name product-card__name">{product.name}</h3>
+          <h3 className="product-name product-card__name" title={product.name}>
+            {product.name}
+          </h3>
           {product.description && (
             <p className="description product-card__description">{product.description}</p>
           )}
-          <div className="product-bottom">
-            <span className="price product-card__price">{formatCents(product.priceCents)}</span>
-            <span className={`badge${product.isAvailable ? ' badge--success' : ' badge--danger'}`}>
-              {product.isAvailable ? 'Disponible' : 'Agotado'}
-            </span>
-          </div>
-          <p className="product-card__shipping">Envío gratis — incluido en el precio</p>
+          <span className="price product-card__price">{formatCents(product.priceCents)}</span>
         </div>
       </Link>
     </article>

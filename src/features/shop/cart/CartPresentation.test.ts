@@ -6,7 +6,7 @@ const styles = readFileSync('src/features/shop/cart/cart-presentation.css', 'utf
 describe('REGALÍA cart presentation', () => {
   it('bounds the bag and shows the full gift photo', () => {
     expect(styles).toMatch(
-      /\.shop \.shop-page\.cart-presentation\s*\{[^}]*max-width:\s*1200px/s,
+      /\.shop \.shop-page\.cart-presentation\s*\{[^}]*max-width:\s*1120px/s,
     )
     expect(styles).toMatch(
       /\.shop \.cart-presentation \.cart-line__image\s*\{[^}]*object-fit:\s*contain/s,

@@ -134,9 +134,6 @@ export function ProductDetailPage() {
       <nav aria-label="Ruta de navegación" className="breadcrumb">
         <ol>
           <li>
-            <Link to={paths.shop}>Inicio</Link>
-          </li>
-          <li>
             <Link to={catalogLink}>Catálogo</Link>
           </li>
           {product.data && <li aria-current="page">{product.data.name}</li>}
