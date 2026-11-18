@@ -51,9 +51,6 @@ export function ShopRegisterPage() {
 
   return (
     <div className="shop-page account-page account-presentation">
-      <Link to={paths.shopCatalog} className="account__back">
-        ← Volver al catálogo
-      </Link>
       <div className="account__access">
         <aside className="account__context" aria-labelledby="account-context-title">
           <p className="account__eyebrow">Mi cuenta · REGALÍA</p>
