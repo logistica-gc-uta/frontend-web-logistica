@@ -43,10 +43,8 @@ describe('App', () => {
 
     expect(homeHeading()).toBeInTheDocument()
     expect(screen.getByRole('banner')).toHaveTextContent(adminSession.user.name)
-    expect(screen.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
+    // El panel es siempre claro: no hay selector de tema.
+    expect(screen.queryByRole('button', { name: 'Modo oscuro' })).not.toBeInTheDocument()
   })
 
   it('cierra sesión desde el encabezado y vuelve al login', async () => {
