@@ -56,6 +56,20 @@ docker build --build-arg VITE_API_URL=https://api-regalia.sjproyects.me/api/v1 -
 | `pnpm test:integration` | Pruebas de integración contra el backend real (ver abajo)                   |
 | `pnpm test:e2e`         | Pruebas E2E en el navegador (Playwright) contra el backend real (ver abajo) |
 
+## Zonas legadas desactivadas en el panel
+
+La operación web usa **Tienda y cobertura**: allí se configuran el origen y el área de entrega.
+Pedidos conserva filtros de fecha y estado; Planificación calcula por fecha, sin consultar el
+catálogo de zonas. El menú y los accesos `/admin/zonas` y `/zonas` ya no abren su administración.
+
+Esta etapa no elimina tablas, API ni datos: los pedidos y rutas antiguos conservan su zona,
+y las confirmaciones respetan la zona opcional de la propuesta del backend. La ejecución,
+los movimientos y el historial mantienen sus reglas de compatibilidad. No se requiere migración.
+El backend conserva su API legada; esto no constituye una desactivación global para otros clientes.
+
+Las pruebas de integración y E2E descritas abajo aún conservan fixtures de zonas para compatibilidad
+legada; no son una guía para configurar zonas nuevas ni se ejecutan contra producción.
+
 ## Pruebas de integración
 
 `pnpm test:integration` ejecuta `src/integration/**/*.int.test.ts` contra la API real (NestJS + PostgreSQL), **sin mocks**.

@@ -37,7 +37,7 @@ describe('ADMIN · menú y permisos', () => {
     for (const item of [
       'Pedidos',
       'Planificación',
-      'Zonas',
+      'Tienda y cobertura',
       'Productos',
       'Categorías',
       'Configuración Shop',

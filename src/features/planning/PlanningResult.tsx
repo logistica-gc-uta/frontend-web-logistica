@@ -112,9 +112,7 @@ export function PlanningResult({ data }: PlanningResultProps) {
 
       {routes.length === 0 ? (
         <section className="card">
-          <p className="empty-state">
-            No hay pedidos pendientes para planificar en esta fecha y zona.
-          </p>
+          <p className="empty-state">No hay pedidos pendientes para planificar en esta fecha.</p>
         </section>
       ) : (
         <section className="card" aria-labelledby="planning-routes-title">

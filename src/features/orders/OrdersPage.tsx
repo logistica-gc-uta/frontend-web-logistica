@@ -7,7 +7,6 @@ import { Pagination } from '../../components/ui/Pagination'
 import { useFetch } from '../../hooks/useFetch'
 import { productsService } from '../products/productsService'
 import { shopService } from '../shop/shopService'
-import { zonesService } from '../zones/zonesService'
 import { OrderFilters } from './OrderFilters'
 import { NO_FILTERS, type OrderFiltersValue } from './orderFilterValue'
 import { OrderForm } from './OrderForm'
@@ -18,17 +17,9 @@ import '../../styles/orders-admin.css'
 
 const PAGE_SIZE = 10
 
-/**
- * Lo que necesita el formulario de venta (productos, horario y cobertura de la tienda) y el
- * filtro por zona del listado (los pedidos antiguos conservan su zona).
- */
+/** Solo se cargan los datos de tienda necesarios para registrar ventas. */
 const loadFormOptions = () =>
-  Promise.all([
-    zonesService.list(),
-    productsService.list(),
-    shopService.settings(),
-    shopService.storeCoverage(),
-  ])
+  Promise.all([productsService.list(), shopService.settings(), shopService.storeCoverage()])
 
 export function OrdersPage() {
   const formTitleId = useId()
@@ -44,7 +35,6 @@ export function OrdersPage() {
       page,
       pageSize: PAGE_SIZE,
       ...(filters.date && { date: filters.date }),
-      ...(filters.zoneId && { zoneId: filters.zoneId }),
       ...(filters.status && { status: filters.status }),
     }),
     [page, filters],
@@ -82,7 +72,7 @@ export function OrdersPage() {
             loadingText="Cargando formulario..."
             loading={<div className="admin-skeleton" />}
           >
-            {([, products, settings, coverage]) =>
+            {([products, settings, coverage]) =>
               coverage.configured ? (
                 <OrderForm
                   products={products}
@@ -106,11 +96,7 @@ export function OrdersPage() {
 
         <section className="card" aria-labelledby={listTitleId}>
           <h2 id={listTitleId}>Pedidos registrados</h2>
-          <OrderFilters
-            value={filters}
-            zones={options.data?.[0] ?? []}
-            onChange={handleFiltersChange}
-          />
+          <OrderFilters value={filters} onChange={handleFiltersChange} />
           <div
             aria-busy={orders.isLoading}
             className={orders.isLoading && orders.data ? 'is-refreshing' : undefined}

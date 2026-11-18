@@ -163,7 +163,7 @@ describe('planificación del día y horarios (#48, #49)', () => {
 
   it('otro día es solo vista previa: avisa y no ofrece confirmar', async () => {
     const { user } = renderPlanning(futureDay)
-    await screen.findByRole('option', { name: /Ficoa/ })
+    await screen.findByLabelText('Día a planificar')
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
     expect(
@@ -178,7 +178,7 @@ describe('planificación del día y horarios (#48, #49)', () => {
 
   it('explica el margen vigente de agrupación sin prometer la hora de entrega', async () => {
     const { user } = renderPlanning(futureDay)
-    await screen.findByRole('option', { name: /Ficoa/ })
+    await screen.findByLabelText('Día a planificar')
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
     const notice = (await screen.findByText('Horarios agrupados.')).closest('p')!
@@ -189,7 +189,7 @@ describe('planificación del día y horarios (#48, #49)', () => {
 
   it('hoy sí se puede confirmar', async () => {
     const { user } = renderPlanning(proposalsResponse)
-    await screen.findByRole('option', { name: /Ficoa/ })
+    await screen.findByLabelText('Día a planificar')
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
     expect(await screen.findAllByRole('button', { name: 'Confirmar ruta' })).toHaveLength(2)

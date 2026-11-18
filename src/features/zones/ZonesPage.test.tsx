@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { App } from '../../app/App'
+import { ZonesPage } from './ZonesPage'
 import { paths } from '../../app/paths'
 import { adminSession, zones } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
@@ -19,7 +19,7 @@ const newZone: Zone = {
 }
 
 const renderZonesPage = () =>
-  renderWithProviders(<App />, { route: paths.zones, session: adminSession })
+  renderWithProviders(<ZonesPage />, { route: paths.zones, session: adminSession })
 
 const getTable = () => screen.findByRole('table', { name: 'Zonas de entrega registradas' })
 const getForm = () => screen.getByRole('form', { name: 'Nueva zona' })

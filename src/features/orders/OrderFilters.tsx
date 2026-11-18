@@ -1,19 +1,17 @@
 import { Button } from '../../components/ui/Button'
 import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
-import type { Zone } from '../zones/types'
 import { NO_FILTERS, type OrderFiltersValue } from './orderFilterValue'
 import { ORDER_STATUS_LABELS } from './orderLabels'
 import { ORDER_STATUSES, type OrderStatus } from './types'
 
 interface OrderFiltersProps {
   value: OrderFiltersValue
-  zones: Zone[]
   onChange: (value: OrderFiltersValue) => void
 }
 
-export function OrderFilters({ value, zones, onChange }: OrderFiltersProps) {
-  const hasFilters = value.date !== '' || value.zoneId !== '' || value.status !== ''
+export function OrderFilters({ value, onChange }: OrderFiltersProps) {
+  const hasFilters = value.date !== '' || value.status !== ''
 
   return (
     <form className="filters" aria-label="Filtros de pedidos" onSubmit={(e) => e.preventDefault()}>
@@ -23,18 +21,6 @@ export function OrderFilters({ value, zones, onChange }: OrderFiltersProps) {
         value={value.date}
         onChange={(event) => onChange({ ...value, date: event.target.value })}
       />
-      <SelectField
-        label="Zona"
-        value={value.zoneId}
-        onChange={(event) => onChange({ ...value, zoneId: event.target.value })}
-      >
-        <option value="">Todas</option>
-        {zones.map((zone) => (
-          <option key={zone.id} value={zone.id}>
-            {`${zone.code} · ${zone.name}`}
-          </option>
-        ))}
-      </SelectField>
       <SelectField
         label="Estado"
         value={value.status}

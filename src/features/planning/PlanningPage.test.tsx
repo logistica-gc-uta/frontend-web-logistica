@@ -90,14 +90,13 @@ beforeEach(() => {
 })
 
 describe('PlanningPage · previsualizar', () => {
-  it('propone el día de hoy y ofrece las zonas, avisando cuáles no tienen depósito', async () => {
+  it('propone el día de hoy sin depender de zonas', async () => {
     mockApi()
     renderPlanningPage()
 
     expect(await screen.findByLabelText('Día a planificar')).toHaveValue(todayInGuayaquil())
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toContain(
-      'HUA-03 · Huachi (sin depósito)',
-    )
+    expect(screen.queryByLabelText('Zona')).not.toBeInTheDocument()
+    expect(zonesService.list).not.toHaveBeenCalled()
   })
 
   it('exige elegir el día y no calcula sin él', async () => {
@@ -111,17 +110,14 @@ describe('PlanningPage · previsualizar', () => {
     expect(getProposals).not.toHaveBeenCalled()
   })
 
-  it('calcula la propuesta del día y la zona elegidos', async () => {
+  it('calcula la propuesta solo con el día elegido', async () => {
     const getProposals = mockApi()
     const { user } = renderPlanningPage()
     await setDate()
-    await user.selectOptions(screen.getByLabelText('Zona'), 'zone-1')
 
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
-    await waitFor(() =>
-      expect(getProposals).toHaveBeenCalledWith({ date: '2030-02-14', zoneId: 'zone-1' }),
-    )
+    await waitFor(() => expect(getProposals).toHaveBeenCalledWith({ date: '2030-02-14' }))
   })
 
   it('muestra una indicación de carga mientras se calcula', async () => {
@@ -198,7 +194,7 @@ describe('PlanningPage · previsualizar', () => {
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
     expect(
-      await screen.findByText('No hay pedidos pendientes para planificar en esta fecha y zona.'),
+      await screen.findByText('No hay pedidos pendientes para planificar en esta fecha.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Confirmar/ })).not.toBeInTheDocument()
   })

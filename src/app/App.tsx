@@ -33,7 +33,6 @@ import { ProductDetailPage } from '../features/shop/pages/ProductDetailPage'
 import { ShopHomePage } from '../features/shop/pages/ShopHomePage'
 import { ShopNotFoundPage } from '../features/shop/pages/ShopNotFoundPage'
 import { StoreCoveragePage } from '../features/store-coverage/StoreCoveragePage'
-import { ZonesPage } from '../features/zones/ZonesPage'
 import { HomePage } from '../pages/HomePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import {
@@ -126,7 +125,6 @@ export function App() {
           <Route path={paths.emergencies} element={<EmergenciesPage />} />
           <Route path={paths.failedDeliveries} element={<FailedDeliveriesPage />} />
           <Route path={paths.monitor} element={<MonitorPage />} />
-          <Route path={paths.zones} element={<ZonesPage />} />
           <Route path={paths.storeCoverage} element={<StoreCoveragePage />} />
           <Route path={paths.products} element={<CatalogProductsPage />} />
           <Route path={paths.productNew} element={<ProductEditorPage />} />
