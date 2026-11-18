@@ -371,6 +371,9 @@ describe('Shop · catálogo', () => {
       'href',
       '/catalogo?q=rosa&orden=price_asc&pagina=2',
     )
+    // La ruta es solo Catálogo / producto: Inicio es otra vista y ya está en el menú.
+    expect(within(breadcrumb).queryByRole('link', { name: 'Inicio' })).not.toBeInTheDocument()
+    expect(within(breadcrumb).getByText('Ramo de rosas')).toHaveAttribute('aria-current', 'page')
   })
 })
 
