@@ -36,10 +36,13 @@ describe('Shop · tema aislado', () => {
     expect(css).toMatch(/@media \(min-width: 2400px\)\s*\{[^}]*\.shop \.shop-main\s*\{[^}]*width: min\(2240px, calc\(100% - 120px\)\);/s)
   })
 
-  it('contiene los campos del filtro dentro de su columna', () => {
-    expect(css).toMatch(/\.catalog-filters\s*\{[^}]*align-items: stretch;/s)
-    expect(css).toMatch(/\.catalog-filters__prices\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s)
+  it('filtros del catálogo: una sola fila bajo el título y productos a todo el ancho', () => {
+    expect(css).toMatch(/\.catalog-filters\s*\{[^}]*flex-direction: row;[^}]*flex-wrap: wrap;[^}]*align-items: flex-end;/s)
+    expect(css).toMatch(/\.catalog__layout\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s)
+    expect(css).toMatch(/\.catalog-filters__prices\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(130px, 1fr\)\);/s)
     expect(css).toMatch(/\.catalog-filters \.field[^}]*min-width: 0;/s)
+    const mobile = css.slice(css.indexOf('@media (max-width: 768px)'))
+    expect(mobile).toMatch(/\.shop \.catalog-filters\s*\{[^}]*flex-direction: column;/s)
   })
 
   it('no exporta clases genéricas del diseño al panel administrativo', () => {

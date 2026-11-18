@@ -242,8 +242,8 @@ describe('Shop · catálogo', () => {
       inStock: true,
     })
     const filters = screen.getByRole('form', { name: 'Filtrar regalos' })
-    expect(within(filters).getByLabelText('Precio mínimo (USD)')).toHaveValue('5')
-    expect(within(filters).getByLabelText('Solo disponibles')).toBeChecked()
+    expect(within(filters).getByLabelText('Precio mínimo')).toHaveValue('5')
+    expect(within(filters).getByLabelText('En stock')).toBeChecked()
   })
 
   it('combina filtros, los aplica al enviar y vuelve a la primera página', async () => {
@@ -257,9 +257,9 @@ describe('Shop · catálogo', () => {
       expect(within(filters).getByRole('option', { name: 'Flores' })).toBeInTheDocument(),
     )
     await user.selectOptions(within(filters).getByLabelText('Categoría'), 'cat-flores')
-    await user.type(within(filters).getByLabelText('Precio mínimo (USD)'), '10')
-    await user.type(within(filters).getByLabelText('Precio máximo (USD)'), '30,5')
-    await user.click(within(filters).getByLabelText('Solo disponibles'))
+    await user.type(within(filters).getByLabelText('Precio mínimo'), '10')
+    await user.type(within(filters).getByLabelText('Precio máximo'), '30,5')
+    await user.click(within(filters).getByLabelText('En stock'))
 
     await waitFor(() =>
       expect(api.products).toHaveBeenLastCalledWith({
@@ -281,12 +281,12 @@ describe('Shop · catálogo', () => {
     await screen.findByRole('article', { name: 'Ramo de rosas' })
     const filters = screen.getByRole('form', { name: 'Filtrar regalos' })
 
-    await user.type(within(filters).getByLabelText('Precio mínimo (USD)'), 'diez')
+    await user.type(within(filters).getByLabelText('Precio mínimo'), 'diez')
     expect(await within(filters).findByText(/Escribe un monto válido/)).toBeInTheDocument()
 
-    await user.clear(within(filters).getByLabelText('Precio mínimo (USD)'))
-    await user.type(within(filters).getByLabelText('Precio mínimo (USD)'), '40')
-    await user.type(within(filters).getByLabelText('Precio máximo (USD)'), '20')
+    await user.clear(within(filters).getByLabelText('Precio mínimo'))
+    await user.type(within(filters).getByLabelText('Precio mínimo'), '40')
+    await user.type(within(filters).getByLabelText('Precio máximo'), '20')
     expect(
       await within(filters).findByText('El precio máximo debe ser mayor o igual al mínimo'),
     ).toBeInTheDocument()
@@ -331,7 +331,7 @@ describe('Shop · catálogo', () => {
     expect(api.products).toHaveBeenLastCalledWith(expect.objectContaining({ minPriceCents: 500 }))
 
     await user.click(
-      within(screen.getByRole('region', { name: /Todos los regalos/ })).getByRole('button', {
+      within(screen.getByRole('region', { name: /regalos/ })).getByRole('button', {
         name: 'Quitar filtros',
       }),
     )

@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Link, useLocation, useSearchParams } from 'react-router'
-import { paths } from '../../../app/paths'
+import { useLocation, useSearchParams } from 'react-router'
 import { AsyncContent } from '../../../components/ui/AsyncContent'
 import { Button } from '../../../components/ui/Button'
 import { Pagination } from '../../../components/ui/Pagination'
@@ -43,6 +42,12 @@ export function CatalogPage() {
   const products = useFetch(loadProducts, 'No se pudieron cargar los regalos')
   const categories = useFetch(shopService.categories, 'No se pudieron cargar las categorías')
 
+  const total = products.data && !products.isLoading ? products.data.total : null
+  const countLabel = total === null ? '' : `${total} ${total === 1 ? 'regalo' : 'regalos'}`
+
+  const categoryName =
+    categories.data?.find((category) => category.id === state.categoryId)?.name ?? 'Categoría'
+
   const navigate = (next: CatalogState) => setSearchParams(toCatalogParams(next))
   // Cambiar un criterio vuelve a la primera página.
   const applyFilters = (filters: CatalogFilters) => navigate({ ...state, ...filters, page: 1 })
@@ -54,15 +59,8 @@ export function CatalogPage() {
 
   return (
     <div className="shop-page catalog">
-      <nav className="breadcrumb" aria-label="Ruta de navegación">
-        <Link to={paths.shop}>Inicio</Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">Catálogo</span>
-      </nav>
-
       <div className="intro">
         <h1 id="catalog-title">Catálogo de regalos</h1>
-        <p>Encuentra un detalle por ocasión, categoría o precio.</p>
       </div>
 
       <div className="catalog-layout catalog__layout" id="regalos">
@@ -82,7 +80,6 @@ export function CatalogPage() {
               applied={state}
               categories={categories.data ?? []}
               onApply={applyFilters}
-              onClear={() => navigate({ ...state, ...NO_FILTERS, page: 1 })}
             />
             {categories.error && <p className="field__error">{categories.error}</p>}
           </div>
@@ -92,20 +89,14 @@ export function CatalogPage() {
           <div className="results-bar catalog__toolbar">
             <div>
               <h2 className="results-heading" id="catalog-results-title" aria-live="polite">
-                {state.search ? `Resultados para «${state.search}»` : 'Todos los regalos'}
-                {products.data && !products.isLoading && (
+                {state.search ? `Resultados para «${state.search}»` : total === null ? 'Regalos' : countLabel}
+                {state.search && total !== null && (
                   <small>
                     {' '}
-                    · {products.data.total} {products.data.total === 1 ? 'regalo' : 'regalos'}
+                    · {countLabel}
                   </small>
                 )}
               </h2>
-              {products.data && !products.isLoading && (
-                <p id="result-status">
-                  {products.data.total} {products.data.total === 1 ? 'regalo disponible' : 'regalos disponibles'}
-                </p>
-              )}
-              <p className="catalog__shipping">Todos nuestros regalos incluyen envío gratis.</p>
             </div>
             {hasActiveFilters(state) && (
               <ul className="filter-chips" aria-label="Filtros activos">
@@ -123,7 +114,7 @@ export function CatalogPage() {
                       className="filter-chip"
                       onClick={() => applyFilters({ ...state, categoryId: '' })}
                     >
-                      Categoría ×
+                      {categoryName} ×
                     </button>
                   </li>
                 ) : null}
@@ -144,10 +135,19 @@ export function CatalogPage() {
                 {state.inStock ? (
                   <li>
                     <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, inStock: false })}>
-                      Solo disponibles ×
+                      En stock ×
                     </button>
                   </li>
                 ) : null}
+                <li>
+                  <button
+                    type="button"
+                    className="filter-clear"
+                    onClick={() => navigate({ ...state, ...NO_FILTERS, page: 1 })}
+                  >
+                    Quitar filtros
+                  </button>
+                </li>
               </ul>
             )}
             <div className="catalog__sort-actions">
@@ -172,6 +172,8 @@ export function CatalogPage() {
             </div>
           </div>
 
+          <p className="shop-section__note catalog__shipping">Todos nuestros regalos incluyen envío gratis.</p>
+
           <div className={products.isLoading && products.data ? 'is-refreshing' : undefined}>
             <AsyncContent
               {...products}
@@ -192,12 +194,6 @@ export function CatalogPage() {
                     ) : hasActiveFilters(state) ? (
                       <>
                         <p>No encontramos regalos con esos criterios.</p>
-                        <Button
-                          variant="secondary"
-                          onClick={() => navigate({ ...state, ...NO_FILTERS, page: 1 })}
-                        >
-                          Quitar filtros
-                        </Button>
                       </>
                     ) : (
                       <p>Todavía no hay regalos publicados.</p>
