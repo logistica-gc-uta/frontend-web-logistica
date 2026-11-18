@@ -25,7 +25,10 @@ describe('LoginPage', () => {
   it('muestra el formulario de inicio de sesión', () => {
     renderLogin()
 
-    expect(screen.getByRole('heading', { name: 'Iniciar sesión en REGALÍA · Demo APE7' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument()
+    expect(screen.getByText('Panel administrativo de logística').parentElement).toHaveTextContent(
+      /^Panel administrativo de logística · Demo APE7$/,
+    )
     expect(getEmailInput()).toBeInTheDocument()
     expect(getPasswordInput()).toBeInTheDocument()
     expect(getSubmitButton()).toBeEnabled()

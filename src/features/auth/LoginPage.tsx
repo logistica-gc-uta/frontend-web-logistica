@@ -51,8 +51,8 @@ export function LoginPage() {
         <div className="auth-card__toolbar">
           <AdminThemeToggle dark={dark} onToggle={toggle} />
         </div>
-        <h1>Iniciar sesión en REGALÍA · Demo APE7</h1>
-        <p className="text-muted">Panel administrativo de logística</p>
+        <h1>Iniciar sesión</h1>
+        <p className="text-muted"><span>Panel administrativo de logística</span> · Demo APE7</p>
 
         {submitError && <Alert>{submitError}</Alert>}
 
