@@ -105,6 +105,7 @@ export function CatalogPage() {
                   {products.data.total} {products.data.total === 1 ? 'regalo disponible' : 'regalos disponibles'}
                 </p>
               )}
+              <p className="catalog__shipping">Todos nuestros regalos incluyen envío gratis.</p>
             </div>
             {hasActiveFilters(state) && (
               <ul className="filter-chips" aria-label="Filtros activos">

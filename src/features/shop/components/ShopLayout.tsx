@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { paths } from '../../../app/paths'
 import { useFetch } from '../../../hooks/useFetch'
@@ -9,7 +9,6 @@ import { useCart } from '../cart/cartContext'
 import { catalogSearch } from '../catalogQuery'
 import { shopService } from '../shopService'
 import { shopDocumentTitle } from '../shopTitles'
-import { ShopThemeToggle } from './ShopThemeToggle'
 
 function CartCounter() {
   const { count } = useCart()
@@ -128,59 +127,53 @@ function AccountMenu() {
   )
 }
 
-function HeaderSearch() {
-  const navigate = useNavigate()
-  const [term, setTerm] = useState('')
+/** Redes de muestra: llevan a la página de inicio de sesión de cada red, en pestaña nueva. */
+const SOCIAL_LINKS = [
+  {
+    name: 'Facebook',
+    href: 'https://www.facebook.com/login/',
+    path: 'M14 8.5V6.8c0-.8.2-1.3 1.4-1.3H17V2.2c-.3 0-1.3-.2-2.5-.2C12 2 10.3 3.500 10.3 6.300v2.200H8v3.300h2.300V22H14v-10.200h2.500l.4-3.300H14Z',
+  },
+  {
+    name: 'Instagram',
+    href: 'https://www.instagram.com/accounts/login/',
+    path: 'M7.500 3h9A4.500 4.500 0 0 1 21 7.500v9a4.500 4.500 0 0 1-4.500 4.500h-9A4.500 4.500 0 0 1 3 16.500v-9A4.500 4.500 0 0 1 7.500 3Zm4.500 5.500a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7Zm5.200-2.200a.8.8 0 1 0 0 1.600.8.8 0 0 0 0-1.600Z',
+    outline: true,
+  },
+  {
+    name: 'TikTok',
+    href: 'https://www.tiktok.com/login',
+    path: 'M16.500 3c.3 2.300 1.600 3.700 4 3.900v3.100c-1.400.1-2.700-.3-4-1.100v5.600c0 3.600-2.700 6-5.800 6-3 0-5.500-2.300-5.500-5.400 0-3.400 2.900-5.900 6.300-5.400v3.200c-1.600-.4-3.200.5-3.200 2.200 0 1.300 1 2.200 2.300 2.200 1.400 0 2.400-1 2.400-2.700V3h3.500Z',
+  },
+] as const
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    navigate(`${paths.shopCatalog}${catalogSearch({ search: term.trim() })}`)
-    setTerm('')
-  }
-
+function SocialLinks() {
   return (
-    <form role="search" aria-label="Buscar regalos" className="shop-search" onSubmit={submit}>
-      <label htmlFor="shop-search-term" className="visually-hidden">
-        Buscar regalos
-      </label>
-      <svg
-        className="icon shop-search__icon"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        aria-hidden="true"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.35-4.35" />
-      </svg>
-      <input
-        id="shop-search-term"
-        type="search"
-        className="shop-search__input field__input"
-        placeholder="Busca un detalle especial…"
-        maxLength={100}
-        value={term}
-        onChange={(event) => setTerm(event.target.value)}
-      />
-      <button type="submit" className="btn btn--primary shop-search__submit" aria-label="Buscar" title="Buscar">
-        <span className="shop-search__submit-text">Buscar</span>
-        <svg
-          className="icon shop-search__submit-icon"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          aria-hidden="true"
+    <nav aria-label="Redes sociales" className="shop-social">
+      {SOCIAL_LINKS.map((social) => (
+        <a
+          key={social.name}
+          href={social.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shop-social__link"
+          aria-label={`${social.name} (se abre en una pestaña nueva)`}
+          title={social.name}
         >
-          <path d="M5 12h14m-7-7 7 7-7 7" />
-        </svg>
-      </button>
-    </form>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill={'outline' in social ? 'none' : 'currentColor'}
+            stroke={'outline' in social ? 'currentColor' : 'none'}
+            strokeWidth="1.6"
+          >
+            <path d={social.path} />
+          </svg>
+        </a>
+      ))}
+    </nav>
   )
 }
 
@@ -189,10 +182,10 @@ function HeaderSearch() {
  * accesos ADMIN. La sesión del cliente (CLIENT) es propia del Shop y no abre el panel.
  */
 export function ShopLayout() {
-  const [dark, setDark] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
   const categories = useFetch(shopService.categories, 'No se pudieron cargar las categorías')
+  const categoriesWithGifts = (categories.data ?? []).filter((category) => category.productCount > 0)
 
   useEffect(() => {
     document.title = shopDocumentTitle(location.pathname)
@@ -202,16 +195,42 @@ export function ShopLayout() {
   return (
     <CustomerProvider>
       <CartProvider>
-        <div className="shop" data-theme={dark ? 'dark' : 'light'}>
+        <div className="shop" data-theme="light">
           <a href="#shop-main" className="skip-link">
             Saltar al contenido
           </a>
           <header className="shop-header">
-            <div className="shop-wrap shop-header__top">
+            <div className={`shop-wrap shop-header__top${menuOpen ? ' is-open' : ''}`}>
               <Link to={paths.shop} className="shop-header__brand" aria-label="REGALÍA">
                 REGALÍA
               </Link>
-              <HeaderSearch />
+              <nav id="shop-occasions" aria-label="Ocasiones" className="shop-occasions-nav">
+                <NavLink to={paths.shop} end className="shop-header__link">
+                  Inicio
+                </NavLink>
+                <div className="shop-nav-dropdown">
+                  <NavLink to={paths.shopCatalog} end className="shop-header__link">
+                    Catálogo
+                    <svg className="icon shop-nav-dropdown__chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </NavLink>
+                  {categoriesWithGifts.length > 0 ? (
+                    <ul className="shop-nav-dropdown__panel">
+                      {categoriesWithGifts.map((category) => (
+                        <li key={category.id}>
+                          <Link
+                            to={`${paths.shopCatalog}${catalogSearch({ categoryId: category.id })}`}
+                            className="shop-nav-dropdown__item"
+                          >
+                            {category.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </nav>
               <button
                 type="button"
                 className="shop-header__menu-toggle"
@@ -221,35 +240,9 @@ export function ShopLayout() {
               >
                 {menuOpen ? 'Cerrar menú' : 'Menú'}
               </button>
-              <ShopThemeToggle dark={dark} onToggle={() => setDark((current) => !current)} />
               <div className="shop-tools">
                 <AccountMenu />
                 <CartCounter />
-              </div>
-            </div>
-            <div className={`shop-nav-row${menuOpen ? ' is-open' : ''}`}>
-              <div className="shop-wrap shop-nav">
-                <nav id="shop-occasions" aria-label="Ocasiones" className="shop-occasions-nav">
-                  <NavLink to={paths.shop} end className="shop-header__link">
-                    Inicio
-                  </NavLink>
-                  <NavLink to={paths.shopCatalog} end className="shop-header__link">
-                    Todos los regalos
-                  </NavLink>
-                  {categories.data &&
-                    categories.data
-                      .filter((category) => category.productCount > 0)
-                      .slice(0, 5)
-                      .map((category) => (
-                        <NavLink
-                          key={category.id}
-                          to={`${paths.shopCatalog}${catalogSearch({ categoryId: category.id })}`}
-                          className="shop-header__link"
-                        >
-                          {category.name}
-                        </NavLink>
-                      ))}
-                </nav>
               </div>
             </div>
           </header>
@@ -258,15 +251,16 @@ export function ShopLayout() {
           </main>
           <footer className="shop-footer">
             <div className="shop-wrap shop-footer__content">
-              <span>REGALÍA · El arte de tener un detalle.</span>
-              <nav aria-label="Pie de página">
-                <Link to={paths.shop}>Inicio</Link>
-                {' · '}
-                <Link to={paths.shopCatalog}>Catálogo</Link>
-                {' · '}
-                <Link to={paths.shopAccount}>Mi cuenta</Link>
-              </nav>
-              <span>Envío gratis incluido en el precio de cada regalo.</span>
+              <div className="shop-footer__top">
+                <div className="shop-footer__brand">
+                  <Link to={paths.shop} className="shop-footer__logo" aria-label="REGALÍA">
+                    REGALÍA
+                  </Link>
+                  <p>El arte de tener un detalle.</p>
+                </div>
+                <SocialLinks />
+              </div>
+              <p className="shop-footer__copy">© {new Date().getFullYear()} REGALÍA</p>
             </div>
           </footer>
         </div>
