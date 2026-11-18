@@ -269,9 +269,7 @@ export function ShopLayout() {
               <div className="shop-wrap shop-footer__content">
                 <div className="shop-footer__top">
                   <div className="shop-footer__brand">
-                    <Link to={paths.shop} className="shop-footer__logo" aria-label="REGALÍA">
-                      REGALÍA
-                    </Link>
+                    <span className="shop-footer__logo">REGALÍA</span>
                     <p>El arte de tener un detalle.</p>
                   </div>
                   <SocialLinks />
