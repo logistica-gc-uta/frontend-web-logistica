@@ -2546,29 +2546,29 @@
 
 }
 
-/* Listas desplegables de Categoría y Ordenar por: mismo estilo que el menú Catálogo.
- * Usa la personalización nativa de <select> (appearance: base-select); los navegadores que no la
- * soportan siguen mostrando su lista normal. */
+/* Todas las listas desplegables de la tienda (Categoría, Ordenar por, cantidad del carrito, etc.):
+ * mismo estilo que el menú Catálogo. Usa la personalización nativa de <select>
+ * (appearance: base-select); los navegadores que no la soportan muestran su lista normal. */
 @supports (appearance: base-select) {
-  .shop .catalog-filters select,
-  .shop .catalog__sort select,
-  .shop .catalog-filters select::picker(select),
-  .shop .catalog__sort select::picker(select) {
+  .shop select,
+  .shop select::picker(select) {
     appearance: base-select;
   }
 
-  .shop .catalog-filters select,
-  .shop .catalog__sort select {
+  .shop select {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    width: 100%;
     cursor: pointer;
   }
 
-  .shop .catalog-filters select::picker-icon,
-  .shop .catalog__sort select::picker-icon {
+  .shop .catalog-filters select,
+  .shop .catalog__sort select {
+    width: 100%;
+  }
+
+  .shop select::picker-icon {
     content: '';
     flex-shrink: 0;
     width: 6px;
@@ -2580,16 +2580,14 @@
     transition: rotate 0.15s ease, margin 0.15s ease;
   }
 
-  .shop .catalog-filters select:open::picker-icon,
-  .shop .catalog__sort select:open::picker-icon {
+  .shop select:open::picker-icon {
     margin-top: 3px;
     rotate: 225deg;
   }
 
-  .shop .catalog-filters select::picker(select),
-  .shop .catalog__sort select::picker(select) {
+  .shop select::picker(select) {
     box-sizing: border-box;
-    min-width: 208px;
+    min-width: 72px;
     margin-top: 8px;
     padding: 6px;
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
@@ -2600,8 +2598,12 @@
     box-shadow: 0 12px 32px -12px rgb(20 40 20 / 22%);
   }
 
-  .shop .catalog-filters select option,
-  .shop .catalog__sort select option {
+  .shop .catalog-filters select::picker(select),
+  .shop .catalog__sort select::picker(select) {
+    min-width: 208px;
+  }
+
+  .shop select option {
     display: flex;
     align-items: center;
     min-height: 38px;
@@ -2617,26 +2619,21 @@
     transition: background 0.15s ease, border-color 0.15s ease;
   }
 
-  .shop .catalog-filters select option:focus-visible,
-  .shop .catalog__sort select option:focus-visible {
+  .shop select option:focus-visible {
     outline: none;
   }
 
-  .shop .catalog-filters select option::checkmark,
-  .shop .catalog__sort select option::checkmark {
+  .shop select option::checkmark {
     display: none;
   }
 
-  .shop .catalog-filters select option:hover,
-  .shop .catalog-filters select option:focus-visible,
-  .shop .catalog__sort select option:hover,
-  .shop .catalog__sort select option:focus-visible {
+  .shop select option:hover,
+  .shop select option:focus-visible {
     border-left-color: var(--color-accent);
     background: color-mix(in srgb, var(--color-accent-soft) 70%, transparent);
   }
 
-  .shop .catalog-filters select option:checked,
-  .shop .catalog__sort select option:checked {
+  .shop select option:checked {
     font-weight: 600;
     color: var(--color-heading);
   }

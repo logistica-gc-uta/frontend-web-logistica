@@ -129,13 +129,6 @@ function CartLineItem({ line }: { line: CartLine }) {
 function CartHeading() {
   return (
     <header className="cart__heading">
-      <nav aria-label="Ruta de navegación" className="cart__breadcrumb">
-        <Link to={paths.shop}>Inicio</Link>
-        <span aria-hidden="true">/</span>
-        <Link to={paths.shopCatalog}>Catálogo</Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">Bolsa</span>
-      </nav>
       <h1>Tu bolsa de regalos</h1>
       <p>Revisa tus detalles, antes del siguiente paso.</p>
     </header>
@@ -145,7 +138,6 @@ function CartHeading() {
 function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canCheckout: boolean }) {
   return (
     <aside className="cart-summary" aria-labelledby="cart-summary-title">
-      <p className="cart__eyebrow">Un vistazo a tus regalos</p>
       <h2 id="cart-summary-title">Resumen estimado</h2>
       <dl>
         <div>
