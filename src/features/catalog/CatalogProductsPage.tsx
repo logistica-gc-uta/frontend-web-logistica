@@ -226,6 +226,7 @@ export function CatalogProductsPage() {
           <TextField
             label="Buscar por nombre, SKU o descripción"
             type="search"
+            placeholder="Ej.: ramo de rosas o REG-OC-MEJ-014"
             value={draft.search}
             onChange={(event) => setDraft({ ...draft, search: event.target.value })}
           />
@@ -251,18 +252,20 @@ export function CatalogProductsPage() {
             options={STATUS_OPTIONS}
             onChange={(status) => setDraft({ ...draft, status: status as ProductStatusFilter })}
           />
-          <Button type="submit">Filtrar</Button>
-          <button
-            type="button"
-            className="catalog-filters__clear"
-            onClick={() => {
-              setDraft(NO_FILTERS)
-              setFilters(NO_FILTERS)
-              setPage(1)
-            }}
-          >
-            Quitar filtros
-          </button>
+          <div className="catalog-filters__actions">
+            <Button type="submit">Filtrar</Button>
+            <button
+              type="button"
+              className="catalog-filters__clear"
+              onClick={() => {
+                setDraft(NO_FILTERS)
+                setFilters(NO_FILTERS)
+                setPage(1)
+              }}
+            >
+              Quitar filtros
+            </button>
+          </div>
         </form>
 
         {notice && <Alert variant={notice.ok ? 'success' : 'error'}>{notice.text}</Alert>}
