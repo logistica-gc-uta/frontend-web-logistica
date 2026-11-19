@@ -9,6 +9,7 @@ import {
 } from '../../test/monitorFixtures'
 import { availableDriver, busyDriver } from '../../test/planningFixtures'
 import { driversService } from '../planning/driversService'
+import { MONITOR_ROUTE_STATUS_LABELS, routeStatusShort } from './monitorLabels'
 import { boardSubscriptions, loadMonitorBoard } from './monitorBoard'
 import { monitorService } from './monitorService'
 import { driverState, routeProgress } from './routeProgress'
@@ -125,6 +126,17 @@ describe('driverState', () => {
   it('sin chofer no hay estado de chofer', () => {
     expect(driverState(monitorRoute({ driverId: null }), undefined)).toBeNull()
   })
+
+  it('una ruta CANCELLED no muestra al chofer como ocupado ni retornando', () => {
+    expect(
+      driverState(
+        monitorRoute({ status: 'CANCELLED', driverId: 'driver-1', returnedAt: null }),
+        availableDriver,
+      ),
+    ).toBeNull()
+    expect(MONITOR_ROUTE_STATUS_LABELS.CANCELLED).toBe('Cancelada (CANCELLED)')
+    expect(routeStatusShort('CANCELLED')).toBe('Cancelada')
+  })
 })
 
 describe('loadMonitorBoard y boardSubscriptions', () => {
@@ -134,6 +146,7 @@ describe('loadMonitorBoard y boardSubscriptions', () => {
     vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([
       monitorRoute({ id: 'hoy' }),
       monitorRoute({ id: 'borrador', status: 'DRAFT', driverId: null }),
+      monitorRoute({ id: 'cancelada', status: 'CANCELLED', driverId: 'driver-1' }),
       monitorRoute({ id: 'ayer', date: '2026-10-20T15:00:00Z' }),
     ])
     vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])

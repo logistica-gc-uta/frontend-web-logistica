@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { HttpStatusCode } from 'axios'
 import { shopErrorInfo } from '../shop/shopError'
 import { describeActionError } from '../../lib/http/describeActionError'
 
@@ -70,3 +70,36 @@ export const describeReleaseError = (error: unknown): string =>
     forbidden: 'No tienes permisos para liberar rutas.',
     conflictHint: 'El borrador ya cambió (por ejemplo, se le asignó un chofer): revisa la lista.',
   })
+
+const CANCEL_ROUTE_ERRORS: Record<string, string> = {
+  ROUTE_ALREADY_CANCELLED: 'Esta ruta ya estaba cancelada: revisa la lista actualizada.',
+  ROUTE_NOT_CANCELLABLE:
+    'Esta ruta no se puede cancelar (solo se cancelan rutas asignadas antes de iniciar): revisa la lista actualizada.',
+  ROUTE_ALREADY_STARTED: 'La ruta ya se inició y no se puede cancelar: revisa la lista actualizada.',
+  ROUTE_CONCURRENT_TRANSITION:
+    'La ruta cambió al mismo tiempo por otra operación: revisa la lista actualizada e inténtalo de nuevo.',
+  ROUTE_COHERENCE_INVALID:
+    'El estado actual de la ruta, sus paradas o el chofer no es consistente para cancelar: revisa la lista actualizada.',
+  ROUTE_DRIVER_CHANGED:
+    'El chofer asignado a la ruta cambió antes de cancelar: revisa la lista actualizada.',
+}
+
+export const describeCancelRouteError = (error: unknown): string => {
+  const info = shopErrorInfo(error)
+  if (info.code && CANCEL_ROUTE_ERRORS[info.code]) return CANCEL_ROUTE_ERRORS[info.code]
+  if (info.status === HttpStatusCode.NotFound) {
+    return 'No se encontró la ruta: revisa la lista actualizada.'
+  }
+  return describeActionError(error, {
+    fallback: 'No se pudo cancelar la ruta',
+    forbidden: 'No tienes permisos para cancelar rutas.',
+    conflictHint:
+      'La ruta cambió o ya no se puede cancelar (por ejemplo, ya se inició o cambió de chofer): revisa la lista actualizada.',
+  })
+}
+
+/** 409 o 404 al cancelar indica estado obsoleto en pantalla y requiere revalidar contra el servidor. */
+export const isStaleCancelRouteError = (error: unknown): boolean => {
+  const { status } = shopErrorInfo(error)
+  return status === HttpStatusCode.Conflict || status === HttpStatusCode.NotFound
+}

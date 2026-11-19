@@ -679,3 +679,175 @@ describe('PlanningPage · capacidad del vehículo', () => {
     expect(card('Ruta 1').queryByText('Guardada como borrador')).not.toBeInTheDocument()
   })
 })
+
+describe('PlanningPage · cancelar ruta asignada', () => {
+  const FIRST = 'Ruta guardada 1 · FIC-02'
+  const assignedRoute = () =>
+    savedRouteDetail('route-1', {
+      status: 'ASSIGNED',
+      driverId: 'driver-1',
+      driverName: 'Carlos Chofer',
+      startedAt: null,
+    })
+
+  it('cancela una ruta ASSIGNED con motivo y recarga rutas y choferes', async () => {
+    mockApi()
+    const assigned = assignedRoute()
+    const listRoutes = vi
+      .spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([{ ...assigned, status: 'CANCELLED' }])
+    const listDrivers = vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    const cancelRoute = vi
+      .spyOn(dispatchService, 'cancelRoute')
+      .mockResolvedValue(auditRecord({ action: 'CANCEL_ROUTE', routeId: 'route-1' }))
+    const { user } = renderPlanningPage()
+    await preview(user)
+    await openSaved(user)
+
+    const item = within(await screen.findByRole('listitem', { name: FIRST }))
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    await user.type(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`), 'Camión con falla')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() =>
+      expect(cancelRoute).toHaveBeenCalledWith('route-1', 'Camión con falla'),
+    )
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(3))
+    expect(listDrivers.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(await item.findByText('Cancelada (CANCELLED)')).toBeInTheDocument()
+    expect(item.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+  })
+
+  it('si cancelar responde 409 ROUTE_ALREADY_STARTED revalida rutas y choferes, quita controles al pasar a IN_PROGRESS y conserva el error en la tarjeta', async () => {
+    mockApi()
+    const assigned = assignedRoute()
+    const listRoutes = vi
+      .spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([
+        { ...assigned, status: 'IN_PROGRESS', startedAt: '2030-02-14T15:10:00Z' },
+      ])
+    const listDrivers = vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(
+      createHttpError(409, {
+        data: { statusCode: 409, code: 'ROUTE_ALREADY_STARTED', message: 'Route already started' },
+      }),
+    )
+    const { user } = renderPlanningPage()
+    await preview(user)
+    await openSaved(user)
+
+    const item = within(await screen.findByRole('listitem', { name: FIRST }))
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    await user.type(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`), 'Reorganización de salida')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(3))
+    expect(listDrivers.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(await item.findByText('En curso (IN_PROGRESS)')).toBeInTheDocument()
+    expect(item.queryByRole('group', { name: `Cancelar ${FIRST}` })).not.toBeInTheDocument()
+    expect(item.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    expect(item.queryByRole('button', { name: 'Confirmar cancelación' })).not.toBeInTheDocument()
+    expect(item.getByRole('alert')).toHaveTextContent(/ya se inició/)
+  })
+
+  it('si cancelar responde 409 ROUTE_ALREADY_CANCELLED revalida rutas y choferes, muestra CANCELLED sin reintento y conserva el error en la tarjeta', async () => {
+    mockApi()
+    const assigned = assignedRoute()
+    const listRoutes = vi
+      .spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([
+        {
+          ...assigned,
+          status: 'CANCELLED',
+          cancelledAt: '2030-02-14T15:12:00Z',
+          cancelledById: 'admin-2',
+          cancellationReason: 'Anulada desde otra sesión',
+        },
+      ])
+    const listDrivers = vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(
+      createHttpError(409, {
+        data: {
+          statusCode: 409,
+          code: 'ROUTE_ALREADY_CANCELLED',
+          message: 'Route already cancelled',
+        },
+      }),
+    )
+    const { user } = renderPlanningPage()
+    await preview(user)
+    await openSaved(user)
+
+    const item = within(await screen.findByRole('listitem', { name: FIRST }))
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    await user.type(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`), 'Duplicada')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(3))
+    expect(listDrivers.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(await item.findByText('Cancelada (CANCELLED)')).toBeInTheDocument()
+    expect(item.getByText(/Cancelada por: admin-2/)).toBeInTheDocument()
+    expect(item.queryByRole('group', { name: `Cancelar ${FIRST}` })).not.toBeInTheDocument()
+    expect(item.queryByRole('button')).not.toBeInTheDocument()
+    expect(item.getByRole('alert')).toHaveTextContent(/ya estaba cancelada/)
+  })
+
+  it('si cancelar responde 404 revalida rutas y choferes, quita la ruta inexistente y muestra el error en la superficie', async () => {
+    mockApi()
+    const assigned = assignedRoute()
+    const listRoutes = vi
+      .spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([])
+    const listDrivers = vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(createHttpError(404))
+    const { user } = renderPlanningPage()
+    await preview(user)
+    await openSaved(user)
+
+    const item = within(await screen.findByRole('listitem', { name: FIRST }))
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    await user.type(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`), 'Ruta ya eliminada')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(3))
+    expect(listDrivers.mock.calls.length).toBeGreaterThanOrEqual(3)
+    await waitFor(() =>
+      expect(screen.queryByRole('listitem', { name: FIRST })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(/No se encontró la ruta/)
+  })
+
+  it('ante una falla reintentable (red/500) conserva el diálogo abierto, el motivo y no recarga innecesariamente', async () => {
+    mockApi()
+    const assigned = assignedRoute()
+    const listRoutes = vi.spyOn(planningService, 'listRoutes').mockResolvedValue([assigned])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(new AxiosError('Network Error'))
+    const { user } = renderPlanningPage()
+    await preview(user)
+    await openSaved(user)
+    const callsBeforeSubmit = listRoutes.mock.calls.length
+
+    const item = within(await screen.findByRole('listitem', { name: FIRST }))
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    const input = dialog.getByLabelText(`Motivo para cancelar ${FIRST}`)
+    await user.type(input, 'Reorganización de salida')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent(/No se pudo conectar/)
+    expect(input).toHaveValue('Reorganización de salida')
+    expect(listRoutes).toHaveBeenCalledTimes(callsBeforeSubmit)
+  })
+})

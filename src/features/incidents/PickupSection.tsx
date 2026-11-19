@@ -3,6 +3,8 @@ import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import type { OrderPickup } from '../dispatch/types'
+import type { ResolvedIncidentAction } from './incidentActions'
+import { describeActionDisabledReason } from './incidentLabels'
 
 const REASON_MAX_LENGTH = 500
 
@@ -12,6 +14,10 @@ interface PickupSectionProps {
   title: string
   pickup: OrderPickup | null
   isSaving: boolean
+  isRefreshing?: boolean
+  agreeGate?: ResolvedIncidentAction
+  declineGate?: ResolvedIncidentAction
+  confirmGate?: ResolvedIncidentAction
   /** Devuelven `true` solo si el backend registró la acción. */
   onDecide: (decision: PickupDecision, reason: string) => Promise<boolean>
   onConfirm: (reason: string) => Promise<boolean>
@@ -25,6 +31,10 @@ export function PickupSection({
   title,
   pickup,
   isSaving,
+  isRefreshing = false,
+  agreeGate,
+  declineGate,
+  confirmGate,
   onDecide,
   onConfirm,
 }: PickupSectionProps) {
@@ -32,11 +42,26 @@ export function PickupSection({
   const [reason, setReason] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isBusy = isSaving || isRefreshing
 
   const reasonError = () => (reason.trim() === '' ? 'Escribe un motivo breve' : null)
 
+  if (pickup?.state === 'PICKED_UP') {
+    return (
+      <section className="incident__pickup" aria-label={`Retiro en tienda de ${title}`}>
+        <h4>Retiro en tienda</h4>
+        <p>
+          <strong>Retirado en tienda</strong>
+          {pickup.pickedUpAt ? ` el ${formatDateTime(pickup.pickedUpAt)}` : ''}.
+        </p>
+      </section>
+    )
+  }
+
   if (pickup?.state === 'PENDING_PICKUP') {
+    const canConfirm = confirmGate ? confirmGate.allowed : true
     const confirm = async () => {
+      if (!canConfirm || isBusy) return
       const problem = reasonError()
       setError(problem)
       if (problem) return
@@ -52,8 +77,8 @@ export function PickupSection({
         <p>
           <strong>Pendiente de retiro en tienda</strong> desde el {formatDateTime(pickup.agreedAt)}.
         </p>
-        {confirming ? (
-          <fieldset disabled={isSaving}>
+        {confirming && canConfirm ? (
+          <fieldset disabled={isBusy}>
             <legend>Confirmar retiro físico</legend>
             <TextField
               label="Cómo se confirmó el retiro"
@@ -64,33 +89,50 @@ export function PickupSection({
               onChange={(event) => setReason(event.target.value)}
             />
             <Button
+              disabled={isBusy}
               isLoading={isSaving}
               loadingText="Confirmando..."
               onClick={() => void confirm()}
             >
               Sí, el cliente lo retiró
             </Button>
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
+            <Button variant="secondary" disabled={isBusy} onClick={() => setConfirming(false)}>
               Volver
             </Button>
           </fieldset>
         ) : (
           <>
-            <Button onClick={() => setConfirming(true)}>Confirmar retiro</Button>
-            <p className="incident__pickup-note">
-              Todavía no está entregado: confírmalo solo cuando el cliente se lo lleve.
-            </p>
+            <Button disabled={!canConfirm || isBusy} onClick={() => setConfirming(true)}>
+              Confirmar retiro
+            </Button>
+            {!canConfirm && confirmGate?.fromServer ? (
+              <p className="text-muted">
+                {describeActionDisabledReason(confirmGate.reasonCode)}
+              </p>
+            ) : (
+              <p className="incident__pickup-note">
+                Todavía no está entregado: confírmalo solo cuando el cliente se lo lleve.
+              </p>
+            )}
           </>
         )}
       </section>
     )
   }
 
+  const canAgree = agreeGate ? agreeGate.allowed : true
+  const canDecline = declineGate ? declineGate.allowed : true
+  const activeDecision =
+    (decision === 'agree' && !canAgree) || (decision === 'decline' && !canDecline)
+      ? null
+      : decision
+
   const submit = async () => {
-    const problem = decision === null ? 'Indica si el cliente acepta retirar' : reasonError()
+    if (isBusy) return
+    const problem = activeDecision === null ? 'Indica si el cliente acepta retirar' : reasonError()
     setError(problem)
-    if (problem || decision === null) return
-    if (await onDecide(decision, reason.trim())) {
+    if (problem || activeDecision === null) return
+    if (await onDecide(activeDecision, reason.trim())) {
       setDecision(null)
       setReason('')
     }
@@ -98,7 +140,7 @@ export function PickupSection({
 
   return (
     <section className="incident__pickup" aria-label={`Retiro en tienda de ${title}`}>
-      <fieldset disabled={isSaving}>
+      <fieldset disabled={isBusy || (!canAgree && !canDecline)}>
         <legend>Ofrecer retiro en tienda</legend>
         <p className="text-muted">
           Si el cliente prefiere ir a la tienda, no se crea otra ruta: el pedido queda esperando su
@@ -113,7 +155,8 @@ export function PickupSection({
             <input
               type="radio"
               name={`pickup-${title}`}
-              checked={decision === 'agree'}
+              checked={activeDecision === 'agree'}
+              disabled={!canAgree}
               onChange={() => setDecision('agree')}
             />
             El cliente retirará en tienda
@@ -122,12 +165,19 @@ export function PickupSection({
             <input
               type="radio"
               name={`pickup-${title}`}
-              checked={decision === 'decline'}
+              checked={activeDecision === 'decline'}
+              disabled={!canDecline}
               onChange={() => setDecision('decline')}
             />
             El cliente no acepta retirar
           </label>
         </div>
+        {!canAgree && agreeGate?.fromServer && (
+          <p className="incident__hint">{describeActionDisabledReason(agreeGate.reasonCode)}</p>
+        )}
+        {!canDecline && declineGate?.fromServer && declineGate.reasonCode !== agreeGate?.reasonCode && (
+          <p className="incident__hint">{describeActionDisabledReason(declineGate.reasonCode)}</p>
+        )}
         <TextField
           label="Respuesta del cliente"
           placeholder="Ej.: Prefiere recogerlo en la tienda el lunes"
@@ -138,6 +188,7 @@ export function PickupSection({
         />
         <Button
           variant="secondary"
+          disabled={isBusy || (!canAgree && !canDecline)}
           isLoading={isSaving}
           loadingText="Guardando..."
           onClick={() => void submit()}

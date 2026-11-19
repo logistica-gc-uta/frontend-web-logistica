@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../../lib/http/apiClient'
 import { createHttpResponse } from '../../test/http'
-import { proposalsResponse, savedDraft } from '../../test/planningFixtures'
+import { proposalsResponse, rawRouteFromApi, savedDraft } from '../../test/planningFixtures'
 import { planningService } from './planningService'
 
 describe('planningService', () => {
@@ -50,5 +50,37 @@ describe('planningService', () => {
       },
       { timeout: 30_000 },
     )
+  })
+
+  it('listRoutes conserva rutas CANCELLED en el historial sin exponer datos sensibles', async () => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue(
+      createHttpResponse([
+        {
+          ...rawRouteFromApi,
+          id: 'route-cancelled',
+          status: 'CANCELLED',
+          startedAt: null,
+          cancelledAt: '2030-02-14T17:00:00Z',
+          cancelledById: 'admin-1',
+          cancelReason: 'El vehículo no puede salir',
+        },
+      ]),
+    )
+
+    const [route] = await planningService.listRoutes()
+
+    expect(route).toEqual(
+      expect.objectContaining({
+        id: 'route-cancelled',
+        status: 'CANCELLED',
+        startedAt: null,
+        cancelledAt: '2030-02-14T17:00:00Z',
+        cancelledById: 'admin-1',
+        cancellationReason: 'El vehículo no puede salir',
+        driverId: 'driver-1',
+        driverName: 'Carlos Chofer',
+      }),
+    )
+    expect(JSON.stringify(route)).not.toContain('HASH')
   })
 })
