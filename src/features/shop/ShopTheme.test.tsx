@@ -84,7 +84,7 @@ describe('Shop · tema aislado', () => {
   it('define tinta y superficies de impresión independientes del tema oscuro', () => {
     const print = orderCss.slice(orderCss.indexOf('@media print'))
     expect(print).toMatch(
-      /\.shop \.order-receipt-page\s*\{[^}]*--color-heading: #234D3E !important;[^}]*--color-muted: #4F6257 !important;[^}]*--color-surface: #ffffff !important;/s,
+      /\.shop \.order-receipt-page\s*\{[^}]*--color-heading: #234d3e !important;[^}]*--color-muted: #4f6257 !important;[^}]*--color-surface: #ffffff !important;/s,
     )
   })
 
