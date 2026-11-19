@@ -138,8 +138,14 @@ export interface ConfirmRouteInput {
   driverId?: string
 }
 
-/** `INTERRUPTED`: una emergencia detuvo la ruta en curso (backend #51). */
-export type RouteStatus = 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERRUPTED' | 'COMPLETED'
+/** `INTERRUPTED`: una emergencia detuvo la ruta en curso (backend #51). `CANCELLED`: cancelada antes de iniciar. */
+export type RouteStatus =
+  | 'DRAFT'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'INTERRUPTED'
+  | 'COMPLETED'
+  | 'CANCELLED'
 
 /** Parada de una ruta guardada. */
 export interface RouteOrderSummary {
@@ -166,6 +172,12 @@ export interface SavedRouteDetail {
   zoneName: string
   driverId: string | null
   driverName: string | null
+  /** Instante de inicio si el backend lo incluye; cancelar exige `null` explícito. */
+  startedAt?: string | null
+  /** Evidencia de cancelación, solo cuando la API la devuelve. */
+  cancelledAt?: string | null
+  cancellationReason?: string | null
+  cancelledById?: string | null
   /** Paradas en orden de visita. */
   orders: RouteOrderSummary[]
 }

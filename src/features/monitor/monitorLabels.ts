@@ -9,6 +9,7 @@ export const MONITOR_ROUTE_STATUS_LABELS: Record<MonitorRouteStatus, string> = {
   IN_PROGRESS: 'En curso (IN_PROGRESS)',
   INTERRUPTED: 'Interrumpida por emergencia',
   COMPLETED: 'Completada (COMPLETED)',
+  CANCELLED: 'Cancelada (CANCELLED)',
 }
 
 /** Estado de la ruta en pocas palabras, sin el código técnico: «En curso (IN_PROGRESS)» → «En curso». */

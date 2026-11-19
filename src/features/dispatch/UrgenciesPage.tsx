@@ -269,6 +269,7 @@ export function UrgenciesPage() {
                   onReassign={routeActions.reassign}
                   onReorder={routeActions.reorder}
                   onMove={routeActions.move}
+                  onCancel={routeActions.cancel}
                 />
               </>
             )}

@@ -11,6 +11,7 @@ export type DispatchAction =
   | 'CONTACT'
   | 'RESCHEDULE'
   | 'RELEASE_DRAFT'
+  | 'CANCEL_ROUTE'
   | 'PICKUP_AGREE'
   | 'PICKUP_DECLINE'
   | 'PICKUP_CONFIRM'

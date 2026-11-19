@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import { formatDateTime } from '../../lib/format/formatDateTime'
@@ -11,7 +12,17 @@ import type { KeyedActionState } from '../../hooks/useKeyedActions'
 
 /** Solo antes de iniciar se puede cambiar la estructura de una ruta (igual que en el backend). */
 const isEditable = (route: SavedRouteDetail): boolean =>
-  route.status === 'DRAFT' || route.status === 'ASSIGNED'
+  (route.status === 'DRAFT' || route.status === 'ASSIGNED') && !route.startedAt
+
+/** Reasignar chofer conserva la compatibilidad con registros previos sin `startedAt`. */
+const isReassignable = (route: SavedRouteDetail): boolean =>
+  route.status === 'ASSIGNED' && !route.startedAt
+
+/** Solo una ruta ASSIGNED con `startedAt: null` explícito se puede cancelar (nunca un borrador DRAFT). */
+const isCancellable = (route: SavedRouteDetail): boolean =>
+  route.status === 'ASSIGNED' && route.startedAt === null
+
+const REASON_MAX_LENGTH = 500
 
 /** Capacidad máxima de una ruta (la misma que usa el planificador). */
 const ROUTE_CAPACITY = 4
@@ -40,6 +51,8 @@ interface SavedRoutesProps {
   isToday?: boolean
   /** Libera un borrador sin chofer: sus pedidos vuelven a pendientes (`RELEASE_DRAFT`). */
   onRelease?: (routeId: string, reason: string) => Promise<boolean>
+  /** Cancela una ruta ASSIGNED antes de iniciar (`CANCEL_ROUTE`). */
+  onCancel?: (routeId: string, reason: string) => Promise<boolean>
 }
 
 interface SavedRouteItemProps extends Omit<SavedRoutesProps, 'day' | 'routes' | 'actions'> {
@@ -53,20 +66,23 @@ interface SavedRouteItemProps extends Omit<SavedRoutesProps, 'day' | 'routes' | 
 function ReleaseDraft({
   name,
   action,
+  open,
+  onOpenChange,
   onRelease,
 }: {
   name: string
   action: KeyedActionState | undefined
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onRelease: (reason: string) => Promise<boolean>
 }) {
-  const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const isRunning = action?.status === 'saving'
 
   if (!open) {
     return (
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      <Button variant="secondary" onClick={() => onOpenChange(true)}>
         Liberar borrador
       </Button>
     )
@@ -78,7 +94,7 @@ function ReleaseDraft({
       return
     }
     setError(null)
-    if (await onRelease(reason.trim())) setOpen(false)
+    if (await onRelease(reason.trim())) onOpenChange(false)
   }
 
   return (
@@ -97,7 +113,7 @@ function ReleaseDraft({
       <Button isLoading={isRunning} loadingText="Liberando..." onClick={() => void confirm()}>
         Confirmar liberación
       </Button>
-      <Button variant="secondary" disabled={isRunning} onClick={() => setOpen(false)}>
+      <Button variant="secondary" disabled={isRunning} onClick={() => onOpenChange(false)}>
         Volver
       </Button>
       {action?.status === 'failed' && (
@@ -105,6 +121,90 @@ function ReleaseDraft({
           {action.error}
         </p>
       )}
+    </div>
+  )
+}
+
+/** Cancelar una ruta asignada antes de iniciar: pide motivo y confirma sus efectos. */
+function CancelRoute({
+  name,
+  action,
+  onCancel,
+  onClose,
+}: {
+  name: string
+  action: KeyedActionState | undefined
+  onCancel: (reason: string) => Promise<boolean>
+  onClose: () => void
+}) {
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [attempted, setAttempted] = useState(false)
+  const isRunning = action?.status === 'saving'
+
+  const confirm = async () => {
+    const trimmed = reason.trim()
+    if (trimmed === '') {
+      setError('Escribe el motivo')
+      return
+    }
+    if (trimmed.length > REASON_MAX_LENGTH) {
+      setError(`El motivo no puede superar ${REASON_MAX_LENGTH} caracteres`)
+      return
+    }
+    setError(null)
+    setAttempted(true)
+    if (await onCancel(trimmed)) onClose()
+  }
+
+  return (
+    <div className="route-correction" role="group" aria-label={`Cancelar ${name}`}>
+      <p>
+        Los pedidos no se cancelan: volverán a Planificación para planificarlos de nuevo y el chofer
+        quedará libre. La ruta quedará registrada como cancelada.
+      </p>
+      <TextField
+        label={`Motivo para cancelar ${name}`}
+        placeholder="Ej.: vehículo con avería antes de salir"
+        value={reason}
+        maxLength={REASON_MAX_LENGTH}
+        disabled={isRunning}
+        error={error ?? undefined}
+        onChange={(event) => {
+          setReason(event.target.value)
+          setError(null)
+        }}
+      />
+      <div className="route-correction__actions">
+        <Button isLoading={isRunning} loadingText="Cancelando..." onClick={() => void confirm()}>
+          Confirmar cancelación
+        </Button>
+        <Button variant="secondary" disabled={isRunning} onClick={onClose}>
+          Volver
+        </Button>
+      </div>
+      {attempted && action?.status === 'failed' && <Alert>{action.error}</Alert>}
+    </div>
+  )
+}
+
+function badgeClass(status: SavedRouteDetail['status']): string {
+  if (status === 'ASSIGNED') return 'badge badge--success'
+  if (status === 'CANCELLED') return 'badge badge--danger'
+  return 'badge'
+}
+
+function CancellationEvidence({ route }: { route: SavedRouteDetail }) {
+  if (route.status !== 'CANCELLED') return null
+  const actor = route.cancelledById?.trim() || null
+  const reason = route.cancellationReason?.trim() || null
+  if (!route.cancelledAt && !actor && !reason) return null
+
+  return (
+    <div className="text-muted">
+      {route.cancelledAt && <p>Cancelada el {formatDateTime(route.cancelledAt)}</p>}
+      {actor && <p>Cancelada por: {actor}</p>}
+      {reason && <p>Motivo de cancelación: {reason}</p>}
     </div>
   )
 }
@@ -121,8 +221,21 @@ function SavedRouteItem({
   onMove,
   isToday = true,
   onRelease,
+  onCancel,
 }: SavedRouteItemProps) {
   const [isCorrecting, setIsCorrecting] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [isReleasing, setIsReleasing] = useState(false)
+  const canEdit = isEditable(route)
+  const canReassign = isReassignable(route)
+  const canCancel = isCancellable(route) && Boolean(onCancel)
+  const showAssignPicker = route.status === 'DRAFT' && isToday && !route.startedAt
+  const showReleaseDraft = route.status === 'DRAFT' && !isToday && Boolean(onRelease)
+  const pickerRendersError =
+    (showAssignPicker && drivers.some((driver) => driver.isAvailable)) ||
+    (canReassign && drivers.some((driver) => driver.id !== route.driverId && driver.isAvailable))
+  const showCardError =
+    action?.status === 'failed' && !pickerRendersError && !(showReleaseDraft && isReleasing)
 
   return (
     <li className="saved-route" aria-label={name}>
@@ -130,13 +243,11 @@ function SavedRouteItem({
         <strong>
           {name} · {formatDateTime(route.date)}
         </strong>
-        <span className={`badge${route.status === 'ASSIGNED' ? ' badge--success' : ''}`}>
-          {ROUTE_STATUS_LABELS[route.status]}
-        </span>
+        <span className={badgeClass(route.status)}>{ROUTE_STATUS_LABELS[route.status]}</span>
       </div>
       <p className="text-muted">{ROUTE_STATUS_HELP[route.status]}</p>
 
-      {isCorrecting ? (
+      {isCorrecting && canEdit ? (
         <RouteCorrection
           route={route}
           name={name}
@@ -150,52 +261,75 @@ function SavedRouteItem({
         />
       ) : (
         <>
-          <ol className="saved-route__stops">
-            {route.orders.map((order) => (
-              <li key={order.id}>{order.deliveryAddress}</li>
-            ))}
-          </ol>
+          {route.orders.length > 0 && (
+            <ol className="saved-route__stops">
+              {route.orders.map((order) => (
+                <li key={order.id}>{order.deliveryAddress}</li>
+              ))}
+            </ol>
+          )}
 
           {route.driverName && <p>Chofer: {route.driverName}</p>}
-          {isEditable(route) && (
-            <Button variant="secondary" onClick={() => setIsCorrecting(true)}>
-              Corregir paradas
-            </Button>
-          )}
-          {route.status === 'DRAFT' && !isToday && (
-            <p className="field__error">
-              Este borrador no es de hoy: ya no se puede asignar. Libéralo para planificar sus
-              pedidos de nuevo.
-            </p>
-          )}
-          {route.status === 'DRAFT' && !isToday && onRelease && (
-            <ReleaseDraft
+          <CancellationEvidence route={route} />
+
+          {isCancelling && canCancel && onCancel ? (
+            <CancelRoute
               name={name}
               action={action}
-              onRelease={(reason) => onRelease(route.id, reason)}
+              onCancel={(reason) => onCancel(route.id, reason)}
+              onClose={() => setIsCancelling(false)}
             />
-          )}
-          {route.status === 'DRAFT' && isToday && (
-            <DriverPicker
-              label={`Chofer para ${name}`}
-              submitLabel="Asignar chofer"
-              loadingText="Asignando..."
-              drivers={drivers}
-              state={action}
-              onSubmit={(driverId) => onAssign(route.id, driverId)}
-            />
-          )}
-          {route.status === 'ASSIGNED' && (
-            <DriverPicker
-              label={`Nuevo chofer para ${name}`}
-              submitLabel="Cambiar chofer"
-              loadingText="Cambiando..."
-              drivers={drivers}
-              currentDriverId={route.driverId}
-              reasonLabel={`Motivo del cambio de chofer de ${name}`}
-              state={action}
-              onSubmit={(driverId, reason) => onReassign(route.id, driverId, reason)}
-            />
+          ) : (
+            <>
+              {canEdit && (
+                <Button variant="secondary" onClick={() => setIsCorrecting(true)}>
+                  Corregir paradas
+                </Button>
+              )}
+              {route.status === 'DRAFT' && !isToday && (
+                <p className="field__error">
+                  Este borrador no es de hoy: ya no se puede asignar. Libéralo para planificar sus
+                  pedidos de nuevo.
+                </p>
+              )}
+              {showReleaseDraft && onRelease && (
+                <ReleaseDraft
+                  name={name}
+                  action={action}
+                  open={isReleasing}
+                  onOpenChange={setIsReleasing}
+                  onRelease={(reason) => onRelease(route.id, reason)}
+                />
+              )}
+              {showAssignPicker && (
+                <DriverPicker
+                  label={`Chofer para ${name}`}
+                  submitLabel="Asignar chofer"
+                  loadingText="Asignando..."
+                  drivers={drivers}
+                  state={action}
+                  onSubmit={(driverId) => onAssign(route.id, driverId)}
+                />
+              )}
+              {canReassign && (
+                <DriverPicker
+                  label={`Nuevo chofer para ${name}`}
+                  submitLabel="Cambiar chofer"
+                  loadingText="Cambiando..."
+                  drivers={drivers}
+                  currentDriverId={route.driverId}
+                  reasonLabel={`Motivo del cambio de chofer de ${name}`}
+                  state={action}
+                  onSubmit={(driverId, reason) => onReassign(route.id, driverId, reason)}
+                />
+              )}
+              {canCancel && (
+                <Button variant="secondary" onClick={() => setIsCancelling(true)}>
+                  Cancelar ruta
+                </Button>
+              )}
+              {showCardError && <Alert>{action.error}</Alert>}
+            </>
           )}
         </>
       )}
@@ -210,9 +344,20 @@ function SavedRouteItem({
  */
 export function SavedRoutes({ day, routes, actions, ...handlers }: SavedRoutesProps) {
   const named = namedRoutesOfDay(routes, day)
+  const routeIds = new Set(routes.map((route) => route.id))
+  const missingRouteErrors = Object.entries(actions).flatMap(([routeId, state]) =>
+    state.status === 'failed' && !routeIds.has(routeId) ? [[routeId, state.error] as const] : [],
+  )
 
   if (named.length === 0) {
-    return <p className="empty-state">Aún no hay rutas guardadas para este día.</p>
+    return (
+      <>
+        {missingRouteErrors.map(([routeId, error]) => (
+          <Alert key={routeId}>{error}</Alert>
+        ))}
+        <p className="empty-state">Aún no hay rutas guardadas para este día.</p>
+      </>
+    )
   }
 
   /** Rutas que pueden recibir un pedido de `source`: mismo día y zona, sin iniciar y con lugar. */
@@ -228,17 +373,22 @@ export function SavedRoutes({ day, routes, actions, ...handlers }: SavedRoutesPr
       .map(({ route, name }) => ({ id: route.id, name }))
 
   return (
-    <ul className="saved-routes">
-      {named.map(({ route, name }) => (
-        <SavedRouteItem
-          key={route.id}
-          route={route}
-          name={name}
-          targets={targetsFor(route)}
-          action={actions[route.id]}
-          {...handlers}
-        />
+    <>
+      {missingRouteErrors.map(([routeId, error]) => (
+        <Alert key={routeId}>{error}</Alert>
       ))}
-    </ul>
+      <ul className="saved-routes">
+        {named.map(({ route, name }) => (
+          <SavedRouteItem
+            key={route.id}
+            route={route}
+            name={name}
+            targets={targetsFor(route)}
+            action={actions[route.id]}
+            {...handlers}
+          />
+        ))}
+      </ul>
+    </>
   )
 }

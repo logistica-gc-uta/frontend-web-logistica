@@ -183,6 +183,13 @@ export const dispatchService = {
     intervene('RELEASE_DRAFT', { routeId, reason }),
 
   /**
+   * Cancela una ruta asignada antes de iniciar (`CANCEL_ROUTE`): la ruta pasa a CANCELLED, sus
+   * pedidos vuelven a pendientes sin cancelarse comercialmente y el chofer queda libre.
+   */
+  cancelRoute: (routeId: string, reason: string) =>
+    intervene('CANCEL_ROUTE', { routeId, reason: reason.trim() }),
+
+  /**
    * Retiro en tienda (backend #50). El acuerdo deja el pedido pendiente de retiro sin crear ruta y no
    * es una entrega; tras una entrega fallida debe referirse al último intento (`attemptId`).
    */

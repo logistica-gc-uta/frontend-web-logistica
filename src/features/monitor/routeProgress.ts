@@ -27,7 +27,7 @@ export function routeProgress(route: MonitorRoute): RouteProgress {
 export type DriverState = 'BUSY' | 'RETURNING' | 'AVAILABLE' | 'BUSY_ELSEWHERE'
 
 export function driverState(route: MonitorRoute, driver: Driver | undefined): DriverState | null {
-  if (!route.driverId) return null
+  if (!route.driverId || route.status === 'CANCELLED') return null
   // Una ruta interrumpida (#51) tampoco libera al chofer por sí sola: hace falta confirmar su regreso.
   if (route.status !== 'COMPLETED' && route.status !== 'INTERRUPTED') return 'BUSY'
   if (!route.returnedAt) return 'RETURNING'

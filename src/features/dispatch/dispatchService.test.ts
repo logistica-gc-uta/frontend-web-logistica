@@ -162,6 +162,30 @@ describe('dispatchService · decisiones (POST /dispatch/interventions)', () => {
     })
   })
 
+  it('cancelar una ruta envía CANCEL_ROUTE con requestId, routeId y motivo recortado', async () => {
+    const post = mockPost()
+
+    await dispatchService.cancelRoute('route-1', '  Vehículo averiado antes de salir  ')
+
+    expect(post).toHaveBeenCalledWith('/dispatch/interventions', expect.any(Object), {
+      timeout: 30_000,
+    })
+    expect(lastBody(post)).toEqual({
+      requestId: expect.stringMatching(UUID),
+      action: 'CANCEL_ROUTE',
+      routeId: 'route-1',
+      reason: 'Vehículo averiado antes de salir',
+    })
+  })
+
+  it('cancelar una ruta rechaza si el servidor no responde APPLIED', async () => {
+    mockPost('FAILED')
+
+    await expect(dispatchService.cancelRoute('route-1', 'Sin unidad')).rejects.toThrow(
+      'El servidor no aplicó la decisión. Revisa la lista actualizada.',
+    )
+  })
+
   it('reprogramar registra primero el acuerdo y luego reprograma con ese acuerdo', async () => {
     const post = vi
       .spyOn(apiClient, 'post')

@@ -26,6 +26,7 @@ describe('planningService.listRoutes', () => {
       status: 'ASSIGNED',
       date: '2030-02-14T15:00:00Z',
       createdAt: '2026-10-13T12:00:00Z',
+      startedAt: null,
       zoneId: 'zone-1',
       zoneCode: 'FIC-02',
       zoneName: 'Ficoa',

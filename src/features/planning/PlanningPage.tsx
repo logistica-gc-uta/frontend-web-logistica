@@ -225,6 +225,7 @@ export function PlanningPage() {
                 onMove={routeActions.move}
                 isToday={isToday}
                 onRelease={routeActions.release}
+                onCancel={routeActions.cancel}
               />
             </>
           )}

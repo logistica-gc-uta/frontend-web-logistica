@@ -20,6 +20,10 @@ interface RawRoute {
   status: RouteStatus
   date: string
   createdAt: string
+  startedAt?: string | null
+  cancelledAt?: string | null
+  cancelledById?: string | null
+  cancelReason?: string | null
   zoneId: string | null
   /** `null` en rutas sin zona que salen de la tienda (backend #49). */
   zone: { code: string; name: string } | null
@@ -38,6 +42,10 @@ const toRouteDetail = (raw: RawRoute): SavedRouteDetail => ({
   status: raw.status,
   date: raw.date,
   createdAt: raw.createdAt,
+  ...(raw.startedAt !== undefined ? { startedAt: raw.startedAt } : {}),
+  ...(raw.cancelledAt !== undefined ? { cancelledAt: raw.cancelledAt } : {}),
+  ...(raw.cancelledById !== undefined ? { cancelledById: raw.cancelledById } : {}),
+  ...(raw.cancelReason !== undefined ? { cancellationReason: raw.cancelReason } : {}),
   zoneId: raw.zoneId,
   zoneCode: areaLabel(raw.zone?.code),
   zoneName: raw.zone?.name ?? STORE_AREA_LABEL,

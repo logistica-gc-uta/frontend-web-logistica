@@ -1,6 +1,12 @@
 import { useKeyedActions } from '../../hooks/useKeyedActions'
 import { dispatchService } from '../dispatch/dispatchService'
-import { describeAssignError, describeCorrectionError, describeReleaseError } from './confirmError'
+import {
+  describeAssignError,
+  describeCancelRouteError,
+  describeCorrectionError,
+  describeReleaseError,
+  isStaleCancelRouteError,
+} from './confirmError'
 import { planningService } from './planningService'
 
 /**
@@ -34,5 +40,22 @@ export function useSavedRouteActions(onDone: () => void) {
       ),
     release: (routeId: string, reason: string) =>
       run(routeId, () => dispatchService.releaseDraft(routeId, reason), describeReleaseError),
+    cancel: async (routeId: string, reason: string) => {
+      let stale = false
+      const applied = await run(
+        routeId,
+        async () => {
+          try {
+            return await dispatchService.cancelRoute(routeId, reason)
+          } catch (error) {
+            stale = isStaleCancelRouteError(error)
+            throw error
+          }
+        },
+        describeCancelRouteError,
+      )
+      if (!applied && stale) onDone()
+      return applied
+    },
   }
 }

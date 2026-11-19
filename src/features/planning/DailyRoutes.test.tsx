@@ -140,6 +140,42 @@ describe('regla del día (#49)', () => {
     expect(draft.getByRole('button', { name: 'Asignar chofer' })).toBeInTheDocument()
     expect(draft.queryByRole('button', { name: 'Liberar borrador' })).not.toBeInTheDocument()
   })
+
+  it('con cancelar habilitado, DRAFT conserva Liberar borrador y nunca ofrece Cancelar ruta; ASSIGNED con startedAt: null ofrece Cancelar ruta y nunca Liberar borrador; legado sin startedAt no ofrece cancelar', () => {
+    render(
+      <SavedRoutes
+        day="2030-02-14"
+        routes={[
+          savedRouteDetail('r1'),
+          savedRouteDetail('r2', { status: 'ASSIGNED', startedAt: null }),
+          savedRouteDetail('r3', { status: 'ASSIGNED' }),
+        ]}
+        drivers={[availableDriver]}
+        actions={{}}
+        onAssign={vi.fn()}
+        onReassign={vi.fn()}
+        onReorder={vi.fn()}
+        onMove={vi.fn()}
+        isToday={false}
+        onRelease={vi.fn().mockResolvedValue(true)}
+        onCancel={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    const draft = within(screen.getByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
+    expect(draft.getByRole('button', { name: 'Liberar borrador' })).toBeInTheDocument()
+    expect(draft.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+
+    const assigned = within(screen.getByRole('listitem', { name: 'Ruta guardada 2 · FIC-02' }))
+    expect(assigned.getByRole('button', { name: 'Cancelar ruta' })).toBeInTheDocument()
+    expect(assigned.queryByRole('button', { name: 'Liberar borrador' })).not.toBeInTheDocument()
+
+    const legacyAssigned = within(screen.getByRole('listitem', { name: 'Ruta guardada 3 · FIC-02' }))
+    expect(legacyAssigned.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    expect(legacyAssigned.queryByRole('button', { name: 'Liberar borrador' })).not.toBeInTheDocument()
+    expect(legacyAssigned.getByRole('button', { name: 'Corregir paradas' })).toBeInTheDocument()
+    expect(legacyAssigned.getByRole('button', { name: 'Cambiar chofer' })).toBeInTheDocument()
+  })
 })
 
 describe('planificación del día y horarios (#48, #49)', () => {
