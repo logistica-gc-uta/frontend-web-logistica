@@ -51,8 +51,8 @@
 
 .planning-routes {
   display: grid;
-  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(320px, 440px) minmax(0, 1fr);
+  gap: 32px;
   align-items: start;
 }
 
@@ -62,7 +62,6 @@
   gap: 16px;
   max-height: 640px;
   overflow-y: auto;
-  padding-right: 4px;
 }
 
 .planning-routes__map {
@@ -81,19 +80,25 @@
 }
 
 .proposal {
-  padding: 16px;
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: border-color 0.2s ease;
 }
 
 .proposal--selected {
-  border-color: var(--color-accent);
+  border-color: var(--route-color, var(--color-accent));
+  box-shadow: inset 3px 0 0 var(--route-color, var(--color-accent));
 }
 
 .proposal__header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .proposal__header h3 {
@@ -103,47 +108,130 @@
 }
 
 .proposal__swatch {
-  width: 14px;
-  height: 14px;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
 
+/* Cifras de la ruta: etiqueta pequeña y valor debajo, en dos columnas. */
 .proposal__metrics {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 16px;
-  margin: 12px 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
 }
 
 .proposal__metrics div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 4px;
   min-width: 0;
 }
 
 .proposal__metrics dt {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  color: var(--color-muted);
 }
 
 .proposal__metrics dd {
   margin: 0;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.2;
   color: var(--color-heading);
 }
 
+/* Paradas como línea de tiempo: círculo numerado con el color de la ruta y su línea de unión. */
 .proposal__stops {
-  margin: 0 0 12px;
-  padding-left: 20px;
-  font-size: 0.9375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stop;
+}
+
+.proposal__stops li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 52px;
+  padding: 0 0 16px 38px;
+  counter-increment: stop;
+}
+
+.proposal__stops li:last-child {
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.proposal__stops li::before {
+  content: counter(stop);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--route-color, var(--color-accent));
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.proposal__stops li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 28px;
+  bottom: 4px;
+  left: 11px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.proposal__stop-address {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--color-heading);
+}
+
+.proposal__stop-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.75rem;
+  color: var(--color-muted);
 }
 
 .proposal__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.proposal__actions .btn,
+.proposal__actions .badge {
+  justify-content: center;
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.8125rem;
 }
 
 .proposal .alert {
-  margin: 12px 0 0;
+  margin: 0;
 }
 
 .excluded-list {
@@ -159,7 +247,7 @@
 
 .routes-map__leaflet {
   width: 100%;
-  height: 560px;
+  height: 540px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
@@ -279,7 +367,673 @@
 }
 
 .proposal__return {
-  margin: -4px 0 12px;
+  margin: -8px 0 0;
+  padding-left: 40px;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+/* Los recuadros ocupan todo el ancho disponible de la página, como el resto del panel. */
+.page.planning-page {
+  max-width: none;
+}
+
+/* Recuadro «Previsualizar»: título con línea, el día y el botón a la izquierda y el estado del motor vial a la derecha. */
+.planning-form {
+  padding: 28px 32px 32px;
+}
+
+.planning-form > h2 {
+  margin: 0 0 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 1.125rem;
+}
+
+.planning-form__body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 24px 48px;
+  align-items: end;
+}
+
+.planning-form .filters {
+  margin: 0;
+  gap: 12px;
+}
+
+.planning-form .field {
+  gap: 4px;
+}
+
+.planning-form .field__label {
+  font-size: 0.75rem;
+}
+
+.planning-form .field__input,
+.planning-form .btn {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.planning-form .field__input {
+  padding: 5px 12px;
+}
+
+/* Estado del motor vial: una línea discreta con un punto de color, sin caja con borde grueso. */
+.planning-form .notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
   font-size: 0.875rem;
   color: var(--color-muted);
+}
+
+.planning-form .notice::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-sand);
+}
+
+.planning-form .notice strong {
+  color: var(--color-heading);
+}
+
+.planning-form .road-engine--ok::before {
+  background: var(--color-success);
+}
+
+.planning-form .road-engine--down {
+  display: block;
+  background: var(--color-danger-soft);
+}
+
+.planning-form .road-engine--down::before {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .planning-form__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Propuesta: título con la etiqueta de vista previa, cifras en una franja horizontal y notas en dos columnas. */
+.planning-result__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.planning-result__head h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.planning-result__badge {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-sand-soft);
+  font-size: 0.8125rem;
+  color: var(--color-sand-strong);
+}
+
+.stats {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0;
+  padding: 24px 0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 24px;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+}
+
+.stat:first-child {
+  border-left: 0;
+}
+
+.stat dt {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.stat dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.planning-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 40px;
+  margin-top: 20px;
+}
+
+.planning-notes .notice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.planning-notes .notice strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-heading);
+}
+
+@media (max-width: 900px) {
+  .planning-notes {
+    grid-template-columns: 1fr;
+  }
+
+  .stat {
+    border-left: 0;
+  }
+}
+
+/* «Rutas propuestas»: mismo aire y encabezado con línea que los demás recuadros de la propuesta. */
+.card:has(> .planning-routes__header) {
+  padding: 28px 32px 32px;
+}
+
+.planning-routes__header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.planning-routes__header h2 {
+  font-size: 1.125rem;
+}
+
+.planning-routes__header .btn {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Encabezado de la página: título a la izquierda y, a la derecha, el botón de rutas guardadas. */
+.planning-page__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.planning-page__head h1 {
+  margin-top: 0;
+}
+
+/* Panel de rutas guardadas: cada ruta como tarjeta limpia, con sus paradas en línea de tiempo. */
+.drawer__panel--routes {
+  width: min(600px, 100%);
+}
+
+.drawer__panel--routes .saved-routes {
+  gap: 16px;
+}
+
+.drawer__panel--routes .saved-route {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: var(--radius-md);
+}
+
+.drawer__panel--routes .saved-route p {
+  margin: 0;
+}
+
+.drawer__panel--routes .saved-route__header {
+  gap: 6px 12px;
+}
+
+.drawer__panel--routes .saved-route__header strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.drawer__panel--routes .saved-route > .text-muted {
+  font-size: 0.8125rem;
+}
+
+.drawer__panel--routes .saved-route__stops {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stop;
+}
+
+.drawer__panel--routes .saved-route__stops li {
+  position: relative;
+  padding: 0 0 14px 34px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-heading);
+  counter-increment: stop;
+}
+
+.drawer__panel--routes .saved-route__stops li:last-child {
+  padding-bottom: 0;
+}
+
+.drawer__panel--routes .saved-route__stops li::before {
+  content: counter(stop);
+  position: absolute;
+  top: -1px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-on-accent);
+}
+
+.drawer__panel--routes .saved-route__stops li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  bottom: 2px;
+  left: 10px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.drawer__panel--routes .saved-route__assign {
+  align-items: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.drawer__panel--routes .saved-route__assign .field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.drawer__panel--routes .saved-route .btn {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.drawer__panel--routes .saved-route > .btn {
+  align-self: flex-start;
+}
+
+.planning-page__actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* El aviso de pedidos excluidos usa el color de advertencia del sistema. */
+.orders-admin__list-button--warning {
+  color: var(--color-signal);
+}
+
+.orders-admin__list-button--warning .orders-admin__list-count {
+  background: var(--color-signal);
+}
+
+.orders-admin__list-button--warning:hover {
+  border-color: var(--color-signal);
+  background: var(--color-signal-soft);
+}
+
+/* Pedidos excluidos (en el panel lateral): una fila por pedido, con su código y el motivo. */
+.excluded-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  list-style: none;
+}
+
+.excluded-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-signal);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--color-heading);
+}
+
+.excluded-list code {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+/* Sin pedidos para planificar: icono, título y una pista de qué hacer, centrados y con aire. */
+.planning-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 56px 32px;
+  text-align: center;
+}
+
+.planning-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.planning-empty h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.planning-empty .empty-state {
+  padding: 0;
+  font-size: 0.9375rem;
+}
+
+.planning-empty__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+/* Bandeja de urgencias: avisos como filas discretas con un punto de color, y un estado vacío con aire. */
+.urgency-infos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.urgency-info {
+  display: block;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.urgency-info::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: var(--color-sand);
+  vertical-align: middle;
+}
+
+.urgency-info--alert {
+  background: var(--color-signal-soft);
+  color: var(--color-heading);
+}
+
+.urgency-info--alert::before {
+  background: var(--color-signal);
+}
+
+.urgency-info a {
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.urgency-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 48px 16px 40px;
+  text-align: center;
+}
+
+.urgency-empty h3 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.urgency-empty .empty-state {
+  padding: 0;
+  font-size: 0.9375rem;
+}
+
+/* Dentro del panel de rutas: cambio de chofer y corrección de paradas, apilados y con aire. */
+.drawer__panel--routes .saved-route__assign {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.drawer__panel--routes .saved-route__assign .field {
+  flex: none;
+  min-width: 0;
+}
+
+.drawer__panel--routes .saved-route__assign > .btn {
+  align-self: flex-start;
+}
+
+.drawer__panel--routes .saved-route__assign .field__label,
+.drawer__panel--routes .route-correction .field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.drawer__panel--routes .route-correction {
+  gap: 16px;
+  margin-top: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.route-correction__title {
+  margin: 4px 0 -6px;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.drawer__panel--routes .route-correction__stops {
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+  counter-reset: stop;
+}
+
+.drawer__panel--routes .route-correction__stops li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  counter-increment: stop;
+}
+
+.drawer__panel--routes .route-correction__stops li::before {
+  content: counter(stop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-on-accent);
+}
+
+.drawer__panel--routes .route-correction__stops li > span:first-child {
+  margin: 0;
+}
+
+.drawer__panel--routes .route-correction__arrows .btn {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.drawer__panel--routes .route-correction__actions {
+  align-items: center;
+}
+
+.drawer__panel--routes .route-correction__move {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.drawer__panel--routes .route-correction__move > .btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+@media (max-width: 560px) {
+  .drawer__panel--routes .route-correction__move {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Esquina superior derecha: el estado en vivo encima de los botones de la página. */
+.planning-page__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* Los botones de la cabecera bajan un poco: más aire respecto al estado en vivo y al borde superior. */
+.planning-page__side {
+  gap: 18px;
+  padding-top: 8px;
+}
+
+.planning-page__side > .planning-page__actions,
+.planning-page__head > .planning-page__actions {
+  margin-top: 6px;
+}
+
+/* Espaciado correcto de la cabecera: la columna derecha define la altura y siempre queda aire antes del primer recuadro. */
+.planning-page__head {
+  margin-bottom: 24px;
+}
+
+.planning-page__head p {
+  margin-bottom: 0;
+}
+
+.planning-page__side {
+  gap: 14px;
+  padding-top: 0;
+}
+
+.planning-page__side > .planning-page__actions,
+.planning-page__head > .planning-page__actions {
+  margin-top: 0;
+}
+
+/* Avisos de la bandeja: solo icono y texto, sin caja de fondo. */
+.urgency-info {
+  padding: 0;
+  background: transparent;
+}
+
+.urgency-info::before {
+  display: none;
+}
+
+.urgency-info__icon {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: -3px;
+  color: var(--color-muted);
+}
+
+.urgency-info--alert {
+  background: transparent;
+  color: var(--color-signal);
+}
+
+.urgency-info--alert .urgency-info__icon {
+  color: var(--color-signal);
+}
+
+.urgency-info--alert a {
+  color: var(--color-signal);
+}
+
+/* «Guardada como borrador»: el texto va centrado dentro de su casilla y, si hace falta, baja de línea. */
+.proposal__actions .badge {
+  padding: 6px 10px;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.3;
 }

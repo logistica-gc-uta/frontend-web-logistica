@@ -275,3 +275,245 @@
 .coverage-save .btn--primary {
   flex: 1 1 auto;
 }
+
+/* Estado de lo guardado: solo texto con un punto de color en la esquina superior derecha, como el «En vivo» de otras pantallas. */
+.coverage-page {
+  position: relative;
+}
+
+.coverage-status {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  max-width: 55%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  text-align: right;
+  color: var(--color-muted);
+}
+
+.coverage-status::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  vertical-align: middle;
+}
+
+.coverage-status--dirty {
+  background: transparent;
+  color: var(--color-signal);
+}
+
+.coverage-status--dirty::before {
+  background: var(--color-signal);
+}
+
+@media (max-width: 900px) {
+  .coverage-status {
+    position: static;
+    max-width: none;
+    text-align: left;
+  }
+}
+
+/* Los recuadros de la derecha arrancan a la altura del mapa (no de las pestañas): pestañas de alto fijo y el mismo desfase abajo. */
+.coverage-layout {
+  --coverage-tabs-height: 48px;
+  --coverage-map-gap: 10px;
+}
+
+.coverage-modes {
+  box-sizing: border-box;
+  height: var(--coverage-tabs-height);
+  align-items: center;
+}
+
+.coverage-side {
+  margin-top: calc(var(--coverage-tabs-height) + var(--coverage-map-gap));
+}
+
+@media (max-width: 1000px) {
+  .coverage-side {
+    margin-top: 0;
+  }
+}
+
+/* Ayuda: un «?» verde bajo el botón de guardar; al pulsarlo aparece un recuadro con la explicación. */
+.coverage-help {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.coverage-help__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-on-accent);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.coverage-help__button:hover {
+  background: var(--color-accent-strong);
+}
+
+.coverage-help__button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.coverage-help__popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, 100%);
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgb(35 77 62 / 14%);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-heading);
+}
+
+.coverage-help__popover p {
+  margin: 0;
+}
+
+/* El «?» va arriba del recuadro «Tienda», en la esquina derecha, a la altura de las pestañas del mapa. */
+.coverage-side {
+  position: relative;
+}
+
+.coverage-help {
+  position: absolute;
+  top: calc(-1 * (var(--coverage-tabs-height) + var(--coverage-map-gap)));
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--coverage-tabs-height);
+  margin: 0;
+}
+
+.coverage-help__popover {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+@media (max-width: 1000px) {
+  .coverage-help {
+    position: static;
+    height: auto;
+    margin-bottom: 8px;
+  }
+
+  .coverage-help__popover {
+    top: calc(100% + 6px);
+  }
+}
+
+/* Puntos del área: número, coordenadas y «Quitar» en columnas alineadas, y los dos botones de abajo del mismo ancho. */
+.coverage-vertices {
+  gap: 8px;
+  max-height: 280px;
+  padding: 0;
+  list-style: none;
+  counter-reset: vertex;
+}
+
+.coverage-vertices li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  counter-increment: vertex;
+}
+
+.coverage-vertices li::before {
+  content: counter(vertex) '.';
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.coverage-vertices__remove {
+  min-height: 32px;
+  margin: 0;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+}
+
+.coverage-panel__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.coverage-panel__actions .btn {
+  min-height: 36px;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+}
+
+/* La página cabe en una sola pantalla: el mapa toma la altura que queda tras el encabezado y las pestañas. */
+.coverage-map__canvas {
+  height: clamp(320px, calc(100vh - 310px), 640px);
+}
+
+/* El recuadro de ayuda tiene su propio ancho (antes heredaba el del botón y se veía como una columna). */
+.coverage-help__popover {
+  width: 320px;
+  max-width: calc(100vw - 32px);
+}
+
+/* Puntos del área: contador pequeño, una línea fina bajo el título y otra antes de los botones. */
+.coverage-panel__head {
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.coverage-panel__head h2 {
+  margin: 0;
+}
+
+.coverage-panel__head .text-muted {
+  font-size: 0.75rem;
+}
+
+.coverage-vertices {
+  margin-bottom: 0;
+}
+
+.coverage-panel__actions {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}

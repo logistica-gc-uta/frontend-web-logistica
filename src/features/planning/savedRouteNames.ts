@@ -1,3 +1,4 @@
+import { areaSuffix } from '../../lib/planning/routeArea'
 import { dayInGuayaquil } from '../../lib/time/guayaquil'
 import type { SavedRouteDetail } from './types'
 
@@ -8,7 +9,10 @@ import type { SavedRouteDetail } from './types'
 export const namedRoutesOfDay = (routes: SavedRouteDetail[], day: string) =>
   routes
     .filter((route) => dayInGuayaquil(new Date(route.date)) === day)
-    .map((route, index) => ({ route, name: `Ruta guardada ${index + 1} · ${route.zoneCode}` }))
+    .map((route, index) => ({
+      route,
+      name: `Ruta guardada ${index + 1}${areaSuffix(route.zoneCode)}`,
+    }))
 
 /** Nombre de cada ruta guardada del día, por identificador. */
 export const savedRouteNames = (routes: SavedRouteDetail[], day: string): Record<string, string> =>

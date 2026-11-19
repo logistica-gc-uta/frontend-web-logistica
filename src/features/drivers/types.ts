@@ -1,8 +1,15 @@
+/** Capacidad por defecto (en unidades de producto) cuando el vehículo no tiene una explícita. */
+export const DEFAULT_VEHICLE_CAPACITY = 4
+/** Máximo admitido por PostgreSQL int4. */
+export const MAX_VEHICLE_CAPACITY = 2_147_483_647
+
 /** Perfil de repartidor tal como lo devuelve `GET /drivers` (ADMIN). Nunca trae hashes. */
 export interface DriverProfile {
   id: string
   userId: string
   vehicle: string
+  /** Capacidad del vehículo en unidades de producto (`null` usa 4 por defecto). */
+  vehicleCapacity?: number | null
   createdAt: string
   user: { id: string; name: string; email: string }
   /** Disponibilidad efectiva de hoy (rutas/reservas), sin ausencias: ver `DriverDayAvailability`. */
@@ -23,6 +30,15 @@ export interface DriverProfileInput {
   name: string
   email: string
   vehicle: string
+  vehicleCapacity?: number | null
+}
+
+/** Valores editables en el formulario de perfil de repartidor. */
+export interface DriverProfileFormValues {
+  name: string
+  email: string
+  vehicle: string
+  vehicleCapacity?: string
 }
 
 /** Ruta asignada o en curso que cae dentro de una ausencia. Solo informa: nada se cambia solo. */

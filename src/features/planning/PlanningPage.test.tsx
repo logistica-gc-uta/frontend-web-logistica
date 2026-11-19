@@ -82,6 +82,10 @@ const preview = async (user: User) => {
   await screen.findByRole('heading', { name: /Rutas propuestas/ })
 }
 
+/** Las rutas guardadas viven en un panel lateral que se abre desde la cabecera de la página. */
+const openSaved = (user: User) =>
+  user.click(screen.getByRole('button', { name: 'Ver rutas guardadas' }))
+
 const card = (label: string) => within(screen.getByRole('article', { name: label }))
 
 // La disponibilidad por día (#36) se prueba aparte: aquí alcanza con el listado simulado.
@@ -141,9 +145,9 @@ describe('PlanningPage · previsualizar', () => {
 
     await preview(user)
 
-    expect(screen.getByText(/Estas rutas todavía no están guardadas/)).toBeInTheDocument()
+    expect(screen.getByText(/Las rutas no se guardan hasta que confirmes/)).toBeInTheDocument()
     expect(screen.getByRole('note')).toHaveTextContent('Km geodésicos estimados')
-    expect(screen.getByRole('note')).toHaveTextContent('no son distancia por carretera')
+    expect(screen.getByRole('note')).toHaveTextContent('en línea recta')
   })
 
   it('muestra el resumen del día con el ahorro frente a no optimizar', async () => {
@@ -182,6 +186,7 @@ describe('PlanningPage · previsualizar', () => {
 
     await preview(user)
 
+    await user.click(screen.getByRole('button', { name: 'Ver pedidos excluidos' }))
     expect(screen.getByRole('heading', { name: 'Pedidos excluidos (1)' })).toBeInTheDocument()
     expect(screen.getByText(/La zona no tiene depósito configurado/)).toBeInTheDocument()
   })
@@ -232,7 +237,7 @@ describe('PlanningPage · previsualizar', () => {
     const { user } = renderPlanningPage()
     await preview(user)
     await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
-    await card('Ruta 1').findByText('Guardada como borrador (DRAFT)')
+    await card('Ruta 1').findByText('Guardada como borrador')
 
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
@@ -270,7 +275,7 @@ describe('PlanningPage · confirmar', () => {
 
     await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
 
-    expect(await card('Ruta 1').findByText('Guardada como borrador (DRAFT)')).toBeInTheDocument()
+    expect(await card('Ruta 1').findByText('Guardada como borrador')).toBeInTheDocument()
     expect(confirmRoute).toHaveBeenCalledOnce()
     expect(confirmRoute).toHaveBeenCalledWith({
       zoneId: 'zone-1',
@@ -293,7 +298,7 @@ describe('PlanningPage · confirmar', () => {
     expect(confirmRoute).toHaveBeenCalledOnce()
     expect(card('Ruta 1').getByRole('button', { name: 'Guardando...' })).toBeDisabled()
     pending.resolve(savedDraft())
-    await card('Ruta 1').findByText('Guardada como borrador (DRAFT)')
+    await card('Ruta 1').findByText('Guardada como borrador')
   })
 
   it.each([
@@ -326,11 +331,11 @@ describe('PlanningPage · confirmar', () => {
       await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
 
       expect(await card('Ruta 1').findByRole('alert')).toHaveTextContent(mensaje)
-      expect(card('Ruta 1').queryByText('Guardada como borrador (DRAFT)')).not.toBeInTheDocument()
+      expect(card('Ruta 1').queryByText('Guardada como borrador')).not.toBeInTheDocument()
 
       await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
 
-      expect(await card('Ruta 1').findByText('Guardada como borrador (DRAFT)')).toBeInTheDocument()
+      expect(await card('Ruta 1').findByText('Guardada como borrador')).toBeInTheDocument()
       expect(confirmRoute).toHaveBeenCalledTimes(2)
     },
   )
@@ -347,7 +352,7 @@ describe('PlanningPage · confirmar', () => {
       await screen.findByRole('button', { name: 'Todas las rutas están guardadas' }),
     ).toBeDisabled()
     expect(confirmRoute).toHaveBeenCalledTimes(2)
-    expect(screen.getAllByText('Guardada como borrador (DRAFT)')).toHaveLength(2)
+    expect(screen.getAllByText('Guardada como borrador')).toHaveLength(2)
   })
 
   it('si una de varias falla, las demás se guardan y solo queda pendiente la fallida', async () => {
@@ -361,7 +366,7 @@ describe('PlanningPage · confirmar', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar todas (2)' }))
 
     expect(await screen.findByRole('button', { name: 'Confirmar todas (1)' })).toBeEnabled()
-    expect(card('Ruta 1').getByText('Guardada como borrador (DRAFT)')).toBeInTheDocument()
+    expect(card('Ruta 1').getByText('Guardada como borrador')).toBeInTheDocument()
     expect(card('Ruta 2').getByRole('alert')).toHaveTextContent('Conflicto: reservado')
   })
 })
@@ -372,12 +377,15 @@ describe('PlanningPage · rutas guardadas', () => {
 
   it('tras confirmar, la ruta aparece entre las guardadas del día como borrador', async () => {
     mockApi()
+    // Lectura inicial y relectura al abrir el panel: ambas sin rutas; después de confirmar, ya hay una.
     vi.spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValue([savedRouteDetail('route-1')])
     vi.spyOn(planningService, 'confirmRoute').mockResolvedValue(savedDraft())
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
     expect(await screen.findByText('Aún no hay rutas guardadas para este día.')).toBeInTheDocument()
 
     await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
@@ -393,12 +401,14 @@ describe('PlanningPage · rutas guardadas', () => {
     const listRoutes = vi
       .spyOn(planningService, 'listRoutes')
       .mockResolvedValueOnce([savedRouteDetail('route-1')])
+      .mockResolvedValueOnce([savedRouteDetail('route-1')])
       .mockResolvedValue([
         savedRouteDetail('route-1', { status: 'ASSIGNED', driverName: 'Carlos Chofer' }),
       ])
     const assignDriver = vi.spyOn(planningService, 'assignDriver').mockResolvedValue(savedDraft())
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
 
     await user.selectOptions(
       await screen.findByLabelText('Chofer para Ruta guardada 1 · FIC-02'),
@@ -409,7 +419,7 @@ describe('PlanningPage · rutas guardadas', () => {
     expect(await savedItem(FIRST).findByText('Asignada (ASSIGNED)')).toBeInTheDocument()
     expect(savedItem(FIRST).getByText('Chofer: Carlos Chofer')).toBeInTheDocument()
     expect(assignDriver).toHaveBeenCalledWith('route-1', 'driver-1')
-    expect(listRoutes).toHaveBeenCalledTimes(2)
+    expect(listRoutes).toHaveBeenCalledTimes(3)
   })
 
   it('si la asignación falla lo explica y la ruta sigue como borrador', async () => {
@@ -421,6 +431,7 @@ describe('PlanningPage · rutas guardadas', () => {
     )
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
 
     await user.selectOptions(
       await screen.findByLabelText('Chofer para Ruta guardada 1 · FIC-02'),
@@ -434,6 +445,27 @@ describe('PlanningPage · rutas guardadas', () => {
     expect(savedItem(FIRST).getByText('Borrador (DRAFT)')).toBeInTheDocument()
   })
 
+  it('al abrir el panel se vuelve a leer: una ruta que el chofer ya terminó deja de ser editable', async () => {
+    mockApi()
+    vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    vi.spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([
+        savedRouteDetail('route-1', { status: 'ASSIGNED', driverName: 'Carlos Chofer' }),
+      ])
+      .mockResolvedValue([
+        savedRouteDetail('route-1', { status: 'COMPLETED', driverName: 'Carlos Chofer' }),
+      ])
+    const { user } = renderPlanningPage()
+    await preview(user)
+
+    await openSaved(user)
+
+    const item = await screen.findByRole('listitem', { name: FIRST })
+    await within(item).findByText('Completada (COMPLETED)')
+    expect(within(item).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(item).queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
   it('las rutas en curso o completadas se muestran sin ninguna acción', async () => {
     mockApi()
     vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
@@ -443,6 +475,7 @@ describe('PlanningPage · rutas guardadas', () => {
     ])
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
 
     for (const name of ['Ruta guardada 1 · HUA-03', 'Ruta guardada 2 · CEN-01']) {
       const item = await screen.findByRole('listitem', { name })
@@ -456,6 +489,7 @@ describe('PlanningPage · rutas guardadas', () => {
     const listRoutes = vi
       .spyOn(planningService, 'listRoutes')
       .mockResolvedValueOnce([savedRouteDetail('route-1')])
+      .mockResolvedValueOnce([savedRouteDetail('route-1')])
       .mockResolvedValue([
         savedRouteDetail('route-1', {
           orders: [
@@ -467,6 +501,7 @@ describe('PlanningPage · rutas guardadas', () => {
     const reorderStops = vi.spyOn(dispatchService, 'reorderStops').mockResolvedValue(auditRecord())
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
 
     await user.click(await screen.findByRole('button', { name: 'Corregir paradas' }))
     const panel = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
@@ -486,7 +521,7 @@ describe('PlanningPage · rutas guardadas', () => {
       orderIds: ['route-1-o2', 'route-1-o1'],
       reason: 'Calle cerrada',
     })
-    expect(listRoutes).toHaveBeenCalledTimes(2)
+    expect(listRoutes).toHaveBeenCalledTimes(3)
   })
 
   it('mueve un pedido a otra ruta guardada del mismo día y zona', async () => {
@@ -502,6 +537,7 @@ describe('PlanningPage · rutas guardadas', () => {
       .mockResolvedValue(auditRecord({ id: 'audit-2', action: 'MOVE' }))
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
 
     await user.click((await screen.findAllByRole('button', { name: 'Corregir paradas' }))[0])
     const panel = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
@@ -532,6 +568,7 @@ describe('PlanningPage · rutas guardadas', () => {
     )
     const { user } = renderPlanningPage()
     await preview(user)
+    await openSaved(user)
 
     await user.click(await screen.findByRole('button', { name: 'Corregir paradas' }))
     const panel = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
@@ -543,5 +580,102 @@ describe('PlanningPage · rutas guardadas', () => {
       'Conflicto: Route structure is frozen. La ruta cambió o ya no se puede modificar',
     )
     expect(screen.getByRole('group', { name: `Corregir ${FIRST}` })).toBeInTheDocument()
+  })
+})
+
+describe('PlanningPage · capacidad del vehículo', () => {
+  it('carga los choferes del día elegido antes de previsualizar, reenvía driverId a GET y POST borrador, muestra loadUnits y sugiere alternativas', async () => {
+    const driverCap4 = {
+      ...availableDriver,
+      id: 'd-4',
+      name: 'Ana Moto',
+      vehicle: 'Moto',
+      vehicleCapacity: null,
+    }
+    const driverCap6 = {
+      ...availableDriver,
+      id: 'd-6',
+      name: 'Carlos Furgón',
+      vehicle: 'Furgón',
+      vehicleCapacity: 6,
+    }
+    const listForDay = vi
+      .spyOn(driversService, 'listForDay')
+      .mockResolvedValue([driverCap4, driverCap6])
+    const response: RouteProposalsResponse = {
+      ...proposalsResponse,
+      capacity: 4,
+      proposals: [{ ...proposalsResponse.proposals[0], stops: proposalsResponse.proposals[0].stops.slice(0, 1), orderIds: ['order-a'], loadUnits: 3 }],
+      excluded: [
+        {
+          orderId: 'order-big-5555',
+          zoneId: 'zone-1',
+          reasons: ['VEHICLE_CAPACITY_EXCEEDED'],
+          requiredUnits: 5,
+        },
+      ],
+    }
+    const getProposals = mockApi(response)
+    const confirmRoute = vi.spyOn(planningService, 'confirmRoute').mockResolvedValue(savedDraft())
+    const { user } = renderPlanningPage()
+
+    await setDate('2030-02-14')
+    await waitFor(() => expect(listForDay).toHaveBeenCalledWith('2030-02-14'))
+
+    const driverSelect = await screen.findByLabelText('Chofer para planificar')
+    await waitFor(() => expect(within(driverSelect).getByText(/Ana Moto/)).toBeInTheDocument())
+    await user.selectOptions(driverSelect, 'd-4')
+    await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
+
+    await waitFor(() =>
+      expect(getProposals).toHaveBeenCalledWith({ date: '2030-02-14', driverId: 'd-4' }),
+    )
+    expect(card('Ruta 1').getByText('3/4 unidades')).toBeInTheDocument()
+
+    await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
+    expect(confirmRoute).toHaveBeenCalledWith({
+      zoneId: 'zone-1',
+      routeDate: '2030-02-14T15:00:00Z',
+      orderIds: ['order-a'],
+      driverId: 'd-4',
+    })
+    expect(await card('Ruta 1').findByText('Guardada como borrador')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ver pedidos excluidos' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Pedidos excluidos (1)' })
+    const excludedItem = within(dialog).getByRole('listitem')
+    expect(excludedItem).toHaveTextContent(/5 unidades/)
+    expect(excludedItem).toHaveTextContent(/Carlos Furgón/)
+    expect(excludedItem).toHaveTextContent(/no garantiza/)
+  })
+
+  it('si confirmar borrador responde 409 VEHICLE_CAPACITY_EXCEEDED explica capacidad y unidades sin guardar', async () => {
+    vi.spyOn(driversService, 'listForDay').mockResolvedValue([
+      { ...availableDriver, id: 'd-4', name: 'Ana Moto', vehicleCapacity: 4 },
+    ])
+    mockApi()
+    vi.spyOn(planningService, 'confirmRoute').mockRejectedValue(
+      createHttpError(409, {
+        data: {
+          statusCode: 409,
+          code: 'VEHICLE_CAPACITY_EXCEEDED',
+          message: 'Vehicle capacity exceeded',
+          capacity: 4,
+          requiredUnits: 6,
+        },
+      }),
+    )
+    const { user } = renderPlanningPage()
+    await setDate('2030-02-14')
+    const driverSelect = await screen.findByLabelText('Chofer para planificar')
+    await waitFor(() => expect(within(driverSelect).getByText(/Ana Moto/)).toBeInTheDocument())
+    await user.selectOptions(driverSelect, 'd-4')
+    await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
+    await screen.findByRole('heading', { name: /Rutas propuestas/ })
+
+    await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
+
+    expect(await card('Ruta 1').findByRole('alert')).toHaveTextContent(/6 unidades.*4 unidades/)
+    expect(card('Ruta 1').queryByText('Guardada como borrador')).not.toBeInTheDocument()
   })
 })

@@ -2,7 +2,7 @@ import type { RouteProposal } from './types'
 
 /** Colores distinguibles entre sí y legibles sobre el mapa claro de OpenStreetMap. */
 const ROUTE_COLORS = [
-  '#2563eb',
+  '#1e3a8a',
   '#dc2626',
   '#16a34a',
   '#9333ea',

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
@@ -49,6 +49,24 @@ function CoverageEditor({ initial }: { initial: StoreCoverage }) {
   const [saveState, setSaveState] = useState<SaveState>({ status: 'idle' })
   const [probe, setProbe] = useState<Probe | null>(null)
   const [probeError, setProbeError] = useState<string | null>(null)
+  // Ayuda «?»: el recuadro se abre al pulsar y se cierra con Escape o al tocar fuera.
+  const [helpOpen, setHelpOpen] = useState(false)
+  const helpRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!helpOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHelpOpen(false)
+    }
+    const onPointer = (event: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(event.target as Node)) setHelpOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onPointer)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onPointer)
+    }
+  }, [helpOpen])
 
   const changed = hasChanges(draft, saved)
   const isSaving = saveState.status === 'saving'
@@ -199,6 +217,33 @@ function CoverageEditor({ initial }: { initial: StoreCoverage }) {
         </section>
 
         <aside className="coverage-side">
+          <div className="coverage-help" ref={helpRef}>
+            <button
+              type="button"
+              className="coverage-help__button"
+              aria-label="Cómo se aplica la cobertura"
+              aria-expanded={helpOpen}
+              aria-controls="coverage-help-text"
+              title="Cómo se aplica la cobertura"
+              onClick={() => setHelpOpen((open) => !open)}
+            >
+              ?
+            </button>
+            {helpOpen && (
+              <div id="coverage-help-text" role="note" className="coverage-help__popover">
+                <p>
+                  Una dirección <strong>dentro</strong> del área o <strong>sobre su borde</strong>{' '}
+                  se acepta; una <strong>fuera</strong> se rechaza. Lo decide el servidor, no el
+                  mapa.
+                </p>
+                <p>
+                  Cambiar el área no cancela ni modifica pedidos ya aceptados: solo se aplica a
+                  pedidos nuevos y a cambios de dirección.
+                </p>
+              </div>
+            )}
+          </div>
+
           <section className="card coverage-panel" aria-labelledby="coverage-store-title">
             <h2 id="coverage-store-title">Tienda</h2>
             {draft.store ? (
@@ -257,17 +302,6 @@ function CoverageEditor({ initial }: { initial: StoreCoverage }) {
             </div>
           </section>
 
-          <section className="coverage-rules" aria-label="Cómo se aplica la cobertura">
-            <p>
-              Una dirección <strong>dentro</strong> del área o <strong>sobre su borde</strong> se
-              acepta; una <strong>fuera</strong> se rechaza. Lo decide el servidor, no el mapa.
-            </p>
-            <p>
-              Cambiar el área no cancela ni modifica pedidos ya aceptados: solo se aplica a pedidos
-              nuevos y a cambios de dirección.
-            </p>
-          </section>
-
           <div className="coverage-save">
             <Button
               onClick={() => void save()}
@@ -294,11 +328,9 @@ export function StoreCoveragePage() {
   const coverage = useFetch(coverageService.get, 'No se pudo cargar la tienda y la cobertura')
 
   return (
-    <main className="page coverage-page">
+    <main className="page page--wide coverage-page">
       <h1>Tienda y cobertura</h1>
-      <p className="text-muted">
-        Ubica la tienda y dibuja el área general donde REGALÍA entrega pedidos.
-      </p>
+      <p className="text-muted">Ubica la tienda y dibuja el área donde se entrega.</p>
       <AsyncContent
         {...coverage}
         onRetry={coverage.reload}

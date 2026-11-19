@@ -12,6 +12,14 @@ import { driversService } from '../planning/driversService'
 import { planningService } from '../planning/planningService'
 import { dispatchService } from './dispatchService'
 import type { UrgencyInbox } from './types'
+import { createFakeSocket } from '../../test/fakeSocket'
+
+/** La bandeja sigue los cambios en vivo: el socket se simula para no abrir una conexión real. */
+const socket = createFakeSocket()
+vi.mock('../../lib/realtime/realtimeClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/realtime/realtimeClient')>()),
+  createRealtimeSocket: () => socket,
+}))
 
 const TODAY = '2030-02-14'
 const order = orders[0]
@@ -54,10 +62,16 @@ beforeEach(() => {
   vi.spyOn(driversService, 'listForDay').mockImplementation(() => driversService.list())
 })
 
+/** Rutas de hoy y decisiones registradas viven en paneles laterales de la cabecera. */
+const openRoutes = async (user: ReturnType<typeof renderPage>['user']) =>
+  user.click(await screen.findByRole('button', { name: 'Ver rutas de hoy' }))
+const openAudit = async (user: ReturnType<typeof renderPage>['user']) =>
+  user.click(await screen.findByRole('button', { name: 'Ver decisiones registradas' }))
+
 describe('UrgenciesPage', () => {
   it('muestra la bandeja del día, las rutas de hoy y las decisiones registradas', async () => {
     mockApi(inboxWith({ failedDeliveries: [failedDelivery('f1'), failedDelivery('f2')] }))
-    renderPage()
+    const { user } = renderPage()
 
     const card = await findCard()
     expect(card.getByText('Ruta guardada 1 · FIC-02')).toBeInTheDocument()
@@ -67,9 +81,11 @@ describe('UrgenciesPage', () => {
     expect(
       within(screen.getByRole('note')).getByRole('link', { name: 'Entregas fallidas' }),
     ).toHaveAttribute('href', '/admin/entregas-fallidas')
+    await openRoutes(user)
     expect(
       await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }),
     ).toBeInTheDocument()
+    await openAudit(user)
     expect(
       await screen.findByText('Tú · Motivo: Calle cerrada', { exact: false }),
     ).toBeInTheDocument()
@@ -192,6 +208,7 @@ describe('UrgenciesPage', () => {
       .spyOn(dispatchService, 'reassignDriver')
       .mockResolvedValue(auditRecord({ action: 'REASSIGN_DRIVER' }))
     const { user } = renderPage()
+    await openRoutes(user)
     const route = within(await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
 
     await user.selectOptions(
@@ -214,7 +231,8 @@ describe('UrgenciesPage', () => {
     vi.spyOn(planningService, 'listRoutes').mockResolvedValue([
       savedRouteDetail('route-1', { status: 'IN_PROGRESS', driverName: 'Ana' }),
     ])
-    renderPage()
+    const { user } = renderPage()
+    await openRoutes(user)
 
     const route = within(await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
     expect(route.getByText('En curso (IN_PROGRESS)')).toBeInTheDocument()

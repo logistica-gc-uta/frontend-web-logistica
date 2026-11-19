@@ -72,7 +72,11 @@ function mockApi() {
 const renderPage = () =>
   renderWithProviders(<App />, { route: paths.drivers, session: adminSession })
 
-const findList = () => screen.findByRole('list', { name: 'Repartidores registrados' })
+const findList = () => screen.findByRole('table', { name: 'Repartidores registrados' })
+
+/** El alta vive en un panel lateral que se abre con el botón «Nuevo repartidor». */
+const openNew = (user: ReturnType<typeof renderPage>['user']) =>
+  user.click(screen.getByRole('button', { name: 'Nuevo repartidor' }))
 
 describe('ADMIN · repartidores (#36)', () => {
   it('aparece en el menú y muestra la disponibilidad del día distinguiendo ausente de ocupado', async () => {
@@ -82,7 +86,8 @@ describe('ADMIN · repartidores (#36)', () => {
     const list = within(await findList())
     expect(await list.findByText('Ausente · Cita médica')).toBeInTheDocument()
     expect(list.getByText('Ocupado con una ruta')).toBeInTheDocument()
-    expect(list.getByText('ana@delivery.com · Camioneta blanca')).toBeInTheDocument()
+    expect(list.getByText('ana@delivery.com')).toBeInTheDocument()
+    expect(list.getAllByText('Camioneta blanca').length).toBeGreaterThan(0)
     const nav = screen.getByRole('navigation', { name: 'Principal' })
     expect(within(nav).getByRole('link', { name: 'Repartidores' })).toHaveAttribute(
       'aria-current',
@@ -114,6 +119,25 @@ describe('ADMIN · repartidores (#36)', () => {
     expect(api.availabilityOn).toHaveBeenCalledWith('ana', '2099-03-10')
   })
 
+  it('con más de cinco repartidores la tabla se ve de cinco en cinco, con navegación', async () => {
+    const api = mockApi()
+    api.list.mockResolvedValue(
+      Array.from({ length: 7 }, (_, index) => profile(`d${index + 1}`, `Chofer ${index + 1}`)),
+    )
+    const { user } = renderPage()
+
+    const table = within(await findList())
+    expect(await screen.findByText('Repartidores 1–5')).toBeInTheDocument()
+    expect(table.getAllByRole('row')).toHaveLength(1 + 5)
+    expect(table.getByText('Chofer 5')).toBeInTheDocument()
+    expect(table.queryByText('Chofer 6')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    expect(screen.getByText('Repartidores 6–7')).toBeInTheDocument()
+    expect(within(await findList()).getAllByRole('row')).toHaveLength(1 + 2)
+  })
+
   it('crea un repartidor y muestra su contraseña temporal una sola vez', async () => {
     const api = mockApi()
     const create = vi.spyOn(driversAdminService, 'create').mockResolvedValue({
@@ -122,6 +146,7 @@ describe('ADMIN · repartidores (#36)', () => {
     })
     const { user } = renderPage()
     await findList()
+    await openNew(user)
     const form = within(screen.getByRole('form', { name: 'Nuevo repartidor' }))
 
     await user.type(form.getByLabelText('Nombre'), '  Nuevo Chofer ')
@@ -140,8 +165,9 @@ describe('ADMIN · repartidores (#36)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Ya la entregué' }))
 
+    // Entregada la contraseña, el panel se cierra y no queda rastro de ella.
     expect(screen.queryByText('Temporal-ABC123xyz')).not.toBeInTheDocument()
-    expect(screen.getByRole('form', { name: 'Nuevo repartidor' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('un correo repetido se explica y no se pierde lo escrito', async () => {
@@ -153,6 +179,7 @@ describe('ADMIN · repartidores (#36)', () => {
     )
     const { user } = renderPage()
     await findList()
+    await openNew(user)
     const form = within(screen.getByRole('form', { name: 'Nuevo repartidor' }))
     await user.type(form.getByLabelText('Nombre'), 'Ana Ruta')
     await user.type(form.getByLabelText('Correo'), 'ana@delivery.com')
@@ -162,6 +189,58 @@ describe('ADMIN · repartidores (#36)', () => {
 
     expect(await form.findByText('Ya existe una cuenta con ese correo.')).toBeInTheDocument()
     expect(form.getByLabelText('Correo')).toHaveValue('ana@delivery.com')
+  })
+
+  it('muestra la capacidad configurada y 4 por defecto cuando es nula', async () => {
+    const api = mockApi()
+    api.list.mockResolvedValue([
+      profile('ana', 'Ana Ruta', { vehicleCapacity: null }),
+      profile('luis', 'Luis Moto', { vehicleCapacity: 6 }),
+    ])
+    renderPage()
+
+    const list = within(await findList())
+    expect(list.getByText('4 unidades (por defecto)')).toBeInTheDocument()
+    expect(list.getByText('6 unidades')).toBeInTheDocument()
+  })
+
+  it('crea un repartidor con capacidad explícita y restaura null al dejarla vacía al editar', async () => {
+    const api = mockApi()
+    api.list.mockResolvedValue([profile('ana', 'Ana Ruta', { vehicleCapacity: 6 })])
+    const create = vi.spyOn(driversAdminService, 'create').mockResolvedValue({
+      ...profile('nuevo', 'Nuevo Chofer', { vehicleCapacity: 8 }),
+      temporaryPassword: 'Temporal-ABC123xyz',
+    })
+    const update = vi
+      .spyOn(driversAdminService, 'update')
+      .mockResolvedValue(profile('ana', 'Ana Ruta', { vehicleCapacity: null }))
+    const { user } = renderPage()
+    await findList()
+
+    await openNew(user)
+    const createForm = within(screen.getByRole('form', { name: 'Nuevo repartidor' }))
+    await user.type(createForm.getByLabelText('Nombre'), 'Nuevo Chofer')
+    await user.type(createForm.getByLabelText('Correo'), 'nuevo@delivery.com')
+    await user.type(createForm.getByLabelText('Vehículo'), 'Camión')
+    await user.type(createForm.getByLabelText('Capacidad del vehículo (unidades, opcional)'), '8')
+    await user.click(createForm.getByRole('button', { name: 'Crear repartidor' }))
+
+    expect(create).toHaveBeenCalledWith({
+      name: 'Nuevo Chofer',
+      email: 'nuevo@delivery.com',
+      vehicle: 'Camión',
+      vehicleCapacity: 8,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Ya la entregué' }))
+
+    await user.click(screen.getByRole('button', { name: 'Editar datos de Ana Ruta' }))
+    const editForm = within(screen.getByRole('form', { name: 'Corregir datos de Ana Ruta' }))
+    const capInput = editForm.getByLabelText('Capacidad del vehículo (unidades, opcional)')
+    expect(capInput).toHaveValue('6')
+    await user.clear(capInput)
+    await user.click(editForm.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(update).toHaveBeenCalledWith('ana', { vehicleCapacity: null })
   })
 
   it('corrige solo los datos que cambiaron y avisa que sus rutas no cambian', async () => {

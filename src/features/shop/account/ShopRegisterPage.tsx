@@ -64,8 +64,13 @@ export function ShopRegisterPage() {
         </aside>
         <section className="card account-card" aria-labelledby="shop-register-title">
           <nav className="account__tabs" aria-label="Acceso de cliente">
-            <Link to={`${paths.shopLogin}${params.toString() ? `?${params}` : ''}`}>Iniciar sesión</Link>
-            <Link to={`${paths.shopRegister}${params.toString() ? `?${params}` : ''}`} aria-current="page">
+            <Link to={`${paths.shopLogin}${params.toString() ? `?${params}` : ''}`}>
+              Iniciar sesión
+            </Link>
+            <Link
+              to={`${paths.shopRegister}${params.toString() ? `?${params}` : ''}`}
+              aria-current="page"
+            >
               Crear cuenta
             </Link>
           </nav>

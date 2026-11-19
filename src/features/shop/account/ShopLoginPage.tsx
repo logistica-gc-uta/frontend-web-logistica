@@ -31,8 +31,7 @@ export function ShopLoginPage() {
   const [params] = useSearchParams()
   const state = (useLocation().state as CustomerRedirectState | null) ?? {}
   const aviso = params.get('aviso')
-  const reason =
-    state.reason ?? (aviso === 'expired' || aviso === 'required' ? aviso : undefined)
+  const reason = state.reason ?? (aviso === 'expired' || aviso === 'required' ? aviso : undefined)
   const redirectTo = safeShopNext(params.get('next') ?? state.from)
 
   const { values, fieldErrors, submitError, isSubmitting, handleChange, handleSubmit } = useForm({
@@ -60,7 +59,10 @@ export function ShopLoginPage() {
             <p>Consulta tus pedidos y sus detalles desde tu cuenta.</p>
           </div>
         </aside>
-        <section className="card account-card account-card--centered" aria-labelledby="shop-login-title">
+        <section
+          className="card account-card account-card--centered"
+          aria-labelledby="shop-login-title"
+        >
           <nav className="account__tabs" aria-label="Acceso de cliente">
             <Link to={`${paths.shopLogin}${locationSearch(params)}`} aria-current="page">
               Iniciar sesión
@@ -71,7 +73,9 @@ export function ShopLoginPage() {
             <h2 id="shop-login-title">Qué bueno verte.</h2>
             <p className="account__lead">Todos los campos son obligatorios.</p>
             {state.registered && (
-              <Alert variant="success">Tu cuenta se creó. Ingresa con tu correo y contraseña.</Alert>
+              <Alert variant="success">
+                Tu cuenta se creó. Ingresa con tu correo y contraseña.
+              </Alert>
             )}
             {reason && !state.registered && <p role="note">{NOTICES[reason]}</p>}
             {submitError && <Alert>{submitError}</Alert>}

@@ -1,0 +1,75 @@
+/* Confirmación en un modal centrado. */
+.confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.confirm__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(21 56 43 / 42%);
+  animation: confirm-fade 0.2s ease;
+}
+
+.confirm__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 28px 28px 24px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 24px 60px rgb(21 56 43 / 28%);
+  animation: confirm-pop 0.2s ease;
+}
+
+.confirm__panel h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.confirm__panel p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.confirm__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.confirm__buttons .btn {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+@keyframes confirm-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes confirm-pop {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm__backdrop,
+  .confirm__panel {
+    animation: none;
+  }
+}

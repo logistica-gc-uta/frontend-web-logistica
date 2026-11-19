@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  availableDriver,
+  busyDriver,
   emptyProposalsResponse,
   firstProposal,
   proposalsResponse,
@@ -21,9 +23,9 @@ describe('DistanceNotice', () => {
 
     const notice = screen.getByRole('note')
     expect(notice).toHaveTextContent('Km geodésicos estimados')
-    expect(notice).toHaveTextContent('no son distancia por carretera')
-    expect(notice).toHaveTextContent('ni consideran calles, tráfico ni tiempos de llegada')
-    expect(notice).toHaveTextContent('no es un ahorro real de combustible')
+    expect(notice).toHaveTextContent('en línea recta')
+    expect(notice).toHaveTextContent('sin calles ni tráfico')
+    expect(notice).toHaveTextContent('no es ahorro real de combustible')
   })
 })
 
@@ -58,7 +60,7 @@ describe('PlanningSummary', () => {
 
 describe('ExcludedOrders', () => {
   it('no muestra nada si no hay pedidos excluidos', () => {
-    const { container } = render(<ExcludedOrders excluded={[]} />)
+    const { container } = render(<ExcludedOrders excluded={[]} open onClose={() => undefined} />)
 
     expect(container).toBeEmptyDOMElement()
   })
@@ -66,6 +68,8 @@ describe('ExcludedOrders', () => {
   it('lista cada pedido con sus motivos traducidos y el identificador abreviado', () => {
     render(
       <ExcludedOrders
+        open
+        onClose={() => undefined}
         excluded={[
           { orderId: 'abcdef1234567890', zoneId: 'z', reasons: ['ACTIVE_ROUTE_CLAIM'] },
           {
@@ -83,6 +87,80 @@ describe('ExcludedOrders', () => {
     expect(items[1]).toHaveTextContent(
       '99999999 El pedido no tiene zona. Falta confirmar la ubicación de entrega',
     )
+  })
+
+  it('muestra requiredUnits para VEHICLE_CAPACITY_EXCEEDED y sugiere choferes alternativos con aviso de replanificación', () => {
+    render(
+      <ExcludedOrders
+        open
+        onClose={() => undefined}
+        date="2030-02-14"
+        capacity={4}
+        selectedDriverId="d-small"
+        drivers={[
+          { ...availableDriver, id: 'd-small', name: 'Ana Moto', vehicleCapacity: null },
+          {
+            ...availableDriver,
+            id: 'd-fit',
+            name: 'Carlos Furgón',
+            vehicle: 'Furgón',
+            vehicleCapacity: 5,
+          },
+          {
+            ...busyDriver,
+            id: 'd-busy',
+            name: 'Luis Ausente',
+            vehicleCapacity: 8,
+            unavailableReason: 'ABSENT',
+          },
+        ]}
+        excluded={[
+          {
+            orderId: 'oversized-123456',
+            zoneId: 'zone-1',
+            reasons: ['VEHICLE_CAPACITY_EXCEEDED'],
+            requiredUnits: 5,
+          },
+        ]}
+      />,
+    )
+
+    const item = screen.getByRole('listitem')
+    expect(item).toHaveTextContent('oversize')
+    expect(item).toHaveTextContent(/5 unidades/)
+    expect(item).toHaveTextContent(/Carlos Furgón/)
+    expect(item).not.toHaveTextContent(/Luis Ausente/)
+    expect(item).not.toHaveTextContent(/Ana Moto/)
+    expect(item).toHaveTextContent(/no garantiza/)
+    expect(item).toHaveTextContent(/vuelve a previsualizar/i)
+  })
+
+  it('si ningún chofer disponible alcanza requiredUnits explica por qué permanece pendiente', () => {
+    render(
+      <ExcludedOrders
+        open
+        onClose={() => undefined}
+        date="2030-02-14"
+        capacity={4}
+        drivers={[
+          { ...availableDriver, id: 'd-small', name: 'Ana Moto', vehicleCapacity: 4 },
+          { ...busyDriver, id: 'd-busy', name: 'Luis Camión', vehicleCapacity: 8 },
+        ]}
+        excluded={[
+          {
+            orderId: 'oversized-999999',
+            zoneId: 'zone-1',
+            reasons: ['VEHICLE_CAPACITY_EXCEEDED'],
+            requiredUnits: 5,
+          },
+        ]}
+      />,
+    )
+
+    const item = screen.getByRole('listitem')
+    expect(item).toHaveTextContent(/Permanece pendiente/)
+    expect(item).toHaveTextContent(/5 unidades/)
+    expect(item).toHaveTextContent(/no se divide/i)
   })
 })
 
@@ -121,6 +199,26 @@ describe('ProposalCard', () => {
       'Dirección de order-b',
       'Dirección de order-c',
     ])
+  })
+
+  it('muestra la carga en unidades respecto a la capacidad del vehículo junto al límite de 4 paradas', () => {
+    render(
+      <ProposalCard
+        proposal={{ ...firstProposal, stops: firstProposal.stops.slice(0, 2), loadUnits: 6 }}
+        label="Ruta 1"
+        color="#2563eb"
+        capacity={6}
+        method="HAVERSINE_STRAIGHT_LINE"
+        isSelected={false}
+        confirmation={undefined}
+        onSelect={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+
+    const card = within(screen.getByRole('article', { name: 'Ruta 1' }))
+    expect(card.getByText('2/4 paradas')).toBeInTheDocument()
+    expect(card.getByText('6/6 unidades')).toBeInTheDocument()
   })
 
   it('muestra el rango de horas cuando las entregas son a horas distintas', () => {
@@ -172,7 +270,7 @@ describe('ProposalCard', () => {
   it('una vez guardada muestra el estado DRAFT y ya no ofrece confirmar', () => {
     renderCard({ status: 'saved', route: savedDraft() })
 
-    expect(screen.getByRole('status')).toHaveTextContent('Guardada como borrador (DRAFT)')
+    expect(screen.getByRole('status')).toHaveTextContent('Guardada como borrador')
     expect(screen.queryByRole('button', { name: 'Confirmar ruta' })).not.toBeInTheDocument()
   })
 
@@ -211,5 +309,58 @@ describe('PlanningFilters', () => {
 
     expect(screen.getByText('Elige el día a planificar')).toBeInTheDocument()
     expect(onPreview).not.toHaveBeenCalled()
+  })
+
+  it('permite elegir un chofer disponible para la fecha y reenvía su driverId', async () => {
+    const onPreview = vi.fn().mockResolvedValue(undefined)
+    const onDateChange = vi.fn()
+    render(
+      <PlanningFilters
+        onPreview={onPreview}
+        onDateChange={onDateChange}
+        drivers={[
+          { ...availableDriver, id: 'd-4', name: 'Ana Moto', vehicleCapacity: null },
+          { ...availableDriver, id: 'd-6', name: 'Carlos Van', vehicleCapacity: 6 },
+          { ...busyDriver, id: 'd-out', name: 'Luis Ausente', unavailableReason: 'ABSENT' },
+        ]}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Día a planificar'), { target: { value: '2030-02-14' } })
+    expect(onDateChange).toHaveBeenCalledWith('2030-02-14')
+
+    const select = screen.getByLabelText('Chofer para planificar')
+    const options = within(select).getAllByRole('option')
+    expect(options[1]).toHaveTextContent('Ana Moto')
+    expect(options[1]).toHaveTextContent('4 unidades')
+    expect(options[2]).toHaveTextContent('Carlos Van')
+    expect(options[2]).toHaveTextContent('6 unidades')
+    expect(options[3]).toBeDisabled()
+
+    await userEvent.selectOptions(select, 'd-6')
+    await userEvent.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
+
+    expect(onPreview).toHaveBeenCalledWith({ date: '2030-02-14', driverId: 'd-6' })
+  })
+
+  it('al cambiar de fecha descarta un chofer que deja de estar disponible ese día', async () => {
+    const onPreview = vi.fn().mockResolvedValue(undefined)
+    const d6Available = { ...availableDriver, id: 'd-6', name: 'Carlos Van', vehicleCapacity: 6 }
+    const d6Absent = {
+      ...busyDriver,
+      id: 'd-6',
+      name: 'Carlos Van',
+      vehicleCapacity: 6,
+      unavailableReason: 'ABSENT' as const,
+    }
+    const { rerender } = render(<PlanningFilters onPreview={onPreview} drivers={[d6Available]} />)
+
+    await userEvent.selectOptions(screen.getByLabelText('Chofer para planificar'), 'd-6')
+    rerender(<PlanningFilters onPreview={onPreview} drivers={[d6Absent]} />)
+    fireEvent.change(screen.getByLabelText('Día a planificar'), { target: { value: '2030-02-15' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
+
+    expect(screen.getByLabelText('Chofer para planificar')).toHaveValue('')
+    expect(onPreview).toHaveBeenCalledWith({ date: '2030-02-15' })
   })
 })

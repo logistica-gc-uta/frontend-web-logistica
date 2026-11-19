@@ -1,48 +1,32 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { STORE_AREA_LABEL } from '../../lib/planning/routeArea'
 import { RoutesMap, type MapRoute } from '../../components/map/RoutesMap'
-import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
-import { useFetch } from '../../hooks/useFetch'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { DistanceNotice } from './DistanceNotice'
-import { driversService } from './driversService'
-import { ExcludedOrders } from './ExcludedOrders'
-import { planningService } from './planningService'
 import { PlanningSummary } from './PlanningSummary'
 import { ProposalCard } from './ProposalCard'
 import { proposalKey, routeColor, routeLabel } from './routeStyle'
-import { SavedRoutes } from './SavedRoutes'
-import type { RouteProposalsResponse } from './types'
+import type { Driver, RouteProposalsResponse } from './types'
 import { useRouteConfirmations } from './useRouteConfirmations'
-import { useSavedRouteActions } from './useSavedRouteActions'
+
+const unitsLabel = (count: number) => (count === 1 ? '1 unidad' : `${count} unidades`)
 
 interface PlanningResultProps {
   data: RouteProposalsResponse
+  /** Chofer usado en la propuesta; se reenvía al confirmar el borrador sin asignar automáticamente. */
+  driverId?: string
+  selectedDriver?: Driver
+  /** Se llama al guardar una ruta: la página vuelve a leer las rutas guardadas del día. */
+  onSaved: () => void
 }
 
 /**
  * Resultado de una previsualización: resumen, rutas con su mapa, pedidos excluidos y las rutas ya
  * guardadas del día. Las rutas propuestas son temporales hasta que el operador las confirma.
  */
-export function PlanningResult({ data }: PlanningResultProps) {
-  const savedRoutes = useFetch(
-    planningService.listRoutes,
-    'No se pudieron cargar las rutas guardadas',
-  )
-  // Disponibilidad del día planificado: un chofer ausente ese día no se ofrece (#36).
-  const loadDrivers = useCallback(() => driversService.listForDay(data.date), [data.date])
-  const drivers = useFetch(loadDrivers, 'No se pudieron cargar los choferes')
-  const { reload: reloadSavedRoutes } = savedRoutes
-  const { reload: reloadDrivers } = drivers
-
-  const { states, confirm, confirmAll } = useRouteConfirmations(reloadSavedRoutes)
-  // Asignar o corregir cambia rutas y la disponibilidad de los choferes: se consultan de nuevo.
-  const refreshSavedState = useCallback(() => {
-    reloadSavedRoutes()
-    reloadDrivers()
-  }, [reloadSavedRoutes, reloadDrivers])
-  const routeActions = useSavedRouteActions(refreshSavedState)
+export function PlanningResult({ data, driverId, selectedDriver, onSaved }: PlanningResultProps) {
+  const { states, confirm, confirmAll } = useRouteConfirmations(onSaved, driverId)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const routes = useMemo(
@@ -88,31 +72,63 @@ export function PlanningResult({ data }: PlanningResultProps) {
   return (
     <div className="page-stack">
       <section className="card" aria-labelledby="planning-result-title">
-        <h2 id="planning-result-title">Propuesta para el {data.date}</h2>
-        <p className="notice notice--preview" role="status">
-          <strong>Vista previa.</strong> Estas rutas todavía no están guardadas: nada se registra
-          hasta que confirmes.
-        </p>
+        <div className="planning-result__head">
+          <h2 id="planning-result-title">Propuesta para el {data.date}</h2>
+          <p className="planning-result__badge" role="status">
+            <strong>Vista previa.</strong> Las rutas no se guardan hasta que confirmes.
+          </p>
+        </div>
         {!data.canConfirm && (
           <p className="notice notice--preview" role="note">
-            <strong>Solo vista previa: no es el día de entrega.</strong> Las rutas se confirman y
-            asignan el mismo día (hora de Ecuador). Los pedidos de este día siguen pendientes y se
-            planifican ese día.
+            <strong>Solo vista previa: no es el día de entrega.</strong> Las rutas se confirman el
+            mismo día de la entrega (hora de Ecuador).
           </p>
         )}
-        <p className="notice">
-          <strong>Horarios agrupados.</strong> Cada ruta junta entregas cuyas horas pedidas se
-          diferencian en hasta {data.timeWindowMarginMinutes} minutos, con un máximo de{' '}
-          {data.capacity} paradas, y las visita en orden de hora. Es una forma de agrupar, no una
-          promesa de entregar dentro de ±{data.timeWindowMarginMinutes} minutos.
-        </p>
-        <DistanceNotice method={data.distanceMethod} />
         <PlanningSummary summary={data.summary} method={data.distanceMethod} />
+        <div className="planning-notes">
+          {selectedDriver ? (
+            <p className="notice">
+              <strong>Capacidad aplicada:</strong> {selectedDriver.name} ({selectedDriver.vehicle},{' '}
+              {unitsLabel(data.capacity)}). Al confirmar se guarda como borrador sin asignar
+              automáticamente.
+            </p>
+          ) : null}
+          <p className="notice">
+            <strong>Horarios agrupados.</strong> Cada ruta reúne entregas con hasta{' '}
+            {data.timeWindowMarginMinutes} minutos de diferencia, máximo 4 paradas y hasta{' '}
+            {unitsLabel(data.capacity)} de carga, en orden de hora; no es una promesa de llegada.
+          </p>
+          <DistanceNotice method={data.distanceMethod} />
+        </div>
       </section>
 
       {routes.length === 0 ? (
-        <section className="card">
-          <p className="empty-state">No hay pedidos pendientes para planificar en esta fecha.</p>
+        <section className="card planning-empty">
+          <span className="planning-empty__icon" aria-hidden="true">
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 8 12 3 3 8v8l9 5 9-5V8ZM3 8l9 5 9-5M12 13v8" />
+            </svg>
+          </span>
+          <h2>Nada por planificar</h2>
+          <p className="empty-state">
+            {data.excluded.length > 0
+              ? 'Ningún pedido pudo incluirse en una ruta con la capacidad planificada. Revisa los pedidos excluidos.'
+              : 'No hay pedidos pendientes para planificar en esta fecha.'}
+          </p>
+          <p className="planning-empty__hint">
+            {data.excluded.length > 0
+              ? 'Abre «Excluidos» arriba para ver el motivo y los choferes candidatos.'
+              : 'Elige otro día arriba y vuelve a previsualizar.'}
+          </p>
         </section>
       ) : (
         <section className="card" aria-labelledby="planning-routes-title">
@@ -154,35 +170,6 @@ export function PlanningResult({ data }: PlanningResultProps) {
           </div>
         </section>
       )}
-
-      <ExcludedOrders excluded={data.excluded} />
-
-      <section className="card" aria-labelledby="saved-routes-title">
-        <h2 id="saved-routes-title">Rutas guardadas para el {data.date}</h2>
-        <AsyncContent
-          {...savedRoutes}
-          onRetry={reloadSavedRoutes}
-          loadingText="Cargando rutas guardadas..."
-        >
-          {(routes) => (
-            <>
-              {drivers.error && <p className="field__error">{drivers.error}</p>}
-              <SavedRoutes
-                day={data.date}
-                routes={routes}
-                drivers={drivers.data ?? []}
-                actions={routeActions.states}
-                onAssign={routeActions.assign}
-                onReassign={routeActions.reassign}
-                onReorder={routeActions.reorder}
-                onMove={routeActions.move}
-                isToday={data.isToday}
-                onRelease={routeActions.release}
-              />
-            </>
-          )}
-        </AsyncContent>
-      </section>
     </div>
   )
 }

@@ -21,6 +21,12 @@ const mockApi = () => ({
 const renderReceipt = () =>
   renderWithProviders(<App />, { route: orderReceiptPath(ORDER_ID), session: adminSession })
 
+/** El contacto vive en un panel lateral que se abre desde la hoja. */
+const openContact = async (user: ReturnType<typeof renderReceipt>['user']) => {
+  await user.click(await screen.findByRole('button', { name: 'Información del cliente' }))
+  return screen.findByRole('form', { name: 'Corregir contacto' })
+}
+
 const contactForm = () => within(screen.getByRole('form', { name: 'Corregir contacto' }))
 
 describe('ADMIN · comprobante de venta', () => {
@@ -65,6 +71,18 @@ describe('ADMIN · comprobante de venta', () => {
   })
 })
 
+describe('ADMIN · enlace a pérdidas', () => {
+  it('con #perdidas en la dirección se abre el panel de pérdidas del pedido', async () => {
+    mockApi()
+    renderWithProviders(<App />, {
+      route: `${orderReceiptPath(ORDER_ID)}#perdidas`,
+      session: adminSession,
+    })
+
+    expect(await screen.findByRole('dialog', { name: 'Pérdidas y reemplazos' })).toBeInTheDocument()
+  })
+})
+
 describe('ADMIN · corrección de contacto', () => {
   it('envía solo lo que cambió con la versión actual y avisa que el comprobante no cambia', async () => {
     const api = mockApi()
@@ -72,7 +90,7 @@ describe('ADMIN · corrección de contacto', () => {
       .spyOn(ordersService, 'updateContact')
       .mockResolvedValue(orderContact({ recipientPhone: '0999999999', contactRevision: 1 }))
     const { user } = renderReceipt()
-    await screen.findByRole('form', { name: 'Corregir contacto' })
+    await openContact(user)
     api.history.mockResolvedValue([contactAudit()])
 
     const phone = contactForm().getByLabelText('Teléfono de quien recibe')
@@ -100,7 +118,7 @@ describe('ADMIN · corrección de contacto', () => {
     mockApi()
     const update = vi.spyOn(ordersService, 'updateContact')
     const { user } = renderReceipt()
-    await screen.findByRole('form', { name: 'Corregir contacto' })
+    await openContact(user)
 
     await user.click(contactForm().getByRole('button', { name: 'Guardar corrección' }))
 
@@ -116,7 +134,7 @@ describe('ADMIN · corrección de contacto', () => {
       }),
     )
     const { user } = renderReceipt()
-    await screen.findByRole('form', { name: 'Corregir contacto' })
+    await openContact(user)
     const phone = contactForm().getByLabelText('Teléfono del comprador')
     await user.clear(phone)
     await user.type(phone, '0990000000')
@@ -135,8 +153,8 @@ describe('ADMIN · corrección de contacto', () => {
     mockApi().contact.mockResolvedValue(
       orderContact({ userId: 'client-1', recipientType: 'REGISTERED_CLIENT' }),
     )
-    renderReceipt()
-    await screen.findByRole('form', { name: 'Corregir contacto' })
+    const { user } = renderReceipt()
+    await openContact(user)
 
     expect(contactForm().queryByLabelText('Nombre del comprador')).not.toBeInTheDocument()
     expect(contactForm().getByLabelText('Teléfono del comprador')).toBeInTheDocument()
@@ -144,7 +162,8 @@ describe('ADMIN · corrección de contacto', () => {
 
   it('muestra el historial de correcciones', async () => {
     mockApi().history.mockResolvedValue([contactAudit()])
-    renderReceipt()
+    const { user } = renderReceipt()
+    await openContact(user)
 
     expect(await screen.findByText(/0987654321/, { selector: 'li' })).toHaveTextContent(
       'Teléfono de quien recibe: 0987654321 → 0999999999',

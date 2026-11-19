@@ -11,6 +11,10 @@ export const MONITOR_ROUTE_STATUS_LABELS: Record<MonitorRouteStatus, string> = {
   COMPLETED: 'Completada (COMPLETED)',
 }
 
+/** Estado de la ruta en pocas palabras, sin el código técnico: «En curso (IN_PROGRESS)» → «En curso». */
+export const routeStatusShort = (status: MonitorRouteStatus): string =>
+  (MONITOR_ROUTE_STATUS_LABELS[status] ?? status).replace(/\s*\(.*\)$/, '')
+
 export const DRIVER_STATE_LABELS: Record<DriverState, string> = {
   BUSY: 'Ocupado con esta ruta',
   RETURNING: 'Retornando al depósito: todavía no está disponible',

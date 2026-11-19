@@ -19,7 +19,7 @@ const SCHEDULE = shopSettings().deliverySchedule
 const validValues: OrderFormValues = {
   ...INITIAL_ORDER_FORM,
   buyerName: 'María Pérez',
-  buyerPhone: '0991234567',
+  buyerPhone: '991234567',
   paymentMethod: 'CASH',
   deliveryAddress: 'Av. Los Chasquis y Río Guayllabamba',
   scheduledAt: '2030-01-02T10:00',
@@ -53,21 +53,28 @@ describe('validateOrder · venta ADMIN', () => {
     expect(
       validate({
         buyerName: 'a'.repeat(121),
-        buyerPhone: '1'.repeat(41),
         paymentNote: 'n'.repeat(201),
       }),
     ).toEqual({
       buyerName: 'Máximo 120 caracteres',
-      buyerPhone: 'Máximo 40 caracteres',
       paymentNote: 'Máximo 200 caracteres',
     })
     expect(
       validate({
         buyerName: 'a'.repeat(120),
-        buyerPhone: '1'.repeat(40),
         paymentNote: 'n'.repeat(200),
       }),
     ).toEqual({})
+  })
+
+  it('el nombre solo lleva letras y el teléfono es un celular ecuatoriano de 9 dígitos', () => {
+    expect(validate({ buyerName: 'Maria 123' }).buyerName).toBe('El nombre solo lleva letras')
+    expect(validate({ buyerName: "Ana-María O'Neil Ñandú" })).toEqual({})
+    for (const phone of ['99123456', '8912345678', '891234567', '9912345678']) {
+      expect(validate({ buyerPhone: phone }).buyerPhone).toBe(
+        'Escribe los 9 dígitos del celular, empieza con 9',
+      )
+    }
   })
 
   it('si el regalo lo recibe otra persona exige su nombre y teléfono', () => {
@@ -76,7 +83,7 @@ describe('validateOrder · venta ADMIN', () => {
       recipientPhone: 'El teléfono de quien recibe es obligatorio',
     })
     expect(
-      validate({ giftToOther: true, recipientName: 'Ana', recipientPhone: '0987654321' }),
+      validate({ giftToOther: true, recipientName: 'Ana', recipientPhone: '987654321' }),
     ).toEqual({})
   })
 
@@ -161,7 +168,7 @@ describe('toCreateAdminPurchaseInput', () => {
     const input = toCreateAdminPurchaseInput({
       ...validValues,
       buyerName: '  María Pérez ',
-      buyerPhone: ' 0991234567 ',
+      buyerPhone: ' 991234567 ',
       deliveryAddress: ' Av. Los Chasquis ',
       paymentMethod: 'TRANSFER',
       paymentNote: '  Transferencia Banco Pichincha ',
@@ -172,7 +179,7 @@ describe('toCreateAdminPurchaseInput', () => {
     })
 
     expect(input).toEqual({
-      buyer: { type: 'GUEST', name: 'María Pérez', contactPhone: '0991234567' },
+      buyer: { type: 'GUEST', name: 'María Pérez', contactPhone: '+593991234567' },
       payment: { method: 'TRANSFER', note: 'Transferencia Banco Pichincha' },
       deliveryAddress: 'Av. Los Chasquis',
       items: [
@@ -192,11 +199,15 @@ describe('toCreateAdminPurchaseInput', () => {
       ...validValues,
       giftToOther: true,
       recipientName: ' Ana Regalo ',
-      recipientPhone: ' 0987654321 ',
+      recipientPhone: ' 987654321 ',
     })
 
-    expect(input.buyer).toEqual({ type: 'GUEST', name: 'María Pérez', contactPhone: '0991234567' })
-    expect(input.giftRecipient).toEqual({ name: 'Ana Regalo', contactPhone: '0987654321' })
+    expect(input.buyer).toEqual({
+      type: 'GUEST',
+      name: 'María Pérez',
+      contactPhone: '+593991234567',
+    })
+    expect(input.giftRecipient).toEqual({ name: 'Ana Regalo', contactPhone: '+593987654321' })
     expect(input.payment).toEqual({ method: 'CASH' })
   })
 
@@ -208,15 +219,15 @@ describe('toCreateAdminPurchaseInput', () => {
       buyerName: 'Escrito antes como invitado',
       giftToOther: true,
       recipientName: 'Luis Regalo',
-      recipientPhone: '0987654321',
+      recipientPhone: '987654321',
     })
 
     expect(input.buyer).toEqual({
       type: 'REGISTERED_CLIENT',
       clientId: 'client-1',
-      contactPhone: '0991234567',
+      contactPhone: '+593991234567',
     })
-    expect(input.giftRecipient).toEqual({ name: 'Luis Regalo', contactPhone: '0987654321' })
+    expect(input.giftRecipient).toEqual({ name: 'Luis Regalo', contactPhone: '+593987654321' })
   })
 
   it('falla si faltan datos (no debería ocurrir tras validar)', () => {

@@ -29,7 +29,9 @@ export function ProductCard({ product, fromSearch = '' }: ProductCardProps) {
         <figure className="product-figure">
           <ProductImage src={product.primaryImageUrl} alt={primary?.altText || product.name} />
           {product.category && (
-            <span className="product-card__tag product-card__category">{product.category.name}</span>
+            <span className="product-card__tag product-card__category">
+              {product.category.name}
+            </span>
           )}
           <span
             className={`product-card__tag product-card__status${product.isAvailable ? '' : ' product-card__status--out'}`}

@@ -23,11 +23,7 @@ function commit(draft: CatalogFilters): CatalogFilters {
  * Búsqueda y filtros combinables. Categoría y disponibilidad se aplican al cambiar; búsqueda y
  * precios, al pausar la escritura si el rango es válido.
  */
-export function CatalogFiltersForm({
-  applied,
-  categories,
-  onApply,
-}: CatalogFiltersFormProps) {
+export function CatalogFiltersForm({ applied, categories, onApply }: CatalogFiltersFormProps) {
   const [draft, setDraft] = useState(applied)
   const [errors, setErrors] = useState<FilterErrors>({})
 
@@ -68,7 +64,12 @@ export function CatalogFiltersForm({
   }
 
   return (
-    <form className="filters catalog-filters" aria-label="Filtrar regalos" noValidate onSubmit={submit}>
+    <form
+      className="filters catalog-filters"
+      aria-label="Filtrar regalos"
+      noValidate
+      onSubmit={submit}
+    >
       <h2>Encuentra tu detalle</h2>
       <p className="filters__intro">Combina categorías, precio y disponibilidad.</p>
 

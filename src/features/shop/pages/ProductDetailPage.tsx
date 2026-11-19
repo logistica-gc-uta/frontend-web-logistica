@@ -72,7 +72,9 @@ function ProductDetail({ product }: { product: ShopProduct }) {
         <p className="description product-detail__description">{product.description}</p>
         <p className="price product-detail__price">{formatCents(product.priceCents)}</p>
         <p className="small product-card__shipping">Envío gratis — incluido en el precio</p>
-        <p className={`stock-status badge${product.isAvailable ? ' badge--success' : ' badge--danger'}`}>
+        <p
+          className={`stock-status badge${product.isAvailable ? ' badge--success' : ' badge--danger'}`}
+        >
           {product.isAvailable ? `Disponible · ${product.stock} en stock` : 'Agotado'}
         </p>
 

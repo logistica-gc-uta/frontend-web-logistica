@@ -27,8 +27,7 @@ const hasFooter = (pathname: string) =>
 
 function CartCounter() {
   const { count } = useCart()
-  const label =
-    count === 0 ? 'Carrito' : `Carrito: ${count} ${count === 1 ? 'unidad' : 'unidades'}`
+  const label = count === 0 ? 'Carrito' : `Carrito: ${count} ${count === 1 ? 'unidad' : 'unidades'}`
 
   return (
     <Link to={paths.shopCart} className="shop-header__cart" aria-label={label} aria-live="polite">
@@ -81,7 +80,11 @@ function AccountMenu() {
   if (!customer) {
     return (
       <nav aria-label="Cuenta" className="shop-header__account">
-        <Link to={paths.shopLogin} className="shop-header__account-link" aria-label="Ingresar a Mi cuenta">
+        <Link
+          to={paths.shopLogin}
+          className="shop-header__account-link"
+          aria-label="Ingresar a Mi cuenta"
+        >
           <svg
             className="icon"
             width="20"
@@ -112,16 +115,33 @@ function AccountMenu() {
           onClick={() => setOpen((current) => !current)}
         >
           Hola, <span className="shop-header__customer-name">{customer.name}</span>
-          <svg className="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <svg
+            className="icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
             <path d="m6 9 6 6 6-6" />
           </svg>
         </button>
         {open ? (
           <div id="shop-account-menu" className="shop-header__account-panel">
-            <NavLink to={paths.shopAccount} className="shop-header__account-link" onClick={() => setOpen(false)}>
+            <NavLink
+              to={paths.shopAccount}
+              className="shop-header__account-link"
+              onClick={() => setOpen(false)}
+            >
               Mi cuenta
             </NavLink>
-            <NavLink to={paths.shopOrders} className="shop-header__account-link" onClick={() => setOpen(false)}>
+            <NavLink
+              to={paths.shopOrders}
+              className="shop-header__account-link"
+              onClick={() => setOpen(false)}
+            >
               Mis pedidos
             </NavLink>
             <button
@@ -200,7 +220,9 @@ export function ShopLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
   const categories = useFetch(shopService.categories, 'No se pudieron cargar las categorías')
-  const categoriesWithGifts = (categories.data ?? []).filter((category) => category.productCount > 0)
+  const categoriesWithGifts = (categories.data ?? []).filter(
+    (category) => category.productCount > 0,
+  )
 
   useEffect(() => {
     document.title = shopDocumentTitle(location.pathname)
@@ -226,7 +248,16 @@ export function ShopLayout() {
                 <div className="shop-nav-dropdown">
                   <NavLink to={paths.shopCatalog} end className="shop-header__link">
                     Catálogo
-                    <svg className="icon shop-nav-dropdown__chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <svg
+                      className="icon shop-nav-dropdown__chevron"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                    >
                       <path d="m6 9 6 6 6-6" />
                     </svg>
                   </NavLink>

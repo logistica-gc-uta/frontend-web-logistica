@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { savedCoverage } from '../test/coverageFixtures'
@@ -51,19 +52,20 @@ describe('Legacy zone decoupling', () => {
       items: orders,
       total: orders.length,
       page: 1,
-      pageSize: 10,
+      pageSize: 4,
     })
     renderWithProviders(<App />, { route: paths.orders, session: adminSession })
 
     expect(await screen.findByRole('form', { name: 'Nueva venta' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Ver pedidos registrados' }))
     const filters = within(screen.getByRole('form', { name: 'Filtros de pedidos' }))
     expect(filters.queryByLabelText('Zona')).not.toBeInTheDocument()
     expect(filters.getByLabelText('Estado')).toBeInTheDocument()
     expect(filters.getByLabelText('Fecha de entrega')).toBeInTheDocument()
-    expect(await screen.findByRole('table', { name: 'Pedidos registrados' })).toHaveTextContent(
-      'FIC-02',
-    )
-    expect(list).toHaveBeenCalledWith({ page: 1, pageSize: 10 })
+    const table = await screen.findByRole('table', { name: 'Pedidos registrados' })
+    expect(table).not.toHaveTextContent('FIC-02')
+    expect(within(table).queryByRole('columnheader', { name: 'Zona' })).not.toBeInTheDocument()
+    expect(list).toHaveBeenCalledWith({ page: 1, pageSize: 4 })
     expect(zonesService.list).not.toHaveBeenCalled()
   })
 

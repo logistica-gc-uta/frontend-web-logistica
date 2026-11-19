@@ -1,0 +1,393 @@
+/* Panel lateral modal: se abre desde la derecha sobre un fondo suave. */
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(21 56 43 / 38%);
+  animation: drawer-fade 0.2s ease;
+}
+
+.drawer__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 100%);
+  height: 100%;
+  background: var(--color-surface);
+  box-shadow: -12px 0 40px rgb(21 56 43 / 18%);
+  animation: drawer-slide 0.25s ease;
+  outline: none;
+}
+
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 32px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.drawer__head h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.drawer__close:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.drawer__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.drawer__body {
+  flex: 1;
+  padding: 8px 32px 32px;
+  overflow-y: auto;
+}
+
+@keyframes drawer-slide {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer__panel,
+  .drawer__backdrop {
+    animation: none;
+  }
+}
+
+/* Variante angosta para formularios y listas cortas. */
+.drawer__panel--narrow {
+  width: min(560px, 100%);
+}
+
+.drawer__panel--narrow .field__input {
+  min-height: 38px;
+  padding: 5px 12px;
+  font-size: 0.9375rem;
+}
+
+.drawer__panel--narrow .field__label {
+  font-size: 0.8125rem;
+}
+
+.drawer__panel--narrow .btn {
+  min-height: 38px;
+}
+
+.drawer__panel--narrow h3 {
+  margin: 24px 0 8px;
+  font-size: 1rem;
+}
+
+/* Tipografía de los paneles angostos: texto de 14px, títulos de grupo en mayúsculas pequeñas. */
+.drawer__panel--narrow .drawer__body {
+  padding: 20px 28px 32px;
+  font-size: 0.875rem;
+}
+
+.drawer__panel--narrow .drawer__body p {
+  margin: 0 0 20px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.drawer__panel--narrow .drawer__body .field__input {
+  font-size: 0.875rem;
+}
+
+.drawer__panel--narrow .drawer__body .field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.drawer__panel--narrow .drawer__body h3,
+.drawer__panel--narrow .drawer__body legend {
+  margin: 28px 0 12px;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.drawer__panel--narrow .drawer__body .btn {
+  font-size: 0.875rem;
+}
+
+/* Contacto: cada grupo (comprador, quien recibe) con su nombre y teléfono en una fila. */
+.contact-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.contact-group legend {
+  margin-top: 0;
+}
+
+.contact-group__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .contact-group__pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pérdidas: filas y formularios con el mismo tamaño de texto y esquinas mínimas. */
+.drawer__panel--narrow .losses {
+  gap: 8px;
+}
+
+.drawer__panel--narrow .losses__items li,
+.drawer__panel--narrow .losses__list > li {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+}
+
+.drawer__panel--narrow .losses__form {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+}
+
+.drawer__panel--narrow .losses__state dt {
+  font-size: 0.75rem;
+}
+
+.drawer__panel--narrow .losses__state dd {
+  font-weight: 500;
+}
+
+/* Botones de icono de la cabecera de una página (abren un panel lateral), con su contador. */
+.orders-admin__list-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.orders-admin__list-button:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.orders-admin__list-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.orders-admin__list-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  color: var(--color-on-accent);
+}
+
+/* Cada botón de icono lleva su nombre al lado, para no perderse. */
+.orders-admin__list-button {
+  width: auto;
+  gap: 10px;
+  padding: 0 16px;
+}
+
+.orders-admin__list-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Panel de formulario corto: angosto, con campos beige de 38 px y el botón a la izquierda. */
+.drawer__panel--form {
+  width: min(440px, 100%);
+}
+
+.drawer__panel--form .drawer__body {
+  padding: 24px 28px 32px;
+}
+
+.drawer__panel--form .form {
+  gap: 18px;
+}
+
+.drawer__panel--form .field {
+  gap: 6px;
+}
+
+.drawer__panel--form .field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.drawer__panel--form .field__input {
+  min-height: 38px;
+  padding: 5px 12px;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+}
+
+.drawer__panel--form .field__input:hover {
+  border-color: var(--color-border);
+}
+
+.drawer__panel--form .field__input:focus,
+.drawer__panel--form .field__input:focus-visible {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.drawer__panel--form .btn {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Panel ancho para formularios largos (producto con sus imágenes): sin cajas dentro de la caja. */
+.drawer__panel--wide {
+  width: min(760px, 100%);
+}
+
+.drawer__panel--wide .drawer__body {
+  padding: 24px 32px 40px;
+}
+
+.drawer__panel--wide .card {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.drawer__panel--wide .card h2 {
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 1.0625rem;
+}
+
+.drawer__panel--wide .catalog-editor {
+  gap: 36px;
+}
+
+.drawer__panel--wide .field__input {
+  min-height: 38px;
+  padding: 5px 12px;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+}
+
+.drawer__panel--wide .field__input:focus,
+.drawer__panel--wide .field__input:focus-visible {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.drawer__panel--wide textarea.field__input {
+  min-height: 96px;
+}
+
+.drawer__panel--wide .field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.drawer__panel--wide .btn {
+  min-height: 38px;
+  font-size: 0.875rem;
+}
+
+/* En el panel del producto, el botón de guardar va a la izquierda. */
+.drawer__panel--wide .form > div:last-child {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.drawer__panel--wide .form > div:last-child .btn {
+  margin: 0;
+}
+
+/* Panel de formulario corto: sin la caja interior, campos al ancho del panel y botones a la izquierda. */
+.drawer__panel--form .card {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.drawer__panel--form .catalog-actions {
+  justify-content: flex-start;
+  margin-top: 6px;
+}
+
+.drawer__panel--form .form > p.text-muted {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}

@@ -122,6 +122,70 @@ textarea.field__input {
   gap: 12px;
 }
 
+.settings-form .field__input {
+  width: 100%;
+  min-width: 0;
+}
+
+.catalog-form__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+textarea.field__input {
+  resize: vertical;
+}
+
+.catalog-images {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-image {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.catalog-image__preview {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: var(--color-bg);
+}
+
+.catalog-image__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.catalog-image__alt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.catalog-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .category-list {
   display: flex;
   flex-direction: column;
@@ -180,4 +244,498 @@ textarea.field__input {
 /* Los textos ocultos de los botones (position: absolute) quedan dentro de la tabla desplazable. */
 .catalog-page .table-wrapper {
   position: relative;
+}
+
+/* Productos: una sola tabla con marco, «+ Nuevo producto» como texto, filtros en una fila compacta. */
+.catalog-card {
+  padding: 28px 32px 32px;
+}
+
+.catalog-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.catalog-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-accent);
+}
+
+.catalog-new:hover {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.catalog-strip__count {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.catalog-filters {
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.catalog-filters .field {
+  gap: 4px;
+}
+
+.catalog-filters .field__label {
+  font-size: 0.75rem;
+}
+
+.catalog-filters .field__input,
+.catalog-filters .btn {
+  min-height: 38px;
+  margin: 0;
+  padding-block: 5px;
+  font-size: 0.875rem;
+}
+
+.catalog-filters .field:first-child {
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
+.catalog-filters__clear {
+  min-height: 38px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.catalog-card .incident-nav {
+  margin-bottom: 12px;
+}
+
+.catalog-card .table-wrapper {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.catalog-card .table th {
+  background: var(--color-bg);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.catalog-card .table th,
+.catalog-card .table td {
+  padding-inline: 18px;
+  border-right: 1px solid var(--color-border);
+}
+
+.catalog-card .table th:last-child,
+.catalog-card .table td:last-child {
+  border-right: 0;
+}
+
+.catalog-card .table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.catalog-card .table td {
+  padding-block: 12px;
+  font-size: 0.9375rem;
+  vertical-align: middle;
+}
+
+.catalog-card .table td a:not(.catalog-table__icon) {
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-heading);
+}
+
+.catalog-card .table td a:not(.catalog-table__icon):hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Acciones de la fila: iconos sin caja que se marcan al pasar el cursor. */
+.catalog-actions {
+  justify-content: center;
+  gap: 4px;
+}
+
+.catalog-table__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.catalog-table__icon:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.catalog-table__icon:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.catalog-table__icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Los filtros van centrados en una sola fila. */
+.catalog-filters {
+  justify-content: center;
+}
+
+/* «+ Nuevo producto» ahora es un botón de texto (abre el panel). */
+button.catalog-new {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Ver producto: imagen, datos en una cuadrícula con divisores y la descripción. */
+.product-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.product-view__image {
+  width: 100%;
+  max-height: 320px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.product-view__noimage {
+  margin: 0;
+  padding: 40px 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.product-view__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.product-view__head h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.product-view__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.product-view__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.product-view__fact:nth-child(odd) {
+  border-right: 1px solid var(--color-border);
+}
+
+.product-view__fact:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.product-view__fact dt {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.product-view__fact dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-heading);
+}
+
+.product-view h4 {
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.product-view p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+/* El nombre del producto abre su detalle; se ve como texto, no como un botón. */
+.catalog-table__name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-heading);
+  cursor: pointer;
+}
+
+.catalog-table__name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.catalog-table__name:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+
+/* Configuración del Shop: un recuadro centrado, cuatro grupos en dos columnas y el guardado al centro. */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.settings-page > h1,
+.settings-page > p {
+  align-self: flex-start;
+}
+
+.settings-card {
+  width: min(960px, 100%);
+  padding: 32px 36px 36px;
+}
+
+.settings-form {
+  gap: 28px;
+}
+
+.settings-form > p.text-muted:first-of-type {
+  margin: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 48px;
+}
+
+.settings-form .items-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-form .items-editor legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.settings-form .items-editor legend + * {
+  clear: both;
+}
+
+.settings-form .items-editor p.text-muted {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.settings-form .field {
+  gap: 6px;
+}
+
+.settings-form .field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.settings-form .field__input {
+  min-height: 38px;
+  padding: 5px 12px;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  color-scheme: light;
+}
+
+.settings-form .field__input:focus,
+.settings-form .field__input:focus-visible {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.settings-form .catalog-form__row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Valores fijos (envío y zona horaria) en una franja con divisores, centrada. */
+.settings-fixed {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  text-align: center;
+}
+
+.settings-fixed > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+}
+
+.settings-fixed > div + div {
+  border-left: 1px solid var(--color-border);
+}
+
+.settings-fixed dt {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.settings-fixed dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-heading);
+}
+
+.settings-form > p.text-muted[role='note'] {
+  margin: 0;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.settings-save {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-save .btn {
+  min-height: 40px;
+  margin: 0;
+  padding-inline: 28px;
+}
+
+@media (max-width: 800px) {
+  .settings-grid,
+  .settings-fixed {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-fixed > div + div {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+
+/* Corrección: el formulario ocupa todo el ancho del recuadro (antes quedaba en 640px a la izquierda) y el recuadro se centra. */
+.settings-form {
+  width: 100%;
+  max-width: none;
+}
+
+.settings-card {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+}
+
+.settings-page {
+  align-items: stretch;
+}
+
+/* Títulos de grupo y explicaciones centrados; los campos conservan su etiqueta a la izquierda. */
+.settings-form .items-editor legend {
+  text-align: center;
+}
+
+.settings-form .items-editor p.text-muted {
+  text-align: center;
+}
+
+.settings-form .check-option {
+  align-self: center;
+}
+
+/* Columnas de la tabla de categorías con cifras y estados centrados. */
+.catalog-card .table th.catalog-table__center,
+.catalog-card .table td.catalog-table__center {
+  text-align: center;
 }

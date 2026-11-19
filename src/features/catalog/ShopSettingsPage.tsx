@@ -98,75 +98,78 @@ function SettingsEditor({
         .
       </p>
 
-      <fieldset className="items-editor">
-        <legend>IVA simulado</legend>
-        <p className="text-muted">
-          Es un valor de demostración: no es un tributo oficial ni del SRI.
-        </p>
-        <label className="catalog-form__check">
-          <input
-            type="checkbox"
-            checked={values.taxEnabled}
-            onChange={(event) => form.setFields({ taxEnabled: event.target.checked })}
-          />
-          Aplicar IVA simulado en los checkouts
-        </label>
-        <TextField
-          label="Tasa del IVA simulado (%)"
-          inputMode="decimal"
-          value={values.taxPercent}
-          onChange={(event) => form.setFields({ taxPercent: event.target.value })}
-          error={fieldErrors.taxPercent}
-        />
-      </fieldset>
-
-      <fieldset className="items-editor">
-        <legend>Máximo por producto y pedido</legend>
-        <TextField
-          label="Unidades máximas de un mismo producto (SKU) por pedido"
-          inputMode="numeric"
-          value={values.maxUnits}
-          onChange={(event) => form.setFields({ maxUnits: event.target.value })}
-          error={fieldErrors.maxUnits}
-        />
-        <p className="text-muted">Se aplica a cada producto, no al total del carrito.</p>
-      </fieldset>
-
-      <fieldset className="items-editor">
-        <legend>Entregas en Ecuador</legend>
-        <div className="catalog-form__row">
+      <div className="settings-grid">
+        <fieldset className="items-editor">
+          <legend>IVA simulado</legend>
+          <p className="text-muted">
+            Es un valor de demostración: no es un tributo oficial ni del SRI.
+          </p>
+          <label className="catalog-form__check check-option">
+            <input
+              type="checkbox"
+              checked={values.taxEnabled}
+              onChange={(event) => form.setFields({ taxEnabled: event.target.checked })}
+            />
+            Aplicar IVA simulado en los checkouts
+          </label>
           <TextField
-            label="Desde (incluida)"
-            type="time"
-            value={values.startTime}
-            onChange={(event) => form.setFields({ startTime: event.target.value })}
-            error={fieldErrors.startTime}
+            label="Tasa del IVA simulado (%)"
+            inputMode="decimal"
+            value={values.taxPercent}
+            onChange={(event) => form.setFields({ taxPercent: event.target.value })}
+            error={fieldErrors.taxPercent}
           />
-          <TextField
-            label="Hasta (incluida)"
-            type="time"
-            value={values.endTime}
-            onChange={(event) => form.setFields({ endTime: event.target.value })}
-            error={fieldErrors.endTime}
-          />
-        </div>
-      </fieldset>
+        </fieldset>
 
-      <fieldset className="items-editor">
-        <legend>Planificación de rutas</legend>
-        <TextField
-          label="Margen para agrupar horarios (minutos)"
-          inputMode="numeric"
-          value={values.marginMinutes}
-          onChange={(event) => form.setFields({ marginMinutes: event.target.value })}
-          error={fieldErrors.marginMinutes}
-        />
-        <p className="text-muted">
-          Una ruta propuesta solo junta entregas cuyas horas pedidas se diferencian en hasta este
-          margen (de {MARGIN_MIN} a {MARGIN_MAX} minutos). Sirve para agrupar: no garantiza entregar
-          dentro de ese margen. Aplica a las próximas propuestas; las rutas guardadas no cambian.
-        </p>
-      </fieldset>
+        <fieldset className="items-editor">
+          <legend>Máximo por producto y pedido</legend>
+          <TextField
+            label="Unidades máximas de un mismo producto (SKU) por pedido"
+            inputMode="numeric"
+            value={values.maxUnits}
+            onChange={(event) => form.setFields({ maxUnits: event.target.value })}
+            error={fieldErrors.maxUnits}
+          />
+          <p className="text-muted">Se aplica a cada producto, no al total del carrito.</p>
+        </fieldset>
+
+        <fieldset className="items-editor">
+          <legend>Entregas en Ecuador</legend>
+          <div className="catalog-form__row">
+            <TextField
+              label="Desde (incluida)"
+              type="time"
+              value={values.startTime}
+              onChange={(event) => form.setFields({ startTime: event.target.value })}
+              error={fieldErrors.startTime}
+            />
+            <TextField
+              label="Hasta (incluida)"
+              type="time"
+              value={values.endTime}
+              onChange={(event) => form.setFields({ endTime: event.target.value })}
+              error={fieldErrors.endTime}
+            />
+          </div>
+        </fieldset>
+
+        <fieldset className="items-editor">
+          <legend>Planificación de rutas</legend>
+          <TextField
+            label="Margen para agrupar horarios (minutos)"
+            inputMode="numeric"
+            value={values.marginMinutes}
+            onChange={(event) => form.setFields({ marginMinutes: event.target.value })}
+            error={fieldErrors.marginMinutes}
+          />
+          <p className="text-muted">
+            Una ruta propuesta solo junta entregas cuyas horas pedidas se diferencian en hasta este
+            margen (de {MARGIN_MIN} a {MARGIN_MAX} minutos). Sirve para agrupar: no garantiza
+            entregar dentro de ese margen. Aplica a las próximas propuestas; las rutas guardadas no
+            cambian.
+          </p>
+        </fieldset>
+      </div>
 
       <dl className="settings-fixed">
         <div>
@@ -186,9 +189,11 @@ function SettingsEditor({
         recalcularse. Las compras y los comprobantes ya emitidos no cambian.
       </p>
 
-      <Button type="submit" isLoading={form.isSubmitting} loadingText="Guardando...">
-        Guardar configuración
-      </Button>
+      <div className="settings-save">
+        <Button type="submit" isLoading={form.isSubmitting} loadingText="Guardando...">
+          Guardar configuración
+        </Button>
+      </div>
     </form>
   )
 }
@@ -205,17 +210,15 @@ export function ShopSettingsPage() {
   const current = saved ?? settings.data
 
   return (
-    <main className="page">
+    <main className="page page--wide settings-page">
       <h1>Configuración Shop</h1>
-      <p className="text-muted">
-        Reglas comerciales del Shop REGALÍA. Solo el ADMIN puede verlas y cambiarlas.
-      </p>
+      <p className="text-muted">Reglas comerciales del Shop. Solo el ADMIN puede cambiarlas.</p>
       {savedVersion !== null && (
         <Alert variant="success">
           Configuración guardada (versión {savedVersion}). El Shop ya usa los nuevos valores.
         </Alert>
       )}
-      <section className="card">
+      <section className="card settings-card">
         <AsyncContent
           {...settings}
           data={current}

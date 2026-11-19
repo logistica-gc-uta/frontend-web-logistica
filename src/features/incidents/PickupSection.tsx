@@ -51,13 +51,13 @@ export function PickupSection({
         <h4>Retiro en tienda</h4>
         <p>
           <strong>Pendiente de retiro en tienda</strong> desde el {formatDateTime(pickup.agreedAt)}.
-          Todavía no está entregado: confírmalo solo cuando el cliente se lo lleve.
         </p>
         {confirming ? (
           <fieldset disabled={isSaving}>
             <legend>Confirmar retiro físico</legend>
             <TextField
-              label={`Motivo de la confirmación del retiro de ${title}`}
+              label="Cómo se confirmó el retiro"
+              placeholder="Ej.: Lo retiró el titular con su cédula"
               value={reason}
               maxLength={REASON_MAX_LENGTH}
               error={error ?? undefined}
@@ -75,7 +75,12 @@ export function PickupSection({
             </Button>
           </fieldset>
         ) : (
-          <Button onClick={() => setConfirming(true)}>Confirmar retiro</Button>
+          <>
+            <Button onClick={() => setConfirming(true)}>Confirmar retiro</Button>
+            <p className="incident__pickup-note">
+              Todavía no está entregado: confírmalo solo cuando el cliente se lo lleve.
+            </p>
+          </>
         )}
       </section>
     )
@@ -96,10 +101,14 @@ export function PickupSection({
       <fieldset disabled={isSaving}>
         <legend>Ofrecer retiro en tienda</legend>
         <p className="text-muted">
-          Alternativa a reprogramar: si el cliente acepta, el pedido queda pendiente de retiro y no
-          se crea otra ruta. No es una entrega ni una cancelación.
+          Si el cliente prefiere ir a la tienda, no se crea otra ruta: el pedido queda esperando su
+          retiro.
         </p>
-        <div className="incident__choices" role="radiogroup" aria-label="Respuesta al retiro">
+        <div
+          className="incident__choices choices"
+          role="radiogroup"
+          aria-label="Respuesta al retiro"
+        >
           <label>
             <input
               type="radio"
@@ -120,7 +129,8 @@ export function PickupSection({
           </label>
         </div>
         <TextField
-          label={`Motivo del retiro de ${title}`}
+          label="Respuesta del cliente"
+          placeholder="Ej.: Prefiere recogerlo en la tienda el lunes"
           value={reason}
           maxLength={REASON_MAX_LENGTH}
           error={error ?? undefined}

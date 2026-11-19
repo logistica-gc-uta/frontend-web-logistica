@@ -44,6 +44,29 @@ describe('repartidores · validación del perfil', () => {
     })
     expect(profileChanges(current, current)).toEqual({})
   })
+
+  it('valida capacidad opcional entera positiva hasta int4 max y permite restaurar null al borrarla', () => {
+    const base = { name: 'Ana', email: 'ana@delivery.com', vehicle: 'Moto' }
+    expect(validateProfile({ ...base, vehicleCapacity: '' })).toEqual({})
+    expect(validateProfile({ ...base, vehicleCapacity: '6' })).toEqual({})
+    expect(validateProfile({ ...base, vehicleCapacity: '2147483647' })).toEqual({})
+
+    expect(validateProfile({ ...base, vehicleCapacity: '0' }).vehicleCapacity).toBeDefined()
+    expect(validateProfile({ ...base, vehicleCapacity: '-3' }).vehicleCapacity).toBeDefined()
+    expect(validateProfile({ ...base, vehicleCapacity: '4.5' }).vehicleCapacity).toBeDefined()
+    expect(validateProfile({ ...base, vehicleCapacity: '2147483648' }).vehicleCapacity).toBeDefined()
+    expect(validateProfile({ ...base, vehicleCapacity: 'abc' }).vehicleCapacity).toBeDefined()
+
+    expect(
+      profileChanges({ ...base, vehicleCapacity: '8' }, { ...base, vehicleCapacity: '' }),
+    ).toEqual({ vehicleCapacity: 8 })
+    expect(
+      profileChanges({ ...base, vehicleCapacity: '' }, { ...base, vehicleCapacity: '8' }),
+    ).toEqual({ vehicleCapacity: null })
+    expect(
+      profileChanges({ ...base, vehicleCapacity: '8' }, { ...base, vehicleCapacity: '8' }),
+    ).toEqual({})
+  })
 })
 
 describe('repartidores · validación de ausencias', () => {

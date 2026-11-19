@@ -23,4 +23,32 @@ describe('planningService', () => {
     await expect(planningService.confirmRoute(input)).resolves.toEqual(savedDraft())
     expect(post).toHaveBeenCalledWith('/routes', input, { timeout: 30_000 })
   })
+
+  it('reenvía driverId opcional en GET /route-proposals y en POST /routes', async () => {
+    const get = vi.spyOn(apiClient, 'get').mockResolvedValue(createHttpResponse(proposalsResponse))
+    const post = vi.spyOn(apiClient, 'post').mockResolvedValue(createHttpResponse(savedDraft()))
+
+    await planningService.getProposals({ date: '2030-02-14', driverId: 'driver-1' })
+    await planningService.confirmRoute({
+      zoneId: 'zone-1',
+      routeDate: '2030-02-14T15:00:00Z',
+      orderIds: ['a', 'b'],
+      driverId: 'driver-1',
+    })
+
+    expect(get).toHaveBeenCalledWith('/route-proposals', {
+      params: { date: '2030-02-14', driverId: 'driver-1', includeGeometry: true },
+      timeout: 30_000,
+    })
+    expect(post).toHaveBeenCalledWith(
+      '/routes',
+      {
+        zoneId: 'zone-1',
+        routeDate: '2030-02-14T15:00:00Z',
+        orderIds: ['a', 'b'],
+        driverId: 'driver-1',
+      },
+      { timeout: 30_000 },
+    )
+  })
 })

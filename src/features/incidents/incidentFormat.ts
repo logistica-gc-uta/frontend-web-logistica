@@ -1,3 +1,4 @@
+import { STORE_AREA_LABEL } from '../../lib/planning/routeArea'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { formatTime } from '../../lib/format/formatTime'
 import type { DeliveryAgreement } from '../dispatch/types'
@@ -5,7 +6,9 @@ import { describeFailureReason } from '../monitor/monitorLabels'
 import type { MonitorRoute, MonitorStop } from '../monitor/types'
 
 export const routeName = (route: MonitorRoute): string =>
-  `Ruta ${route.zoneCode} · ${formatDateTime(route.date)}`
+  route.zoneCode === STORE_AREA_LABEL
+    ? `Ruta del ${formatDateTime(route.date)}`
+    : `Ruta ${route.zoneCode} · ${formatDateTime(route.date)}`
 
 /** Resultado de una visita tal como lo guardó el backend (sin inventar éxito ni fallo). */
 export function visitResult(stop: MonitorStop): string {
