@@ -38,6 +38,7 @@ describe('monitorService.listRoutes', () => {
           deliveryAddress: 'Primera',
           outcome: 'SUCCESSFUL',
           failureReason: null,
+          failureContext: null,
         },
         {
           id: 's2',
@@ -46,17 +47,18 @@ describe('monitorService.listRoutes', () => {
           deliveryAddress: 'Segunda',
           outcome: 'FAILED',
           failureReason: 'RECIPIENT_REFUSED',
+          failureContext: 'Conversación privada con la destinataria',
         },
       ],
     })
   })
 
-  it('no deja pasar datos del destinatario, el texto libre del chofer ni el hash de contraseña', async () => {
+  it('no deja pasar datos del destinatario, intentos anteriores ni el hash de contraseña (del último fallo solo pasa lo que anotó el chofer)', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue(createHttpResponse([rawMonitorRoute]))
 
     const serialized = JSON.stringify(await monitorService.listRoutes())
 
-    for (const secret of ['HASH-SECRETO', 'Conversación', 'Nadie abrió', '0990000000', 'Ana']) {
+    for (const secret of ['HASH-SECRETO', 'Nadie abrió', '0990000000', 'Ana']) {
       expect(serialized).not.toContain(secret)
     }
   })

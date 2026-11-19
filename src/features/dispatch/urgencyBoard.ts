@@ -15,6 +15,8 @@ export interface UrgencyBoard {
   failedDeliveries: number
   /** Pedidos de hoy en cualquier estado, para nombrar urgencias y decisiones por su dirección. */
   orders: Record<string, Order>
+  /** Instante de esta consulta (para mostrar la última actualización). */
+  loadedAt: string
 }
 
 /**
@@ -35,5 +37,6 @@ export async function loadUrgencyBoard(): Promise<UrgencyBoard> {
     alreadyRouted: inbox.urgencies.length - urgencies.length,
     failedDeliveries: inbox.failedDeliveries.length,
     orders: Object.fromEntries(orders.map((order) => [order.id, order])),
+    loadedAt: new Date().toISOString(),
   }
 }

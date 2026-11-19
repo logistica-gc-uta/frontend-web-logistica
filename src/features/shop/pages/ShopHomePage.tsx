@@ -3,8 +3,9 @@ import { Link } from 'react-router'
 import { paths } from '../../../app/paths'
 import { AsyncContent } from '../../../components/ui/AsyncContent'
 import { useFetch } from '../../../hooks/useFetch'
-import { CategoryCard } from '../components/CategoryCard'
+import { OccasionMarquee } from '../components/OccasionMarquee'
 import { ProductCard } from '../components/ProductCard'
+import { ShopSearch } from '../components/ShopSearch'
 import { formatCents } from '../money'
 import { shopService } from '../shopService'
 import type { ShopProduct } from '../types'
@@ -13,7 +14,7 @@ import type { ShopProduct } from '../types'
 const loadHighlights = () => shopService.products({ page: 1, pageSize: 8, sort: 'featured' })
 
 /** Ocasiones que se muestran en la portada; el resto está en el catálogo. */
-const HOME_CATEGORIES = 8
+const HOME_CATEGORIES = 12
 
 /** Hasta tres fotos reales: el foco/hover las eleva; tocar solo selecciona en sitio. */
 function HeroCollage({ products }: { products: readonly ShopProduct[] }) {
@@ -25,8 +26,16 @@ function HeroCollage({ products }: { products: readonly ShopProduct[] }) {
   if (withPhoto.length === 0) return null
 
   return (
-    <figure className="hero-art shop-hero__art" aria-label="Regalos destacados" aria-describedby="hero-hint">
-      <div className={`hero-collage hero-collage--${withPhoto.length}`} role="group" aria-label="Regalos de la tienda">
+    <figure
+      className="hero-art shop-hero__art"
+      aria-label="Regalos destacados"
+      aria-describedby="hero-hint"
+    >
+      <div
+        className={`hero-collage hero-collage--${withPhoto.length}`}
+        role="group"
+        aria-label="Regalos de la tienda"
+      >
         {withPhoto.map((product) => (
           <button
             key={product.id}
@@ -44,12 +53,15 @@ function HeroCollage({ products }: { products: readonly ShopProduct[] }) {
               onError={() => setFailed((current) => [...current, product.id])}
             />
             <span className="hero-card-name hero-collage__name">{product.name}</span>
-            <span className="hero-card-price hero-collage__price">{formatCents(product.priceCents)}</span>
+            <span className="hero-card-price hero-collage__price">
+              {formatCents(product.priceCents)}
+            </span>
           </button>
         ))}
       </div>
       <figcaption id="hero-hint" className="visually-hidden">
-        Pasa el puntero o enfoca con Tab para ver cada tarjeta al frente; toca para mantenerla seleccionada aquí.
+        Pasa el puntero o enfoca con Tab para ver cada tarjeta al frente; toca para mantenerla
+        seleccionada aquí.
       </figcaption>
     </figure>
   )
@@ -65,9 +77,11 @@ export function ShopHomePage() {
         <div className="hero-copy shop-hero__copy">
           <p className="eyebrow shop-eyebrow">Detalles con intención</p>
           <h1 id="shop-hero-title">
-            Hay regalos que <br />lo dicen todo.
+            Hay regalos que <br />
+            lo dicen todo.
           </h1>
           <p>Para celebrar, agradecer o simplemente decir: pensé en ti.</p>
+          <ShopSearch />
           <div className="shop-hero__actions">
             <Link to={paths.shopCatalog} className="cta btn btn--primary" aria-label="Ver regalos">
               Encuentra tu detalle <span aria-hidden="true">↗</span>
@@ -81,12 +95,8 @@ export function ShopHomePage() {
       </section>
 
       <section aria-labelledby="shop-categories-title" className="shop-section">
-        <div className="section-heading shop-section__head">
-          <div>
-            <h2 id="shop-categories-title">Cada ocasión, un detalle.</h2>
-            <p>Empieza por lo que quieres decir.</p>
-          </div>
-          <Link to={paths.shopCatalog}>Ver todo el catálogo</Link>
+        <div className="section-heading shop-section__head shop-section__head--center">
+          <h2 id="shop-categories-title">Cada ocasión, un detalle.</h2>
         </div>
         <AsyncContent
           {...categories}
@@ -101,14 +111,13 @@ export function ShopHomePage() {
             return withProducts.length === 0 ? (
               <p className="empty-state">Todavía no hay categorías con regalos publicados.</p>
             ) : (
-              <div className="occasion-grid category-grid">
-                {withProducts.map((category, index) => (
-                  <CategoryCard key={category.id} category={category} index={index} />
-                ))}
-              </div>
+              <OccasionMarquee categories={withProducts} />
             )
           }}
         </AsyncContent>
+        <p className="shop-section__more">
+          <Link to={paths.shopCatalog}>Ver todo el catálogo</Link>
+        </p>
       </section>
 
       <section aria-labelledby="shop-highlights-title" className="shop-section catalog">
@@ -118,14 +127,12 @@ export function ShopHomePage() {
             const shown = featured.length > 0 ? featured : items
             return (
               <>
-                <div className="section-heading shop-section__head">
-                  <div>
-                    <h2 id="shop-highlights-title">
-                      {featured.length > 0 ? 'Destacados' : 'Regalos disponibles'}
-                    </h2>
-                    <p>Detalles listos para enviar.</p>
-                  </div>
+                <div className="section-heading shop-section__head shop-section__head--spaced">
+                  <h2 id="shop-highlights-title">
+                    {featured.length > 0 ? 'Destacados' : 'Regalos disponibles'}
+                  </h2>
                 </div>
+                <p className="shop-section__note">Todos nuestros regalos incluyen envío gratis.</p>
                 {shown.length === 0 ? (
                   <p className="empty-state">Todavía no hay regalos publicados.</p>
                 ) : (

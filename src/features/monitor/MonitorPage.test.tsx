@@ -46,11 +46,14 @@ describe('MonitorRouteCard', () => {
       />,
     )
 
-    expect(screen.getByText('3 de 4 entregados (75 %)')).toBeInTheDocument()
-    expect(
-      screen.getByRole('progressbar', { name: 'Entregas exitosas de Ruta 1 · FIC-02' }),
-    ).toHaveAttribute('value', '3')
-    expect(screen.getByText('Visitas resueltas: 4 de 4 · 1 fallida')).toBeInTheDocument()
+    expect(screen.getByText('3 de 4 entregados')).toBeInTheDocument()
+    // El avance son puntos, uno por parada: 3 entregadas de 4.
+    const dots = screen.getByRole('progressbar', { name: 'Entregas exitosas de Ruta 1 · FIC-02' })
+    expect(dots).toHaveAttribute('aria-valuenow', '3')
+    expect(dots).toHaveAttribute('aria-valuemax', '4')
+    expect(dots.querySelectorAll('.monitor-dot')).toHaveLength(4)
+    expect(dots.querySelectorAll('.monitor-dot--successful')).toHaveLength(3)
+    expect(dots.querySelectorAll('.monitor-dot--failed')).toHaveLength(1)
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'Parada 1Entregado',
       'Parada 2Entregado',
@@ -69,7 +72,7 @@ describe('MonitorRouteCard', () => {
       />,
     )
 
-    expect(screen.getByText('Completada (COMPLETED)')).toBeInTheDocument()
+    expect(screen.getByText('Completada')).toBeInTheDocument()
     expect(
       screen.getByText('Retornando al depósito: todavía no está disponible'),
     ).toBeInTheDocument()
@@ -106,7 +109,6 @@ describe('MonitorRouteCard', () => {
     expect(screen.getByText('Visita fallida: CODIGO_NUEVO')).toBeInTheDocument()
     expect(screen.getByText('Sin resultado registrado')).toBeInTheDocument()
     expect(screen.getByText('Visita fallida: sin motivo registrado')).toBeInTheDocument()
-    expect(screen.getByText('Visitas resueltas: 2 de 3 · 2 fallidas')).toBeInTheDocument()
   })
 })
 
@@ -119,7 +121,7 @@ describe('MonitorPage', () => {
     mockApi([today(), today({ id: 'borrador', status: 'DRAFT', driverId: null })])
     renderPage()
 
-    expect(await screen.findByText('0 de 4 entregados (0 %)')).toBeInTheDocument()
+    expect(await screen.findByText('0 de 4 entregados')).toBeInTheDocument()
     expect(screen.getByText(/Hay 1 ruta de hoy en borrador/)).toBeInTheDocument()
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Conectando…')
 
@@ -137,6 +139,23 @@ describe('MonitorPage', () => {
     )
   })
 
+  it('con más de dos rutas se ven de dos en dos, con navegación', async () => {
+    mockApi([
+      today({ id: 'r1', createdAt: '2026-10-21T10:00:00Z' }),
+      today({ id: 'r2', createdAt: '2026-10-21T11:00:00Z' }),
+      today({ id: 'r3', createdAt: '2026-10-21T12:00:00Z' }),
+    ])
+    const { user } = renderPage()
+
+    expect(await screen.findByText('Rutas 1–2')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(2)
+
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    expect(screen.getByText('Ruta 3')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+  })
+
   it('una entrega registrada en la app se refleja sin recargar la página', async () => {
     const listRoutes = mockApi(
       [today()],
@@ -144,13 +163,13 @@ describe('MonitorPage', () => {
       [today({ stops: [stopWith(1, 'SUCCESSFUL'), ...today().stops.slice(1)] })],
     )
     renderPage()
-    await screen.findByText('0 de 4 entregados (0 %)')
+    await screen.findByText('0 de 4 entregados')
     act(() => socket.fire('connect'))
     await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(2))
 
     act(() => socket.fire('order.status.updated', { data: { orderId: 'order-1' } }))
 
-    expect(await screen.findByText('1 de 4 entregados (25 %)')).toBeInTheDocument()
+    expect(await screen.findByText('1 de 4 entregados')).toBeInTheDocument()
     expect(routeCard().getByText('Entregado')).toBeInTheDocument()
   })
 
@@ -158,9 +177,9 @@ describe('MonitorPage', () => {
     const final = today({ stops: threeDeliveredOneFailed() })
     const listRoutes = mockApi([today()], [final])
     renderPage()
-    await screen.findByText('0 de 4 entregados (0 %)')
+    await screen.findByText('0 de 4 entregados')
     act(() => socket.fire('connect'))
-    expect(await screen.findByText('3 de 4 entregados (75 %)')).toBeInTheDocument()
+    expect(await screen.findByText('3 de 4 entregados')).toBeInTheDocument()
 
     // Llega tarde un aviso de la primera entrega (y repetido): solo provoca otra consulta.
     act(() => {
@@ -169,13 +188,13 @@ describe('MonitorPage', () => {
     })
 
     await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(3))
-    expect(screen.getByText('3 de 4 entregados (75 %)')).toBeInTheDocument()
+    expect(screen.getByText('3 de 4 entregados')).toBeInTheDocument()
   })
 
   it('al perder la conexión lo avisa; al recuperarla consulta de nuevo y toma el estado del servidor', async () => {
     const listRoutes = mockApi([today()], [today()], [today({ stops: threeDeliveredOneFailed() })])
     renderPage()
-    await screen.findByText('0 de 4 entregados (0 %)')
+    await screen.findByText('0 de 4 entregados')
     act(() => socket.fire('connect'))
     await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(2))
 
@@ -186,13 +205,13 @@ describe('MonitorPage', () => {
     act(() => socket.fire('connect'))
 
     expect(await screen.findByText(/Conexión recuperada/)).toBeInTheDocument()
-    expect(await screen.findByText('3 de 4 entregados (75 %)')).toBeInTheDocument()
+    expect(await screen.findByText('3 de 4 entregados')).toBeInTheDocument()
   })
 
   it('si el servidor cierra la conexión ofrece reconectar', async () => {
     mockApi([today()])
     const { user } = renderPage()
-    await screen.findByText('0 de 4 entregados (0 %)')
+    await screen.findByText('0 de 4 entregados')
     act(() => socket.fire('connect'))
 
     act(() => socket.fire('disconnect', 'io server disconnect'))
@@ -209,7 +228,7 @@ describe('MonitorPage', () => {
     )
     mockApi([today()])
     renderPage()
-    await screen.findByText('0 de 4 entregados (0 %)')
+    await screen.findByText('0 de 4 entregados')
 
     act(() => socket.fire('connect'))
 
@@ -232,6 +251,6 @@ describe('MonitorPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
 
-    expect(await screen.findByText('0 de 4 entregados (0 %)')).toBeInTheDocument()
+    expect(await screen.findByText('0 de 4 entregados')).toBeInTheDocument()
   })
 })

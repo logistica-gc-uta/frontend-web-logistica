@@ -49,7 +49,7 @@ afterEach(() => {
 })
 
 describe('Shop · cabecera', () => {
-  it('es pública, sin accesos del panel ADMIN, y el buscador lleva al catálogo', async () => {
+  it('es pública, sin accesos del panel ADMIN, y el buscador del recuadro verde lleva al catálogo', async () => {
     const api = mockShop()
     const { user } = renderShop('/')
 
@@ -62,8 +62,10 @@ describe('Shop · cabecera', () => {
       expect(screen.queryByRole('button', { name: admin })).not.toBeInTheDocument()
     }
 
-    await user.type(within(header).getByRole('searchbox'), '  rosas  ')
-    await user.click(within(header).getByRole('button', { name: 'Buscar' }))
+    expect(within(header).queryByRole('search')).not.toBeInTheDocument()
+    const hero = screen.getByRole('region', { name: /Hay regalos que/ })
+    await user.type(within(hero).getByRole('searchbox'), '  rosas  ')
+    await user.click(within(hero).getByRole('button', { name: 'Buscar' }))
 
     expect(
       await screen.findByRole('heading', { name: /Resultados para «rosas»/ }),
@@ -73,22 +75,36 @@ describe('Shop · cabecera', () => {
 })
 
 describe('Shop · inicio', () => {
-  it.each([5, 8])('ocasiones: conserva las %i categorías reales y sus enlaces en la tira', async (count) => {
-    const categories = Array.from({ length: count }, (_, index) => shopCategory({
-      id: `cat-${index}`, name: `Ocasión ${index + 1}`, productCount: count - index,
-    }))
-    mockShop({ categories: [...categories, shopCategory({ name: 'Vacía', productCount: 0 })] })
-    renderShop('/')
-    const section = screen.getByRole('region', { name: 'Cada ocasión, un detalle.' })
-    await waitFor(() => expect(section.querySelectorAll('.occasion-grid a')).toHaveLength(count))
-    for (const category of categories) {
-      expect(within(section).getByRole('link', { name: category.name })).toHaveAttribute(
-        'href', `/catalogo?categoria=${category.id}`,
+  it.each([5, 8])(
+    'ocasiones: conserva las %i categorías reales y sus enlaces en las filas',
+    async (count) => {
+      const categories = Array.from({ length: count }, (_, index) =>
+        shopCategory({
+          id: `cat-${index}`,
+          name: `Ocasión ${index + 1}`,
+          productCount: count - index,
+        }),
       )
-    }
-    expect(within(section).queryByText('Vacía')).not.toBeInTheDocument()
-    expect(section.closest('.shop-home')).toBeInTheDocument()
-  })
+      mockShop({ categories: [...categories, shopCategory({ name: 'Vacía', productCount: 0 })] })
+      renderShop('/')
+      const section = screen.getByRole('region', { name: 'Cada ocasión, un detalle.' })
+      await waitFor(() => expect(section.querySelector('.occasion-marquee')).toBeInTheDocument())
+      // Solo la primera vuelta de la fila superior es real; las copias son decorativas (aria-hidden).
+      const real = within(section)
+        .getAllByRole('link')
+        .filter((link) => link.getAttribute('href')?.includes('categoria='))
+      expect(real).toHaveLength(count)
+      expect(section.querySelectorAll('.occasion-row[aria-hidden="true"]')).toHaveLength(1)
+      for (const category of categories) {
+        expect(within(section).getByRole('link', { name: category.name })).toHaveAttribute(
+          'href',
+          `/catalogo?categoria=${category.id}`,
+        )
+      }
+      expect(within(section).queryByText('Vacía')).not.toBeInTheDocument()
+      expect(section.closest('.shop-home')).toBeInTheDocument()
+    },
+  )
 
   it('contenedores: eleva fotos reales con foco y selecciona en sitio sin navegar ni desplazar', async () => {
     const api = mockShop()
@@ -102,21 +118,28 @@ describe('Shop · inicio', () => {
     expect(card).toHaveAttribute('aria-pressed', 'true')
     expect(scroll).not.toHaveBeenCalled()
     expect(api.product).not.toHaveBeenCalled()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Hay regalos que lo dicen todo.')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Hay regalos que lo dicen todo.',
+    )
     await user.click(screen.getByRole('button', { name: /Destacar Taza personalizada/ }))
     expect(card).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('contenedores: limita el collage a tres fotos reales y retira imágenes fallidas sin dejar un hero vacío', async () => {
-    mockShop({ products: productPage([
-      ROSES, MUG,
-      shopProduct({ id: 'p-3', name: 'Tercero' }),
-      shopProduct({ id: 'p-4', name: 'Cuarto' }),
-    ]) })
+    mockShop({
+      products: productPage([
+        ROSES,
+        MUG,
+        shopProduct({ id: 'p-3', name: 'Tercero' }),
+        shopProduct({ id: 'p-4', name: 'Cuarto' }),
+      ]),
+    })
     renderShop('/')
     const collage = await screen.findByRole('group', { name: 'Regalos de la tienda' })
     expect(within(collage).getAllByRole('button')).toHaveLength(3)
-    fireEvent.error(within(screen.getByRole('button', { name: 'Destacar Ramo de rosas' })).getByRole('img'))
+    fireEvent.error(
+      within(screen.getByRole('button', { name: 'Destacar Ramo de rosas' })).getByRole('img'),
+    )
     expect(screen.queryByRole('button', { name: 'Destacar Ramo de rosas' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Destacar Cuarto' })).toBeInTheDocument()
     for (const button of within(collage).getAllByRole('button')) {
@@ -172,7 +195,7 @@ describe('Shop · inicio', () => {
 })
 
 describe('Shop · tarjeta de regalo', () => {
-  it('muestra precio desde centavos, categoría, disponibilidad, envío y enlace al detalle', async () => {
+  it('muestra precio desde centavos, categoría y disponibilidad sobre la imagen, con su descripción, sin envío, y enlace al detalle', async () => {
     mockShop({ products: productPage([shopProduct({ isAvailable: false, stock: 0 })]) })
     renderShop('/catalogo')
 
@@ -180,11 +203,15 @@ describe('Shop · tarjeta de regalo', () => {
     expect(within(card).getByText(/25,99/)).toBeInTheDocument()
     expect(within(card).getByText('Flores')).toBeInTheDocument()
     expect(within(card).getByText('Agotado')).toBeInTheDocument()
-    expect(within(card).getByText('Envío gratis — incluido en el precio')).toBeInTheDocument()
+    expect(within(card).queryByText(/Envío gratis/)).not.toBeInTheDocument()
+    expect(within(card).getByText('Doce rosas rojas.')).toBeInTheDocument()
+    expect(within(card).getByText('Flores').closest('figure')).toBeInTheDocument()
+    expect(within(card).getByText('Agotado').closest('figure')).toBeInTheDocument()
     expect(within(card).getByRole('img', { name: 'Ramo de rosas rojas' })).toBeInTheDocument()
-    expect(
-      within(card).getByRole('link', { name: 'Ramo de rosas' }),
-    ).toHaveAttribute('href', '/productos/p-rosas')
+    expect(within(card).getByRole('link', { name: 'Ramo de rosas' })).toHaveAttribute(
+      'href',
+      '/productos/p-rosas',
+    )
     const link = within(card).getByRole('link', { name: 'Ramo de rosas' })
     expect(link).toContainElement(within(card).getByRole('img'))
     expect(link).toContainElement(within(card).getByRole('heading'))
@@ -233,8 +260,8 @@ describe('Shop · catálogo', () => {
       inStock: true,
     })
     const filters = screen.getByRole('form', { name: 'Filtrar regalos' })
-    expect(within(filters).getByLabelText('Precio mínimo (USD)')).toHaveValue('5')
-    expect(within(filters).getByLabelText('Solo disponibles')).toBeChecked()
+    expect(within(filters).getByLabelText('Precio mínimo')).toHaveValue('5')
+    expect(within(filters).getByLabelText('En stock')).toBeChecked()
   })
 
   it('combina filtros, los aplica al enviar y vuelve a la primera página', async () => {
@@ -248,9 +275,9 @@ describe('Shop · catálogo', () => {
       expect(within(filters).getByRole('option', { name: 'Flores' })).toBeInTheDocument(),
     )
     await user.selectOptions(within(filters).getByLabelText('Categoría'), 'cat-flores')
-    await user.type(within(filters).getByLabelText('Precio mínimo (USD)'), '10')
-    await user.type(within(filters).getByLabelText('Precio máximo (USD)'), '30,5')
-    await user.click(within(filters).getByLabelText('Solo disponibles'))
+    await user.type(within(filters).getByLabelText('Precio mínimo'), '10')
+    await user.type(within(filters).getByLabelText('Precio máximo'), '30,5')
+    await user.click(within(filters).getByLabelText('En stock'))
 
     await waitFor(() =>
       expect(api.products).toHaveBeenLastCalledWith({
@@ -272,12 +299,12 @@ describe('Shop · catálogo', () => {
     await screen.findByRole('article', { name: 'Ramo de rosas' })
     const filters = screen.getByRole('form', { name: 'Filtrar regalos' })
 
-    await user.type(within(filters).getByLabelText('Precio mínimo (USD)'), 'diez')
+    await user.type(within(filters).getByLabelText('Precio mínimo'), 'diez')
     expect(await within(filters).findByText(/Escribe un monto válido/)).toBeInTheDocument()
 
-    await user.clear(within(filters).getByLabelText('Precio mínimo (USD)'))
-    await user.type(within(filters).getByLabelText('Precio mínimo (USD)'), '40')
-    await user.type(within(filters).getByLabelText('Precio máximo (USD)'), '20')
+    await user.clear(within(filters).getByLabelText('Precio mínimo'))
+    await user.type(within(filters).getByLabelText('Precio mínimo'), '40')
+    await user.type(within(filters).getByLabelText('Precio máximo'), '20')
     expect(
       await within(filters).findByText('El precio máximo debe ser mayor o igual al mínimo'),
     ).toBeInTheDocument()
@@ -322,7 +349,7 @@ describe('Shop · catálogo', () => {
     expect(api.products).toHaveBeenLastCalledWith(expect.objectContaining({ minPriceCents: 500 }))
 
     await user.click(
-      within(screen.getByRole('region', { name: /Todos los regalos/ })).getByRole('button', {
+      within(screen.getByRole('region', { name: /regalos/ })).getByRole('button', {
         name: 'Quitar filtros',
       }),
     )
@@ -362,6 +389,9 @@ describe('Shop · catálogo', () => {
       'href',
       '/catalogo?q=rosa&orden=price_asc&pagina=2',
     )
+    // La ruta es solo Catálogo / producto: Inicio es otra vista y ya está en el menú.
+    expect(within(breadcrumb).queryByRole('link', { name: 'Inicio' })).not.toBeInTheDocument()
+    expect(within(breadcrumb).getByText('Ramo de rosas')).toHaveAttribute('aria-current', 'page')
   })
 })
 
@@ -433,7 +463,9 @@ describe('Shop · detalle', () => {
     await user.click(screen.getByRole('button', { name: 'Añadir al carrito' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('Se añadieron 2 unidades al carrito.')
-    expect(within(screen.getByRole('banner')).getByRole('link', { name: 'Carrito: 2 unidades' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('banner')).getByRole('link', { name: 'Carrito: 2 unidades' }),
+    ).toBeInTheDocument()
     expect(within(screen.getByRole('banner')).getByText('2')).toBeInTheDocument()
     expect(cartStorage.load()).toEqual([{ productId: 'p-rosas', quantity: 2 }])
     expect(screen.getByText(/ya tienes 2 en el carrito/)).toBeInTheDocument()

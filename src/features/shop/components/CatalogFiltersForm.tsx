@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Button } from '../../../components/ui/Button'
 import { SelectField } from '../../../components/ui/SelectField'
 import { TextField } from '../../../components/ui/TextField'
 import { validateFilters, type CatalogFilters, type FilterErrors } from '../catalogQuery'
@@ -9,7 +8,6 @@ interface CatalogFiltersFormProps {
   applied: CatalogFilters
   categories: ShopCategory[]
   onApply: (filters: CatalogFilters) => void
-  onClear: () => void
 }
 
 function commit(draft: CatalogFilters): CatalogFilters {
@@ -25,12 +23,7 @@ function commit(draft: CatalogFilters): CatalogFilters {
  * Búsqueda y filtros combinables. Categoría y disponibilidad se aplican al cambiar; búsqueda y
  * precios, al pausar la escritura si el rango es válido.
  */
-export function CatalogFiltersForm({
-  applied,
-  categories,
-  onApply,
-  onClear,
-}: CatalogFiltersFormProps) {
+export function CatalogFiltersForm({ applied, categories, onApply }: CatalogFiltersFormProps) {
   const [draft, setDraft] = useState(applied)
   const [errors, setErrors] = useState<FilterErrors>({})
 
@@ -71,7 +64,12 @@ export function CatalogFiltersForm({
   }
 
   return (
-    <form className="filters catalog-filters" aria-label="Filtrar regalos" noValidate onSubmit={submit}>
+    <form
+      className="filters catalog-filters"
+      aria-label="Filtrar regalos"
+      noValidate
+      onSubmit={submit}
+    >
       <h2>Encuentra tu detalle</h2>
       <p className="filters__intro">Combina categorías, precio y disponibilidad.</p>
 
@@ -79,6 +77,7 @@ export function CatalogFiltersForm({
         <TextField
           label="Buscar por nombre o descripción"
           type="search"
+          placeholder="Busca un regalo"
           maxLength={100}
           value={draft.search}
           onChange={(event) => set('search', event.target.value)}
@@ -103,42 +102,43 @@ export function CatalogFiltersForm({
       <fieldset className="filter-group">
         <legend>Precio (USD)</legend>
         <div className="price-fields catalog-filters__prices">
-          <TextField
-            label="Precio mínimo (USD)"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={draft.minPrice}
-            error={errors.minPrice}
-            onChange={(event) => set('minPrice', event.target.value)}
-          />
-          <TextField
-            label="Precio máximo (USD)"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={draft.maxPrice}
-            error={errors.maxPrice}
-            onChange={(event) => set('maxPrice', event.target.value)}
-          />
+          <div className="price-input">
+            <TextField
+              label="Precio mínimo"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={draft.minPrice}
+              error={errors.minPrice}
+              onChange={(event) => set('minPrice', event.target.value)}
+            />
+          </div>
+          <div className="price-input">
+            <TextField
+              label="Precio máximo"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={draft.maxPrice}
+              error={errors.maxPrice}
+              onChange={(event) => set('maxPrice', event.target.value)}
+            />
+          </div>
         </div>
         <p className="price-help">Rango inclusivo. Puedes dejarlo vacío.</p>
       </fieldset>
 
-      <fieldset className="filter-group">
+      <fieldset className="filter-group filter-group--stock">
+        <span className="filter-group__title" aria-hidden="true">
+          Disponibilidad
+        </span>
         <label className="check catalog-filters__check">
           <input
             type="checkbox"
             checked={draft.inStock}
             onChange={(event) => set('inStock', event.target.checked)}
           />
-          Solo disponibles
+          En stock
         </label>
       </fieldset>
-
-      <div className="catalog-filters__actions">
-        <Button variant="secondary" onClick={onClear}>
-          Quitar filtros
-        </Button>
-      </div>
     </form>
   )
 }

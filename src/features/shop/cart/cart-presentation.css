@@ -1,6 +1,6 @@
 .shop .shop-page.cart-presentation {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1120px;
   margin-inline: auto;
   min-width: 0;
   gap: 28px;
@@ -16,25 +16,22 @@
   color: var(--color-muted);
 }
 
-.shop .cart-presentation .cart__breadcrumb {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-  font-size: 0.8125rem;
-  color: var(--color-muted);
-}
-
-.shop .cart-presentation .cart__breadcrumb a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-}
-
 .shop .cart-presentation .cart__layout {
   grid-template-columns: minmax(0, 1fr) 350px;
   gap: 48px;
+  align-items: start;
+}
+
+/* El resumen acompaña al hacer scroll: el total y "Continuar" nunca se pierden de vista. */
+.shop .cart-presentation .cart-summary {
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 768px) {
+  .shop .cart-presentation .cart-summary {
+    position: static;
+  }
 }
 
 .shop .cart-presentation .cart-lines {
@@ -158,14 +155,6 @@
   border: 1px solid var(--color-border);
   border-radius: 6px;
   box-shadow: none;
-}
-
-.shop .cart-presentation .cart__eyebrow {
-  margin: 0;
-  font-size: 0.6875rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
 }
 
 .shop .cart-presentation .cart-summary h2 {

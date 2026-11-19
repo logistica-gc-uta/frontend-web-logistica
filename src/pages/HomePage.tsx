@@ -6,7 +6,6 @@ import {
   loadTodayOrders,
   sharePercent,
 } from '../features/dashboard/dashboard'
-import { useAuth } from '../features/auth/useAuth'
 import { dispatchService } from '../features/dispatch/dispatchService'
 import { loadMonitorBoard } from '../features/monitor/monitorBoard'
 import { routeProgress } from '../features/monitor/routeProgress'
@@ -160,16 +159,11 @@ function TodayRoutes() {
 
 /** Inicio del panel: cómo va la operación de hoy y qué necesita una decisión. */
 export function HomePage() {
-  const { user } = useAuth()
-
   return (
     <main className="page dashboard">
       <div className="dashboard__head">
-        <p className="dashboard__eyebrow">REGALÍA · Logística</p>
         <h1>Sistema de Logística</h1>
-        <p className="text-muted">
-          Hola, {user?.name}. Esta es la operación del {formatOperationalDay(todayInGuayaquil())}.
-        </p>
+        <p className="text-muted">Operación del {formatOperationalDay(todayInGuayaquil())}</p>
       </div>
       <TodayOrders />
       <div className="dashboard__grid">

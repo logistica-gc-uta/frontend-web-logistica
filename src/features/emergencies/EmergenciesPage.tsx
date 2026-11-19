@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import { Link } from 'react-router'
 import { orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
+import { StepNav } from '../../components/ui/StepNav'
 import { Button } from '../../components/ui/Button'
+import { Drawer } from '../../components/ui/Drawer'
 import { TextField } from '../../components/ui/TextField'
 import { useFetch } from '../../hooks/useFetch'
+import { useRealtimeUpdates } from '../../hooks/useRealtimeUpdates'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { dispatchService } from '../dispatch/dispatchService'
+import { ConnectionStatus } from '../monitor/ConnectionStatus'
 import { routeName } from '../incidents/incidentFormat'
 import { describeEmergencyError } from './emergencyErrors'
 import { loadEmergencies, type EmergencyOrder, type EmergencyView } from './emergencyBoard'
@@ -23,7 +27,7 @@ const UNIT_STATUS: Record<EmergencyUnitStatus, { text: string; tone: string }> =
   LOST_PENDING: { text: 'Perdida · reemplazo pendiente (sin stock)', tone: 'badge--danger' },
 }
 
-/** Botón que pide un motivo antes de confirmar una acción auditada. */
+/** Botón que pide un motivo, en un panel lateral, antes de confirmar una acción auditada. */
 function ReasonAction({
   label,
   fieldLabel,
@@ -41,14 +45,8 @@ function ReasonAction({
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
-
-  if (!open) {
-    return (
-      <Button variant="secondary" disabled={busy} onClick={() => setOpen(true)}>
-        {label}
-      </Button>
-    )
-  }
+  const titleId = useId()
+  const close = useCallback(() => setOpen(false), [])
 
   const confirm = async () => {
     if (reason.trim() === '') {
@@ -63,23 +61,38 @@ function ReasonAction({
   }
 
   return (
-    <fieldset className="emergency__reason" disabled={busy}>
-      <TextField
-        label={fieldLabel}
-        value={reason}
-        maxLength={REASON_MAX_LENGTH}
-        error={error ?? undefined}
-        onChange={(event) => setReason(event.target.value)}
-      />
-      <div className="emergency__buttons">
-        <Button isLoading={busy} loadingText="Guardando..." onClick={() => void confirm()}>
-          {confirmLabel}
-        </Button>
-        <Button variant="secondary" onClick={() => setOpen(false)}>
-          Cancelar
-        </Button>
-      </div>
-    </fieldset>
+    <>
+      <Button variant="secondary" disabled={busy} onClick={() => setOpen(true)}>
+        {label}
+      </Button>
+      <Drawer
+        open={open}
+        onClose={close}
+        title={label}
+        titleId={titleId}
+        className="drawer__panel--form"
+      >
+        <div className="emergency__reason">
+          <TextField
+            label={fieldLabel}
+            placeholder="Escribe un motivo breve"
+            value={reason}
+            maxLength={REASON_MAX_LENGTH}
+            error={error ?? undefined}
+            disabled={busy}
+            onChange={(event) => setReason(event.target.value)}
+          />
+          <div className="emergency__buttons">
+            <Button isLoading={busy} loadingText="Guardando..." onClick={() => void confirm()}>
+              {confirmLabel}
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={close}>
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      </Drawer>
+    </>
   )
 }
 
@@ -98,16 +111,42 @@ function UnitRow({
   const label = `${productName} (unidad ${unit.unitNumber})`
   return (
     <li className="emergency__unit" aria-label={`Unidad ${label}`}>
-      <div>
-        <strong>{label}</strong> <span className={`badge ${status.tone}`}>{status.text}</span>
-        {unit.recoveredAt && (
-          <span className="text-muted"> · confirmada el {formatDateTime(unit.recoveredAt)}</span>
+      <div className="emergency__unit-head">
+        <strong>{label}</strong>
+        {unit.status === 'PENDING' ? (
+          // Si no aparece, la pérdida se declara en el comprobante de este pedido.
+          <Link
+            className="emergency__lost"
+            to={`${orderReceiptPath(unit.orderId)}#perdidas`}
+            aria-label="No aparece: declarar pérdida"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3M9 9l4 4M13 9l-4 4" />
+            </svg>
+            Declarar pérdida
+          </Link>
+        ) : (
+          <span className={`badge ${status.tone}`}>{status.text}</span>
         )}
       </div>
+      {unit.recoveredAt && (
+        <p className="text-muted">Confirmada el {formatDateTime(unit.recoveredAt)}</p>
+      )}
       {unit.status === 'PENDING' && (
         <div className="emergency__buttons">
           <ReasonAction
-            label="Confirmar retorno"
+            label="Confirmar retorno del producto"
             fieldLabel={`Motivo del retorno de ${label}`}
             confirmLabel="Sí, volvió a la tienda"
             busy={busy}
@@ -119,9 +158,6 @@ function UnitRow({
               )
             }
           />
-          <Link to={`${orderReceiptPath(unit.orderId)}#perdidas`}>
-            No aparece: declarar pérdida
-          </Link>
         </div>
       )}
     </li>
@@ -135,7 +171,12 @@ function OrderBlock({ entry, run, busy }: { entry: EmergencyOrder } & ActionsPro
 
   return (
     <section className="emergency__order" aria-label={`Pedido ${title}`}>
-      <h4>{title}</h4>
+      <div className="emergency__order-head">
+        <h4>{title}</h4>
+        {entry.units.some((unit) => unit.status === 'PENDING') && (
+          <span className={`badge ${UNIT_STATUS.PENDING.tone}`}>{UNIT_STATUS.PENDING.text}</span>
+        )}
+      </div>
       <ul className="emergency__units">
         {entry.units.map((unit) => (
           <UnitRow key={unit.id} unit={unit} productName={productOf(unit)} run={run} busy={busy} />
@@ -143,8 +184,7 @@ function OrderBlock({ entry, run, busy }: { entry: EmergencyOrder } & ActionsPro
       </ul>
       {!entry.resolved ? (
         <p className="text-muted">
-          Sigue bloqueado: no se puede planificar, reprogramar ni acordar un retiro hasta que todas
-          sus unidades vuelvan o tengan un reemplazo preparado.
+          Sigue bloqueado hasta que todas sus unidades vuelvan o tengan un reemplazo preparado.
         </p>
       ) : entry.awaitingReview ? (
         <div className="emergency__buttons">
@@ -181,6 +221,9 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
     (stop) => stop.outcome === 'SUCCESSFUL' || stop.outcome === 'FAILED',
   )
   const { counts } = emergency
+  // Los pedidos en custodia se ven de uno en uno; al resolverse uno, el mismo lugar muestra el siguiente.
+  const [selected, setSelected] = useState(0)
+  const position = Math.min(selected, Math.max(view.orders.length - 1, 0))
 
   return (
     <article className="card emergency" aria-label={`Emergencia de ${name}`}>
@@ -192,9 +235,13 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
           <span className="badge badge--danger">Abierta</span>
         )}
       </header>
-      <p>
-        <strong>Motivo:</strong> {emergency.reason} · declarada el{' '}
-        {formatDateTime(emergency.declaredAt)}
+      <p className="emergency__why">
+        <span>
+          <strong>Motivo:</strong> {emergency.reason}
+        </span>
+        <span className="emergency__declared">
+          <strong>Declarada</strong> el {formatDateTime(emergency.declaredAt)}
+        </span>
       </p>
 
       <dl className="emergency__counts" aria-label={`Unidades de ${name}`}>
@@ -220,59 +267,81 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
         </div>
       </dl>
 
-      <section aria-label={`Lo que ya pasó en ${name}`}>
-        <h4>Lo que ya pasó en la ruta</h4>
-        {resolvedStops.length === 0 ? (
-          <p className="text-muted">Ninguna parada se había resuelto antes de la emergencia.</p>
-        ) : (
-          <ul className="emergency__stops">
-            {resolvedStops.map((stop) => (
-              <li key={stop.id}>
-                {stop.deliveryAddress} ·{' '}
-                <strong>{stop.outcome === 'SUCCESSFUL' ? 'Entregado' : 'Visita fallida'}</strong>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="emergency__body">
+        <div className="emergency__col">
+          <section aria-label={`Lo que ya pasó en ${name}`}>
+            <h4>Lo que ya pasó en la ruta</h4>
+            {resolvedStops.length === 0 ? (
+              <p className="text-muted">Ninguna parada se había resuelto antes de la emergencia.</p>
+            ) : (
+              <ul className="emergency__stops">
+                {resolvedStops.map((stop) => (
+                  <li key={stop.id}>
+                    {stop.deliveryAddress} ·{' '}
+                    <strong>
+                      {stop.outcome === 'SUCCESSFUL' ? 'Entregado' : 'Visita fallida'}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section aria-label={`Repartidor de ${name}`}>
-        <h4>Repartidor</h4>
-        {emergency.returnedAt ? (
-          <p>Retorno al depósito confirmado el {formatDateTime(emergency.returnedAt)}.</p>
-        ) : (
-          <>
-            <p>
-              Su retorno todavía no está confirmado. Recuperar productos o cerrar la emergencia no
-              lo libera: confírmalo aparte cuando vuelva.
-            </p>
-            <ReasonAction
-              label="Confirmar retorno del repartidor"
-              fieldLabel={`Motivo del retorno del repartidor de ${name}`}
-              confirmLabel="Sí, volvió al depósito"
-              busy={busy}
-              onConfirm={(reason) =>
-                run(
-                  () => dispatchService.releaseEmergencyDriver(emergency.routeId, reason),
-                  'Retorno del repartidor confirmado. Su disponibilidad la decide el servidor (ausencias incluidas).',
-                  'No se pudo confirmar el retorno del repartidor',
-                )
-              }
-            />
-          </>
-        )}
-      </section>
+          <section aria-label={`Repartidor de ${name}`}>
+            <h4>Repartidor</h4>
+            {emergency.returnedAt ? (
+              <p>Retorno al depósito confirmado el {formatDateTime(emergency.returnedAt)}.</p>
+            ) : (
+              <>
+                <p>
+                  Su retorno todavía no está confirmado. Recuperar productos o cerrar la emergencia
+                  no lo libera: confírmalo aparte cuando vuelva.
+                </p>
+                <ReasonAction
+                  label="Confirmar retorno del repartidor"
+                  fieldLabel={`Motivo del retorno del repartidor de ${name}`}
+                  confirmLabel="Sí, volvió al depósito"
+                  busy={busy}
+                  onConfirm={(reason) =>
+                    run(
+                      () => dispatchService.releaseEmergencyDriver(emergency.routeId, reason),
+                      'Retorno del repartidor confirmado. Su disponibilidad la decide el servidor (ausencias incluidas).',
+                      'No se pudo confirmar el retorno del repartidor',
+                    )
+                  }
+                />
+              </>
+            )}
+          </section>
+        </div>
 
-      <section aria-label={`Productos en custodia de ${name}`}>
-        <h4>Productos en custodia</h4>
-        {view.orders.length === 0 ? (
-          <p className="text-muted">No quedaban productos pendientes al declarar la emergencia.</p>
-        ) : (
-          view.orders.map((entry) => (
-            <OrderBlock key={entry.orderId} entry={entry} run={run} busy={busy} />
-          ))
-        )}
-      </section>
+        <div className="emergency__col">
+          <section aria-label={`Productos en custodia de ${name}`}>
+            <h4>Productos en custodia</h4>
+            {view.orders.length === 0 ? (
+              <p className="text-muted">
+                No quedaban productos pendientes al declarar la emergencia.
+              </p>
+            ) : (
+              <>
+                <StepNav
+                  noun="Pedido"
+                  label={`Pedidos en custodia de ${name}`}
+                  position={position}
+                  total={view.orders.length}
+                  onChange={setSelected}
+                />
+                <OrderBlock
+                  key={view.orders[position].orderId}
+                  entry={view.orders[position]}
+                  run={run}
+                  busy={busy}
+                />
+              </>
+            )}
+          </section>
+        </div>
+      </div>
 
       {!emergency.closedAt && (
         <div className="emergency__close">
@@ -307,14 +376,32 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
   )
 }
 
+/** El tablero y la hora de esta consulta, para mostrar la última actualización. */
+const loadBoard = async () => ({
+  views: await loadEmergencies(),
+  loadedAt: new Date().toISOString(),
+})
+
 /**
  * ADMIN · Emergencias en ruta (backend #51): lo entregado se conserva, cada unidad pendiente se
  * recupera por separado, el retorno del repartidor y el cierre son acciones aparte, y un pedido solo
  * vuelve a planificarse cuando el ADMIN lo decide con todas sus unidades resueltas.
  */
 export function EmergenciesPage() {
-  const board = useFetch(loadEmergencies, 'No se pudieron cargar las emergencias')
+  const board = useFetch(loadBoard, 'No se pudieron cargar las emergencias')
+  // En vivo: cada aviso del servidor sobre las rutas y pedidos de las emergencias vuelve a leer el tablero.
+  const realtime = useRealtimeUpdates({
+    subscriptions: [
+      { resource: 'incidents' as const },
+      ...(board.data?.views ?? []).flatMap(({ emergency, orders }) => [
+        { resource: 'route' as const, id: emergency.routeId },
+        ...orders.map(({ orderId }) => ({ resource: 'order' as const, id: orderId })),
+      ]),
+    ],
+    onInvalidate: board.reload,
+  })
   const [busy, setBusy] = useState(false)
+  const [selected, setSelected] = useState(0)
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
   const run = async (perform: () => Promise<unknown>, done: string, fallback: string) => {
@@ -335,33 +422,46 @@ export function EmergenciesPage() {
   }
 
   return (
-    <main className="page">
-      <h1>Emergencias</h1>
-      <p className="text-muted">
-        Rutas interrumpidas por una emergencia. Se declaran desde{' '}
-        <Link to={paths.monitor}>Seguimiento</Link>. Una emergencia no es una entrega fallida: lo
-        entregado se conserva y cada producto pendiente se recupera por separado.
-      </p>
+    <main className="page page--wide">
+      <header className="planning-page__head">
+        <div>
+          <h1>Emergencias</h1>
+          <p className="text-muted">
+            Rutas interrumpidas. Se declaran desde <Link to={paths.monitor}>Seguimiento</Link>.
+          </p>
+        </div>
+        <ConnectionStatus
+          status={realtime.status}
+          updatedAt={board.data?.loadedAt}
+          deniedCount={realtime.deniedCount}
+          onReconnect={realtime.reconnect}
+        />
+      </header>
       <div className="page-stack">
         {message && (
           <Alert variant={message.kind === 'success' ? 'success' : 'error'}>{message.text}</Alert>
         )}
-        <div className="planning-routes__header">
-          <span />
-          <Button variant="secondary" onClick={board.reload}>
-            Actualizar
-          </Button>
-        </div>
         <AsyncContent {...board} onRetry={board.reload} loadingText="Cargando emergencias...">
-          {(views) =>
-            views.length === 0 ? (
-              <p className="empty-state">No hay emergencias registradas.</p>
-            ) : (
-              views.map((view) => (
+          {({ views }) => {
+            if (views.length === 0) {
+              return <p className="empty-state">No hay emergencias registradas.</p>
+            }
+            // Una emergencia por pantalla, con «Emergencia 2 de 5» y las flechas.
+            const position = Math.min(selected, views.length - 1)
+            const view = views[position]
+            return (
+              <>
+                <StepNav
+                  noun="Emergencia"
+                  label="Emergencias"
+                  position={position}
+                  total={views.length}
+                  onChange={setSelected}
+                />
                 <EmergencyCard key={view.emergency.id} view={view} run={run} busy={busy} />
-              ))
+              </>
             )
-          }
+          }}
         </AsyncContent>
       </div>
     </main>

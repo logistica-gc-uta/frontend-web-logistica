@@ -5,7 +5,9 @@ const styles = readFileSync('src/features/shop/orders/orders-presentation.css', 
 
 describe('REGALÍA order presentation', () => {
   it('bounds order pages and shows the full gift photo', () => {
-    expect(styles).toMatch(/\.shop \.shop-page\.order-page,\s*\.shop \.order-page\s*\{[^}]*max-width:\s*1200px/s)
+    expect(styles).toMatch(
+      /\.shop \.shop-page\.order-page,\s*\.shop \.order-page\s*\{[^}]*max-width:\s*1200px/s,
+    )
     expect(styles).toMatch(
       /\.shop \.order-history-page \.art \.order-card__image\s*\{[^}]*object-fit:\s*contain/s,
     )

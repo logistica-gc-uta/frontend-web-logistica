@@ -1,14 +1,11 @@
 import '../../styles/emergencies.css'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { paths } from '../../app/paths'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { DeclareEmergency } from '../emergencies/DeclareEmergency'
 import type { Driver } from '../planning/types'
-import {
-  describeFailureReason,
-  DRIVER_STATE_LABELS,
-  MONITOR_ROUTE_STATUS_LABELS,
-} from './monitorLabels'
+import { describeFailureReason, DRIVER_STATE_LABELS, routeStatusShort } from './monitorLabels'
 import { driverState, routeProgress } from './routeProgress'
 import type { MonitorRoute, MonitorStop } from './types'
 
@@ -38,39 +35,92 @@ interface MonitorRouteCardProps {
 export function MonitorRouteCard({ route, name, driver, onChanged }: MonitorRouteCardProps) {
   const progress = routeProgress(route)
   const state = driverState(route, driver)
+  const [declaring, setDeclaring] = useState(false)
+  const canDeclare = route.status === 'IN_PROGRESS' && Boolean(onChanged)
 
   return (
     <article className="card monitor-route" aria-label={name}>
       <header className="monitor-route__header">
         <h3>{name}</h3>
-        <span className={`badge${route.status === 'COMPLETED' ? ' badge--success' : ''}`}>
-          {MONITOR_ROUTE_STATUS_LABELS[route.status] ?? route.status}
-        </span>
+        <div className="monitor-route__tags">
+          <span className={`badge${route.status === 'COMPLETED' ? ' badge--success' : ''}`}>
+            {routeStatusShort(route.status)}
+          </span>
+          {canDeclare && (
+            <button
+              type="button"
+              className="monitor-route__emergency"
+              aria-label="Declarar emergencia"
+              aria-expanded={declaring}
+              title="Declarar emergencia"
+              onClick={() => setDeclaring((current) => !current)}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3 2 20h20L12 3ZM12 10v4M12 17.5v.01" />
+              </svg>
+            </button>
+          )}
+        </div>
       </header>
 
       {route.status === 'INTERRUPTED' && (
-        <p className="notice" role="note">
-          <strong>Ruta interrumpida por una emergencia.</strong> Lo entregado se conserva; los
-          pendientes se gestionan en <Link to={paths.emergencies}>Emergencias</Link>.
+        <p className="monitor-route__alert" role="note">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 3 2 20h20L12 3ZM12 10v4M12 17.5v.01" />
+          </svg>
+          <strong>Ruta interrumpida por una emergencia.</strong>
+          <span>
+            Se gestiona en <Link to={paths.emergencies}>Emergencias</Link>
+          </span>
         </p>
       )}
 
       <div className="monitor-route__progress">
-        <p>
-          <strong>
-            {progress.delivered} de {progress.total} entregados ({progress.deliveredPercent} %)
-          </strong>
-        </p>
-        <progress
-          max={progress.total || 1}
-          value={progress.delivered}
+        {/* Un punto por parada: se completa (verde) al entregarse; una visita fallida se marca en rojo. */}
+        <div
+          className="monitor-dots"
+          role="progressbar"
           aria-label={`Entregas exitosas de ${name}`}
-        />
-        <p className="text-muted">
-          Visitas resueltas: {progress.resolved} de {progress.total}
-          {progress.failed > 0 &&
-            ` · ${progress.failed === 1 ? '1 fallida' : `${progress.failed} fallidas`}`}
-        </p>
+          aria-valuemin={0}
+          aria-valuemax={progress.total}
+          aria-valuenow={progress.delivered}
+        >
+          {route.stops.map((stop, index) => (
+            <span
+              key={stop.id}
+              className={`monitor-dot monitor-dot--${(stop.outcome ?? 'unknown').toLowerCase()}`}
+            >
+              {index + 1}
+            </span>
+          ))}
+        </div>
+        <div className="monitor-route__counts">
+          <p>
+            <strong>
+              {progress.delivered} de {progress.total} entregados
+            </strong>
+          </p>
+        </div>
       </div>
 
       <ol className="monitor-route__stops">
@@ -116,8 +166,14 @@ export function MonitorRouteCard({ route, name, driver, onChanged }: MonitorRout
         )}
       </dl>
 
-      {route.status === 'IN_PROGRESS' && onChanged && (
-        <DeclareEmergency routeId={route.id} name={name} onDeclared={onChanged} />
+      {canDeclare && onChanged && (
+        <DeclareEmergency
+          routeId={route.id}
+          name={name}
+          open={declaring}
+          onClose={() => setDeclaring(false)}
+          onDeclared={onChanged}
+        />
       )}
     </article>
   )

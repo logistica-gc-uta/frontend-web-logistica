@@ -173,7 +173,7 @@ describe('planificación del día y horarios (#48, #49)', () => {
     expect(screen.queryByRole('button', { name: /Confirmar todas/ })).not.toBeInTheDocument()
     expect(screen.getByText('Solo vista previa', { selector: '.badge' })).toBeInTheDocument()
     // Sin zona, la ruta sale de la tienda.
-    expect(screen.getByRole('heading', { name: 'Ruta 1 · Tienda' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ruta 1' })).toBeInTheDocument()
   })
 
   it('explica el margen vigente de agrupación sin prometer la hora de entrega', async () => {
@@ -182,9 +182,9 @@ describe('planificación del día y horarios (#48, #49)', () => {
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
     const notice = (await screen.findByText('Horarios agrupados.')).closest('p')!
-    expect(notice).toHaveTextContent('se diferencian en hasta 45 minutos')
-    expect(notice).toHaveTextContent('máximo de 4 paradas')
-    expect(notice).toHaveTextContent('no una promesa de entregar dentro de ±45 minutos')
+    expect(notice).toHaveTextContent('hasta 45 minutos de diferencia')
+    expect(notice).toHaveTextContent('máximo 4 paradas')
+    expect(notice).toHaveTextContent('no es una promesa de llegada')
   })
 
   it('hoy sí se puede confirmar', async () => {

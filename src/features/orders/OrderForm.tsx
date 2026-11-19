@@ -4,7 +4,6 @@ import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import { useForm } from '../../hooks/useForm'
-import { formatCurrency } from '../../lib/format/formatCurrency'
 import type { Product } from '../products/types'
 import type { DeliverySchedule } from '../shop/types'
 import { fromPolygon } from '../store-coverage/coverageDraft'
@@ -15,13 +14,12 @@ import {
   useCoverageCheck,
 } from '../store-coverage/useCoverageCheck'
 import { ClientPicker } from './ClientPicker'
+import { DeliveryDateTime } from './DeliveryDateTime'
 import { OrderItemsEditor } from './OrderItemsEditor'
-import {
-  estimateOrderTotal,
-  INITIAL_ORDER_FORM,
-  toCreateAdminPurchaseInput,
-  validateOrder,
-} from './orderValidation'
+import { sanitizeName } from './orderInput'
+import { OrderSummary } from './OrderSummary'
+import { PhoneField } from './PhoneField'
+import { INITIAL_ORDER_FORM, toCreateAdminPurchaseInput, validateOrder } from './orderValidation'
 import type { AdminPurchaseResult } from './types'
 import { useAdminPurchase } from './useAdminPurchase'
 
@@ -139,7 +137,7 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
       )}
 
       <div className="order-form__fields">
-        <fieldset className="items-editor">
+        <fieldset className="order-form__section">
           <legend>Comprador</legend>
           <div className="order-form__choices" role="radiogroup" aria-label="Tipo de comprador">
             <label>
@@ -163,42 +161,38 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
               Cliente con cuenta
             </label>
           </div>
-          {values.buyerType === 'REGISTERED_CLIENT' ? (
-            <>
-              <ClientPicker
-                value={values.client}
-                onChange={(client) => setFields({ client })}
-                error={fieldErrors.client}
+          <div className="order-form__pair">
+            {values.buyerType === 'REGISTERED_CLIENT' ? (
+              <div className="order-form__wide">
+                <ClientPicker
+                  value={values.client}
+                  onChange={(client) => setFields({ client })}
+                  error={fieldErrors.client}
+                />
+              </div>
+            ) : (
+              <TextField
+                label="Nombre del comprador"
+                name="buyerName"
+                autoComplete="off"
+                maxLength={120}
+                value={values.buyerName}
+                onChange={(event) => setFields({ buyerName: sanitizeName(event.target.value) })}
+                error={fieldErrors.buyerName}
               />
-              <p className="text-muted order-form__hint">
-                La venta queda en el historial de su cuenta con su nombre y correo. El teléfono no
-                está en la cuenta: escríbelo para esta venta.
-              </p>
-            </>
-          ) : (
-            <TextField
-              label="Nombre del comprador"
-              name="buyerName"
-              autoComplete="off"
-              value={values.buyerName}
-              onChange={handleChange}
-              error={fieldErrors.buyerName}
+            )}
+            <PhoneField
+              label="Teléfono del comprador"
+              name="buyerPhone"
+              value={values.buyerPhone}
+              onChange={(buyerPhone) => setFields({ buyerPhone })}
+              error={fieldErrors.buyerPhone}
             />
-          )}
-          <TextField
-            label="Teléfono del comprador"
-            name="buyerPhone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            value={values.buyerPhone}
-            onChange={handleChange}
-            error={fieldErrors.buyerPhone}
-          />
+          </div>
         </fieldset>
 
-        <fieldset className="items-editor">
-          <legend>¿Quién recibe?</legend>
+        <fieldset className="order-form__section">
+          <legend>Quién recibe</legend>
           <label className="order-form__check">
             <input
               type="checkbox"
@@ -207,33 +201,34 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
             />
             El regalo lo recibe otra persona
           </label>
-          {values.giftToOther ? (
-            <>
+          {!values.giftToOther && (
+            <p className="order-form__hint text-muted">
+              Sin marcar: el regalo lo recibe el mismo comprador.
+            </p>
+          )}
+          {values.giftToOther && (
+            <div className="order-form__pair">
               <TextField
                 label="Nombre de quien recibe"
                 name="recipientName"
                 autoComplete="off"
+                maxLength={120}
                 value={values.recipientName}
-                onChange={handleChange}
+                onChange={(event) => setFields({ recipientName: sanitizeName(event.target.value) })}
                 error={fieldErrors.recipientName}
               />
-              <TextField
+              <PhoneField
                 label="Teléfono de quien recibe"
                 name="recipientPhone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="off"
                 value={values.recipientPhone}
-                onChange={handleChange}
+                onChange={(recipientPhone) => setFields({ recipientPhone })}
                 error={fieldErrors.recipientPhone}
               />
-            </>
-          ) : (
-            <p className="text-muted order-form__hint">Lo recibe el mismo comprador.</p>
+            </div>
           )}
         </fieldset>
 
-        <fieldset className="items-editor">
+        <fieldset className="order-form__section">
           <legend>Pago declarado</legend>
           <div className="order-form__choices" role="radiogroup" aria-label="Cómo pagó">
             <label>
@@ -262,38 +257,35 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
             label="Nota del pago (opcional)"
             name="paymentNote"
             autoComplete="off"
+            maxLength={200}
+            placeholder="Ej.: transferencia #4521, Banco Pichincha"
             value={values.paymentNote}
             onChange={handleChange}
             error={fieldErrors.paymentNote}
           />
-          <p className="order-form__notice" role="note">
-            Se registra el pago que declara el cliente. No se valida en el banco ni se cobra con
-            tarjeta.
+          <p className="order-form__hint text-muted" role="note">
+            Es el pago que declara el cliente; no se valida en el banco.
           </p>
         </fieldset>
 
-        <fieldset className="items-editor">
+        <fieldset className="order-form__section">
           <legend>Entrega</legend>
           <TextField
             label="Dirección de entrega"
             name="deliveryAddress"
             autoComplete="off"
+            maxLength={200}
+            placeholder="Calle, número y referencia"
             value={values.deliveryAddress}
             onChange={handleChange}
             error={fieldErrors.deliveryAddress}
           />
-          <TextField
-            label="Fecha y hora aproximada de entrega (hora de Ecuador)"
-            name="scheduledAt"
-            type="datetime-local"
+          <DeliveryDateTime
             value={values.scheduledAt}
-            onChange={handleChange}
+            schedule={schedule}
+            onChange={(scheduledAt) => setFields({ scheduledAt })}
             error={fieldErrors.scheduledAt}
           />
-          <p className="text-muted order-form__hint">
-            Entregas de {schedule.startTime} a {schedule.endTime}. La hora es aproximada: puede
-            llegar un poco antes o un poco después.
-          </p>
         </fieldset>
 
         <OrderItemsEditor
@@ -302,43 +294,37 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
           onChange={(items) => setFields({ items })}
           error={fieldErrors.items}
         />
-        <p className="order-form__total">
-          Subtotal estimado:{' '}
-          <strong>{formatCurrency(estimateOrderTotal(values.items, products))}</strong>
-          <span className="text-muted">
-            {' '}
-            · El total con IVA lo calcula el servidor y aparece en el comprobante.
-          </span>
-        </p>
       </div>
 
-      <div className="order-form__map">
-        <LocationPicker
-          center={coverage.location}
-          depot={null}
-          store={coverage.location}
-          area={area}
-          value={values.location}
-          isConfirmed={values.locationConfirmed}
-          onChange={setPoint}
-          onConfirm={() => {
-            if (canConfirm) setFields({ locationConfirmed: true })
-          }}
-          canConfirm={canConfirm}
-          status={coverageStatus}
-          error={locationError}
-        />
-      </div>
+      <div className="order-form__side">
+        <div className="order-form__map">
+          <LocationPicker
+            center={coverage.location}
+            depot={null}
+            store={coverage.location}
+            area={area}
+            value={values.location}
+            isConfirmed={values.locationConfirmed}
+            onChange={setPoint}
+            onConfirm={() => {
+              if (canConfirm) setFields({ locationConfirmed: true })
+            }}
+            canConfirm={canConfirm}
+            status={coverageStatus}
+            error={locationError}
+          />
+        </div>
 
-      <div className="order-form__actions">
-        <Button
-          type="submit"
-          isLoading={isSubmitting}
-          loadingText="Registrando..."
-          disabled={purchase.pending !== null}
-        >
-          Registrar venta
-        </Button>
+        <OrderSummary values={values} products={products}>
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            loadingText="Registrando..."
+            disabled={purchase.pending !== null}
+          >
+            Registrar venta
+          </Button>
+        </OrderSummary>
       </div>
     </form>
   )

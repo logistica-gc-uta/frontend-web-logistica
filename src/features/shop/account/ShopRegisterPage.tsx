@@ -51,9 +51,6 @@ export function ShopRegisterPage() {
 
   return (
     <div className="shop-page account-page account-presentation">
-      <Link to={paths.shopCatalog} className="account__back">
-        ← Volver al catálogo
-      </Link>
       <div className="account__access">
         <aside className="account__context" aria-labelledby="account-context-title">
           <p className="account__eyebrow">Mi cuenta · REGALÍA</p>
@@ -67,8 +64,13 @@ export function ShopRegisterPage() {
         </aside>
         <section className="card account-card" aria-labelledby="shop-register-title">
           <nav className="account__tabs" aria-label="Acceso de cliente">
-            <Link to={`${paths.shopLogin}${params.toString() ? `?${params}` : ''}`}>Iniciar sesión</Link>
-            <Link to={`${paths.shopRegister}${params.toString() ? `?${params}` : ''}`} aria-current="page">
+            <Link to={`${paths.shopLogin}${params.toString() ? `?${params}` : ''}`}>
+              Iniciar sesión
+            </Link>
+            <Link
+              to={`${paths.shopRegister}${params.toString() ? `?${params}` : ''}`}
+              aria-current="page"
+            >
               Crear cuenta
             </Link>
           </nav>

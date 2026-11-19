@@ -1,4 +1,5 @@
-import { areaLabel } from '../../lib/planning/routeArea'
+import type { CSSProperties } from 'react'
+import { areaSuffix } from '../../lib/planning/routeArea'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { formatDateTime } from '../../lib/format/formatDateTime'
@@ -50,11 +51,16 @@ export function ProposalCard({
   const isSaved = confirmation?.status === 'saved'
 
   return (
-    <article className={`proposal${isSelected ? ' proposal--selected' : ''}`} aria-label={label}>
+    <article
+      className={`proposal${isSelected ? ' proposal--selected' : ''}`}
+      aria-label={label}
+      style={{ '--route-color': color } as CSSProperties}
+    >
       <header className="proposal__header">
         <span className="proposal__swatch" style={{ background: color }} aria-hidden="true" />
         <h3>
-          {label} · {areaLabel(proposal.zoneCode)}
+          {label}
+          {areaSuffix(proposal.zoneCode)}
         </h3>
         <span className="badge">
           {proposal.stops.length}/{capacity} paradas
@@ -97,15 +103,18 @@ export function ProposalCard({
       <ol className="proposal__stops" aria-label={`Paradas de la ${label.toLowerCase()}`}>
         {proposal.stops.map((stop) => (
           <li key={stop.orderId}>
-            {stop.deliveryAddress}
-            <small> · {formatDateTime(stop.scheduledDeliveryDate)}</small>
-            {isRoad && stop.legDistanceKm !== undefined && (
-              <small className="proposal__leg">
-                {' '}
-                · {formatLeg(stop.legDistanceKm, stop.legDurationSeconds)} desde{' '}
-                {stop.sequence === 1 ? 'el depósito' : 'la parada anterior'}
-              </small>
-            )}
+            <span className="proposal__stop-address">{stop.deliveryAddress}</span>
+            <small className="proposal__stop-meta">
+              <span className="visually-hidden"> · </span>
+              {formatDateTime(stop.scheduledDeliveryDate)}
+              {isRoad && stop.legDistanceKm !== undefined && (
+                <span className="proposal__leg">
+                  <span className="visually-hidden"> · </span>
+                  {formatLeg(stop.legDistanceKm, stop.legDurationSeconds)} desde{' '}
+                  {stop.sequence === 1 ? 'el depósito' : 'la parada anterior'}
+                </span>
+              )}
+            </small>
           </li>
         ))}
       </ol>
@@ -122,7 +131,7 @@ export function ProposalCard({
         </Button>
         {isSaved ? (
           <span role="status" className="badge badge--success">
-            Guardada como borrador (DRAFT)
+            Guardada como borrador
           </span>
         ) : !canConfirm ? (
           <span className="badge">Solo vista previa</span>

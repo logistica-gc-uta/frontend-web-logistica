@@ -1,0 +1,140 @@
+/* Opciones de elección única (radios): cada una es una casilla y la elegida se pinta de verde. */
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.choices label:hover {
+  border-color: var(--color-accent);
+}
+
+.choices label:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: 600;
+}
+
+.choices label:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.choices input[type='radio'] {
+  appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid var(--color-muted);
+  border-radius: 50%;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.choices input[type='radio']:checked {
+  border-color: var(--color-accent);
+  background: radial-gradient(circle, var(--color-accent) 0 4px, var(--color-surface) 4.5px);
+}
+
+.choices input[type='radio']:focus-visible {
+  outline: none;
+}
+
+/* Bloqueadas (ya hay un acuerdo registrado): se ven apagadas y no responden. */
+.choices label:has(input:disabled) {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.choices label:has(input:disabled):hover {
+  border-color: var(--color-border);
+}
+
+.choices label:has(input:disabled:checked):hover {
+  border-color: var(--color-accent);
+}
+
+.choices input[type='radio']:disabled {
+  cursor: default;
+}
+
+/* Casilla de verificación como opción: la marcada se pinta de verde y su visto se ve de un vistazo. */
+.check-option {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.check-option:hover {
+  border-color: var(--color-accent);
+}
+
+.check-option:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: 600;
+}
+
+.check-option:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.check-option input[type='checkbox'] {
+  appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid var(--color-muted);
+  border-radius: 4px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.check-option input[type='checkbox']:checked {
+  border-color: var(--color-accent);
+  background: var(--color-accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.5 8.5 3 3 6-7'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+}
+
+.check-option input[type='checkbox']:focus-visible {
+  outline: none;
+}

@@ -85,6 +85,10 @@ const renderOrdersPage = () =>
 
 type User = ReturnType<typeof renderOrdersPage>['user']
 
+/** La lista de pedidos vive en un panel lateral que se abre con el botón de la esquina. */
+const openList = (user: User) =>
+  user.click(screen.getByRole('button', { name: 'Ver pedidos registrados' }))
+
 const findTable = () => screen.findByRole('table', { name: 'Pedidos registrados' })
 const findForm = async () => within(await screen.findByRole('form', { name: 'Nueva venta' }))
 const getForm = () => within(screen.getByRole('form', { name: 'Nueva venta' }))
@@ -96,10 +100,11 @@ const fillValidForm = async (user: User) => {
   await user.type(form.getByLabelText('Teléfono del comprador'), '0991234567')
   await user.click(form.getByRole('radio', { name: 'Efectivo' }))
   await user.type(form.getByLabelText('Dirección de entrega'), 'Av. Los Chasquis')
-  fireEvent.change(form.getByLabelText('Fecha y hora aproximada de entrega (hora de Ecuador)'), {
-    target: { value: '2099-01-15T10:30' },
-  })
-  await user.selectOptions(form.getByLabelText('Producto 1'), 'product-1')
+  fireEvent.change(form.getByLabelText('Fecha de entrega'), { target: { value: '2099-01-15' } })
+  await user.click(form.getByLabelText('Hora de entrega'))
+  await user.click(await form.findByRole('option', { name: '10:30 a. m.' }))
+  await user.click(form.getByLabelText('Producto 1'))
+  await user.click(await form.findByRole('option', { name: /Laptop HP Pavilion 15/ }))
   fireEvent.change(form.getByLabelText('Cantidad 1'), { target: { value: '2' } })
   await user.click(form.getByRole('button', { name: 'Colocar marcador' }))
   await waitFor(() =>
@@ -112,7 +117,7 @@ const submit = (user: User) =>
   user.click(getForm().getByRole('button', { name: 'Registrar venta' }))
 
 const EXPECTED_BODY = {
-  buyer: { type: 'GUEST', name: 'María Pérez', contactPhone: '0991234567' },
+  buyer: { type: 'GUEST', name: 'María Pérez', contactPhone: '+593991234567' },
   payment: { method: 'CASH' },
   deliveryAddress: 'Av. Los Chasquis',
   items: [{ productId: 'product-1', quantity: 2 }],
@@ -124,32 +129,31 @@ const EXPECTED_BODY = {
 describe('OrdersPage · listado', () => {
   it('lista los pedidos persistidos con destinatario, estado, total y aptitud para planificar', async () => {
     mockApi()
-    renderOrdersPage()
+    const { user } = renderOrdersPage()
+    await openList(user)
 
-    expect(screen.getAllByRole('status')[0]).toHaveTextContent(/Cargando/)
     const rows = within(await findTable()).getAllByRole('row')
 
     const [, guestRow, clientRow] = rows
     expect(within(guestRow).getByText('María Pérez')).toBeInTheDocument()
     expect(within(guestRow).getByText(/14\/02\/2030.*10:00/)).toBeInTheDocument()
-    expect(
-      within(guestRow).getByText('1× Laptop HP Pavilion 15, 2× Mouse Inalámbrico Logitech'),
-    ).toBeInTheDocument()
+    expect(within(guestRow).getByText('1× Laptop HP Pavilion 15')).toBeInTheDocument()
+    expect(within(guestRow).getByText('2× Mouse Inalámbrico Logitech')).toBeInTheDocument()
     expect(within(guestRow).getByText('Pendiente')).toBeInTheDocument()
     expect(within(guestRow).getByText(/801,00/)).toBeInTheDocument()
-    expect(within(guestRow).getByText('Apto')).toBeInTheDocument()
 
     expect(within(clientRow).getByText('Ana Cliente')).toBeInTheDocument()
     expect(within(clientRow).getByText('Asignado a ruta')).toBeInTheDocument()
-    expect(within(clientRow).getByText('No apto')).toBeInTheDocument()
-    expect(
-      within(clientRow).getByText('falta confirmar la ubicación de entrega'),
-    ).toBeInTheDocument()
+    // La zona y la aptitud para planificar ya no son parte del listado.
+    expect(screen.queryByRole('columnheader', { name: 'Planificación' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Zona' })).not.toBeInTheDocument()
+    expect(screen.queryByText('No apto')).not.toBeInTheDocument()
   })
 
   it('indica cuando no hay pedidos para los filtros elegidos', async () => {
     mockApi(pageOf([]))
-    renderOrdersPage()
+    const { user } = renderOrdersPage()
+    await openList(user)
 
     expect(
       await screen.findByText('No hay pedidos para los filtros seleccionados'),
@@ -161,6 +165,7 @@ describe('OrdersPage · listado', () => {
     const { ordersList } = mockApi()
     ordersList.mockRejectedValueOnce(createHttpError(500))
     const { user } = renderOrdersPage()
+    await openList(user)
 
     expect(await screen.findByText('No se pudieron cargar los pedidos')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -171,22 +176,24 @@ describe('OrdersPage · listado', () => {
   it('pagina el listado pidiendo cada página al backend', async () => {
     const { ordersList } = mockApi(pageOf(orders, 25))
     const { user } = renderOrdersPage()
+    await openList(user)
     await findTable()
-    expect(screen.getByText('Página 1 de 3 · 25 registros')).toBeInTheDocument()
-    expect(ordersList).toHaveBeenLastCalledWith({ page: 1, pageSize: 10 })
+    expect(screen.getByText('Página 1 de 7 · 25 registros')).toBeInTheDocument()
+    expect(ordersList).toHaveBeenLastCalledWith({ page: 1, pageSize: 4 })
 
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
-    expect(await screen.findByText('Página 2 de 3 · 25 registros')).toBeInTheDocument()
-    expect(ordersList).toHaveBeenLastCalledWith({ page: 2, pageSize: 10 })
+    expect(await screen.findByText('Página 2 de 7 · 25 registros')).toBeInTheDocument()
+    expect(ordersList).toHaveBeenLastCalledWith({ page: 2, pageSize: 4 })
   })
 
   it('aplica los filtros de fecha y estado, y vuelve a la primera página', async () => {
     const { ordersList } = mockApi(pageOf(orders, 25))
     const { user } = renderOrdersPage()
+    await openList(user)
     await findTable()
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
-    await screen.findByText('Página 2 de 3 · 25 registros')
+    await screen.findByText('Página 2 de 7 · 25 registros')
 
     expect(getFilters().queryByLabelText('Zona')).not.toBeInTheDocument()
 
@@ -198,24 +205,57 @@ describe('OrdersPage · listado', () => {
     await waitFor(() =>
       expect(ordersList).toHaveBeenLastCalledWith({
         page: 1,
-        pageSize: 10,
+        pageSize: 4,
         date: '2030-02-14',
         status: 'PENDING',
       }),
     )
 
     await user.click(getFilters().getByRole('button', { name: 'Limpiar filtros' }))
-    await waitFor(() => expect(ordersList).toHaveBeenLastCalledWith({ page: 1, pageSize: 10 }))
+    await waitFor(() => expect(ordersList).toHaveBeenLastCalledWith({ page: 1, pageSize: 4 }))
+  })
+})
+
+describe('OrdersPage · panel de pedidos', () => {
+  it('muestra el total en el botón y abre y cierra el panel sin ocupar la página', async () => {
+    mockApi(pageOf(orders, 25))
+    const { user } = renderOrdersPage()
+    await findForm()
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Pedidos registrados' })).not.toBeInTheDocument()
+    expect(await screen.findByText('25')).toBeInTheDocument()
+
+    await openList(user)
+    const dialog = screen.getByRole('dialog', { name: 'Pedidos registrados' })
+    expect(await within(dialog).findByRole('table', { name: 'Pedidos registrados' })).toBeVisible()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver pedidos registrados' })).toHaveFocus()
+  })
+
+  it('se cierra con Escape', async () => {
+    mockApi()
+    const { user } = renderOrdersPage()
+    await findForm()
+    await openList(user)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
 
 describe('OrdersPage · listado sin zona (#42)', () => {
   it('un pedido sin zona muestra «—» y cada fila enlaza a su comprobante', async () => {
     mockApi(pageOf([{ ...orders[0], zoneId: null, zone: null }]))
-    renderOrdersPage()
+    const { user } = renderOrdersPage()
+    await openList(user)
 
     const [, row] = within(await findTable()).getAllByRole('row')
-    expect(within(row).getByText('—')).toBeInTheDocument()
+    expect(within(row).queryByText('—')).not.toBeInTheDocument()
     expect(
       within(row).getByRole('link', { name: 'Comprobante y contacto del pedido de María Pérez' }),
     ).toHaveAttribute('href', `/admin/pedidos/${orders[0].id}/comprobante`)
@@ -232,11 +272,11 @@ describe('OrdersPage · nueva venta', () => {
     expect(form.getByRole('radio', { name: 'Invitado (sin cuenta)' })).toBeChecked()
     expect(form.getByRole('radio', { name: 'Cliente con cuenta' })).toBeEnabled()
     expect(form.getByRole('note')).toHaveTextContent(
-      'Se registra el pago que declara el cliente. No se valida en el banco ni se cobra con tarjeta.',
+      'Es el pago que declara el cliente; no se valida en el banco.',
     )
     expect(form.queryByLabelText(/tarjeta/i)).not.toBeInTheDocument()
     expect(form.getByTestId('map')).toHaveAttribute('data-area-points', '4')
-    expect(form.getByText(/La hora es aproximada/)).toBeInTheDocument()
+    expect(form.getByText(/Es una hora aproximada/)).toBeInTheDocument()
   })
 
   it('sin cobertura configurada no muestra el formulario y lleva a configurarla', async () => {
@@ -320,7 +360,7 @@ describe('OrdersPage · nueva venta', () => {
       expect(create).toHaveBeenCalledWith(
         {
           ...EXPECTED_BODY,
-          giftRecipient: { name: 'Ana Regalo', contactPhone: '0987654321' },
+          giftRecipient: { name: 'Ana Regalo', contactPhone: '+593987654321' },
         },
         expect.any(String),
       ),
@@ -466,8 +506,8 @@ describe('OrdersPage · nueva venta', () => {
     const { user } = renderOrdersPage()
     await fillValidForm(user)
 
-    expect(getForm().getByText(/Subtotal estimado/)).toHaveTextContent('1.500,00')
-    expect(getForm().getByText(/El total con IVA lo calcula el servidor/)).toBeInTheDocument()
+    expect(getForm().getByText('Subtotal').parentElement).toHaveTextContent('1.500,00')
+    expect(getForm().getByText(/el total final sale en el comprobante/)).toBeInTheDocument()
   })
 
   it('muestra el error si no se puede cargar lo necesario para vender', async () => {

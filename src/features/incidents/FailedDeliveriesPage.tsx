@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
-import { Button } from '../../components/ui/Button'
+import { StepNav } from '../../components/ui/StepNav'
 import { useFetch } from '../../hooks/useFetch'
 import { useKeyedActions } from '../../hooks/useKeyedActions'
-import { formatTime } from '../../lib/format/formatTime'
+import { useRealtimeUpdates } from '../../hooks/useRealtimeUpdates'
 import { useAuth } from '../auth/useAuth'
+import { shopService } from '../shop/shopService'
 import { dispatchService } from '../dispatch/dispatchService'
 import type { ContactInput } from '../dispatch/types'
 import { IncidentCard, type RegisteredAgreement } from './IncidentCard'
 import { describeIncidentError } from './incidentError'
 import { describeWindow } from './incidentFormat'
+import { ConnectionStatus } from '../monitor/ConnectionStatus'
 import { loadIncidentsBoard } from './incidentsBoard'
 import type { PickupDecision } from './PickupSection'
 
@@ -22,6 +24,14 @@ export function FailedDeliveriesPage() {
   const { user } = useAuth()
   const board = useFetch(loadIncidentsBoard, 'No se pudo cargar la bandeja de entregas fallidas')
   const actions = useKeyedActions(board.reload)
+  const [selected, setSelected] = useState(0)
+  // Horario de entrega de la tienda: la franja acordada se elige dentro de él.
+  const settings = useFetch(shopService.settings, 'No se pudo consultar el horario de entrega')
+  // Las entregas fallidas llegan en vivo: cada aviso del servidor vuelve a consultar la bandeja.
+  const realtime = useRealtimeUpdates({
+    subscriptions: [{ resource: 'incidents' }],
+    onInvalidate: board.reload,
+  })
   // El acuerdo solo se conoce al registrarlo (la API no permite consultarlo después).
   const [agreements, setAgreements] = useState<Record<string, RegisteredAgreement>>({})
   const [notice, setNotice] = useState<string | null>(null)
@@ -56,7 +66,7 @@ export function FailedDeliveriesPage() {
         await dispatchService.rescheduleWithAgreement(orderId, agreement.id, agreement.reason)
         forget(orderId)
         setNotice(
-          `Pedido ${address ? `«${address}» ` : ''}reprogramado para el ${describeWindow(agreement.window)}. ` +
+          `Pedido ${address ? `«${address}» ` : ''}reprogramado para ${agreement.window ? `el ${describeWindow(agreement.window)}` : 'la fecha acordada'}. ` +
             'Volvió a estado Pendiente para planificarse ese día; sus visitas anteriores se conservan.',
         )
       },
@@ -107,57 +117,67 @@ export function FailedDeliveriesPage() {
     )
 
   return (
-    <main className="page">
-      <h1>Entregas fallidas</h1>
-      <p className="text-muted">
-        Pedidos cuyo intento de entrega falló. No se cancelan ni se dan por entregados: contacta al
-        destinatario y, si acuerdan una nueva fecha y franja, reprográmalos, o acuerda que lo retire
-        en la tienda.
-      </p>
+    <main className="page page--wide">
+      <header className="planning-page__head">
+        <div>
+          <h1>Entregas fallidas</h1>
+          <p className="text-muted">
+            Pedidos cuyo intento de entrega falló: contacta al destinatario para reprogramar o
+            acordar el retiro en tienda.
+          </p>
+        </div>
+        <ConnectionStatus
+          status={realtime.status}
+          updatedAt={board.data?.loadedAt}
+          deniedCount={realtime.deniedCount}
+          onReconnect={realtime.reconnect}
+        />
+      </header>
 
       <div className="page-stack">
-        {notice && (
-          <Alert variant="success">
-            <span>{notice}</span>
-          </Alert>
-        )}
-
         <section className="card" aria-labelledby="incidents-title">
           <div className="planning-routes__header">
             <h2 id="incidents-title">Pendientes de gestión</h2>
-            <Button variant="secondary" onClick={board.reload}>
-              Actualizar
-            </Button>
           </div>
-          {board.data && (
-            <p className="text-muted">Última actualización: {formatTime(board.data.loadedAt)}</p>
-          )}
+          {notice && <Alert variant="success">{notice}</Alert>}
           <AsyncContent
             {...board}
             onRetry={board.reload}
             loadingText="Cargando entregas fallidas..."
           >
-            {({ incidents }) =>
-              incidents.length === 0 ? (
-                <p className="empty-state">No hay entregas fallidas pendientes de gestión.</p>
-              ) : (
+            {({ incidents }) => {
+              if (incidents.length === 0) {
+                return (
+                  <p className="empty-state">No hay entregas fallidas pendientes de gestión.</p>
+                )
+              }
+              // Se atiende una falla a la vez; al resolverse una, el mismo lugar pasa a la siguiente.
+              const position = Math.min(selected, incidents.length - 1)
+              const incident = incidents[position]
+              return (
                 <div className="incident-list">
-                  {incidents.map((incident) => (
-                    <IncidentCard
-                      key={incident.orderId}
-                      incident={incident}
-                      agreement={agreements[incident.orderId]}
-                      state={actions.states[incident.orderId]}
-                      currentUserId={user?.id}
-                      onContact={contact}
-                      onReschedule={reschedule}
-                      onPickupDecision={pickupDecision}
-                      onPickupConfirm={pickupConfirm}
-                    />
-                  ))}
+                  <StepNav
+                    noun="Falla"
+                    label="Entregas fallidas"
+                    position={position}
+                    total={incidents.length}
+                    onChange={setSelected}
+                  />
+                  <IncidentCard
+                    key={incident.orderId}
+                    incident={incident}
+                    schedule={settings.data?.deliverySchedule}
+                    agreement={agreements[incident.orderId]}
+                    state={actions.states[incident.orderId]}
+                    currentUserId={user?.id}
+                    onContact={contact}
+                    onReschedule={reschedule}
+                    onPickupDecision={pickupDecision}
+                    onPickupConfirm={pickupConfirm}
+                  />
                 </div>
               )
-            }
+            }}
           </AsyncContent>
         </section>
       </div>

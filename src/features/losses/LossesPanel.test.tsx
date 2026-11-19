@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { screen, waitFor, within } from '@testing-library/react'
 import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
@@ -39,8 +40,13 @@ const renderPage = (search = '', losses: OrderItemLoss[] = [], order = guestOrde
   return { ...rendered, ...api }
 }
 
-const panel = async () =>
-  within(await screen.findByRole('region', { name: 'Pérdidas y reemplazos' }))
+/** El panel de pérdidas vive en un panel lateral: se abre con su botón (o solo, si llega un intento). */
+const panel = async () => {
+  if (!screen.queryByRole('region', { name: 'Pérdidas y reemplazos' })) {
+    await userEvent.click(await screen.findByRole('button', { name: 'Pérdidas y reemplazos' }))
+  }
+  return within(await screen.findByRole('region', { name: 'Pérdidas y reemplazos' }))
+}
 
 describe('pérdidas y reemplazos · lógica (#39, backend #52)', () => {
   it('traduce los conflictos sin presentarlos como éxito', () => {
@@ -110,7 +116,7 @@ describe('pérdidas y reemplazos · página del pedido', () => {
       attemptId: 'a1',
       reason: 'Se cayó del camión',
     })
-    expect(await box.findByText(/Pérdida declarada/)).toBeInTheDocument()
+    expect(await screen.findByText(/Pérdida declarada/)).toBeInTheDocument()
     await waitFor(() => expect(losses).toHaveBeenCalledTimes(2))
   })
 
@@ -221,7 +227,7 @@ describe('pérdidas y reemplazos · página del pedido', () => {
     await user.click(box.getByRole('button', { name: 'Confirmar' }))
 
     expect(await box.findByText(/No se pudo conectar con el servidor/)).toBeInTheDocument()
-    expect(box.queryByText(/Pérdida declarada/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Pérdida declarada/)).not.toBeInTheDocument()
     await waitFor(() => expect(losses).toHaveBeenCalledTimes(2))
   })
 

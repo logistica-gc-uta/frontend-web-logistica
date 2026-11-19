@@ -1,10 +1,11 @@
-import { act, screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatchService } from '../features/dispatch/dispatchService'
 import { monitorService } from '../features/monitor/monitorService'
 import { createFakeSocket } from '../test/fakeSocket'
 import { planningService } from '../features/planning/planningService'
 import { driversService } from '../features/planning/driversService'
+import { catalogService } from '../features/catalog/catalogService'
 import { ordersService } from '../features/orders/ordersService'
 import { productsService } from '../features/products/productsService'
 import { zonesService } from '../features/zones/zonesService'
@@ -42,11 +43,9 @@ describe('App', () => {
     renderWithProviders(<App />, { route: paths.home, session: adminSession })
 
     expect(homeHeading()).toBeInTheDocument()
-    expect(screen.getByRole('banner')).toHaveTextContent(adminSession.user.name)
-    expect(screen.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
+    expect(screen.getByRole('banner')).toBeInTheDocument()
+    // El panel es siempre claro: no hay selector de tema.
+    expect(screen.queryByRole('button', { name: 'Modo oscuro' })).not.toBeInTheDocument()
   })
 
   it('cierra sesión desde el encabezado y vuelve al login', async () => {
@@ -91,6 +90,16 @@ describe('App', () => {
       vi.spyOn(planningService, 'listRoutes').mockResolvedValue([])
       vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([])
       vi.spyOn(driversService, 'list').mockResolvedValue([])
+      vi.spyOn(driversService, 'listForDay').mockResolvedValue([])
+      vi.spyOn(planningService, 'roadEngine').mockRejectedValue(createHttpError(500))
+      vi.spyOn(catalogService, 'listCategories').mockResolvedValue([])
+      vi.spyOn(catalogService, 'listProducts').mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      })
       vi.spyOn(ordersService, 'list').mockResolvedValue({
         items: [],
         total: 0,
@@ -102,7 +111,9 @@ describe('App', () => {
 
       await user.click(within(nav).getByRole('link', { name: link }))
 
-      expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument(),
+      )
       expect(within(nav).getByRole('link', { name: link })).toHaveAttribute('aria-current', 'page')
     },
   )

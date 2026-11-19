@@ -88,11 +88,21 @@ export function RouteCorrection({
 
   return (
     <div className="route-correction" role="group" aria-label={`Corregir ${name}`}>
-      <p className="text-muted">
-        Cambia el orden de visita o pasa un pedido a otra ruta. Solo se permite antes de iniciar la
-        ruta.
-      </p>
+      <p className="text-muted">Solo se puede corregir antes de que el chofer inicie la ruta.</p>
 
+      <TextField
+        placeholder="Se guarda en el historial de la ruta"
+        label={`Motivo de la corrección de ${name}`}
+        value={reason}
+        maxLength={REASON_MAX_LENGTH}
+        error={reasonError}
+        onChange={(event) => {
+          setReason(event.target.value)
+          setReasonError(undefined)
+        }}
+      />
+
+      <h5 className="route-correction__title">Orden de visita</h5>
       <ol className="route-correction__stops">
         {stops.map((order, index) => (
           <li key={order.id}>
@@ -121,17 +131,6 @@ export function RouteCorrection({
         ))}
       </ol>
 
-      <TextField
-        label={`Motivo de la corrección de ${name}`}
-        value={reason}
-        maxLength={REASON_MAX_LENGTH}
-        error={reasonError}
-        onChange={(event) => {
-          setReason(event.target.value)
-          setReasonError(undefined)
-        }}
-      />
-
       <div className="route-correction__actions">
         <Button
           disabled={sameOrder(stops, route.orders)}
@@ -146,6 +145,7 @@ export function RouteCorrection({
         </Button>
       </div>
 
+      <h5 className="route-correction__title">Mover un pedido a otra ruta</h5>
       {canMove ? (
         <div className="route-correction__move">
           <SelectField

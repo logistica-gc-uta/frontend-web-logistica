@@ -17,6 +17,14 @@ import { ordersService } from '../orders/ordersService'
 import type { Order } from '../orders/types'
 import { describeEmergencyError } from './emergencyErrors'
 import type { EmergencyUnit, RouteEmergencyDetail } from './types'
+import { createFakeSocket } from '../../test/fakeSocket'
+
+/** La pantalla sigue las emergencias en vivo: el socket se simula para no abrir una conexión real. */
+const socket = createFakeSocket()
+vi.mock('../../lib/realtime/realtimeClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/realtime/realtimeClient')>()),
+  createRealtimeSocket: () => socket,
+}))
 
 const conflict = (code: string) =>
   createHttpError(409, { data: { statusCode: 409, code, message: 'x', error: 'Conflict' } })
@@ -189,14 +197,46 @@ describe('emergencias · seguimiento', () => {
 describe('emergencias · pantalla', () => {
   it('conserva lo entregado y lo fallido, y muestra cada unidad en custodia', async () => {
     mockBoard(emergency([unit('order-a', 'item-a'), unit('order-b', 'item-b')]))
-    renderPage()
+    const { user } = renderPage()
     const card = await findCard()
 
     const history = within(card.getByRole('region', { name: /Lo que ya pasó/ }))
     expect(history.getByText('Entregado')).toBeInTheDocument()
     expect(history.getByText('Visita fallida')).toBeInTheDocument()
     expect(card.getByText('Pendientes de recuperar').nextSibling).toHaveTextContent('2')
-    expect(card.getAllByText('Pendiente de recuperar')).toHaveLength(2)
+    // Con dos pedidos en custodia se ve uno a la vez, con su navegación.
+    expect(card.getAllByText('Pendiente de recuperar')).toHaveLength(1)
+    expect(card.getByText('Pedido 1')).toBeInTheDocument()
+    await user.click(card.getByRole('button', { name: 'Siguiente' }))
+    expect(card.getByText('Pedido 2')).toBeInTheDocument()
+  })
+
+  it('con varias emergencias se ve una por pantalla, con navegación', async () => {
+    const first = emergency([unit('order-a', 'item-a')])
+    const second = emergency([unit('order-b', 'item-b')], {
+      id: 'em-2',
+      routeId: 'r2',
+      reason: 'Falla mecánica',
+    })
+    vi.spyOn(dispatchService, 'emergencies').mockResolvedValue([first, second])
+    vi.spyOn(dispatchService, 'routeEmergency').mockImplementation(async (routeId) =>
+      routeId === 'r2' ? second : first,
+    )
+    vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([INTERRUPTED])
+    vi.spyOn(ordersService, 'get').mockImplementation(async (id) =>
+      id === 'order-a' ? ORDER_A : ORDER_B,
+    )
+    const { user } = renderPage()
+
+    expect(await screen.findByText('Emergencia 1')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(screen.getByText(/Choque leve/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    expect(screen.getByText('Emergencia 2')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(screen.getByText(/Falla mecánica/)).toBeInTheDocument()
   })
 
   it('confirmar el retorno de A no desbloquea B', async () => {
@@ -218,9 +258,9 @@ describe('emergencias · pantalla', () => {
         unit('order-b', 'item-b'),
       ]),
     )
-    await user.click(orderA.getByRole('button', { name: 'Confirmar retorno' }))
-    await user.type(orderA.getByLabelText(/Motivo del retorno de/), 'Volvió intacto')
-    await user.click(orderA.getByRole('button', { name: 'Sí, volvió a la tienda' }))
+    await user.click(orderA.getByRole('button', { name: 'Confirmar retorno del producto' }))
+    await user.type(screen.getByLabelText(/Motivo del retorno de/), 'Volvió intacto')
+    await user.click(screen.getByRole('button', { name: 'Sí, volvió a la tienda' }))
 
     expect(confirm).toHaveBeenCalledWith('unit-order-a', 'Volvió intacto')
     expect(await screen.findByText(/confirmado. El stock no cambia/)).toBeInTheDocument()
@@ -230,6 +270,8 @@ describe('emergencias · pantalla', () => {
         name: 'Habilitar para planificar',
       }),
     ).toBeInTheDocument()
+    // El pedido B sigue bloqueado: se ve al pasar al siguiente.
+    await user.click(refreshed.getByRole('button', { name: 'Siguiente' }))
     expect(
       within(refreshed.getByRole('region', { name: 'Pedido Casa de B' })).getByText(
         /Sigue bloqueado/,
@@ -269,8 +311,8 @@ describe('emergencias · pantalla', () => {
     const orderA = within((await findCard()).getByRole('region', { name: 'Pedido Casa de A' }))
 
     await user.click(orderA.getByRole('button', { name: 'Habilitar para planificar' }))
-    await user.type(orderA.getByLabelText(/Motivo para habilitar/), 'Listo')
-    await user.click(orderA.getByRole('button', { name: 'Habilitar' }))
+    await user.type(screen.getByLabelText(/Motivo para habilitar/), 'Listo')
+    await user.click(screen.getByRole('button', { name: 'Habilitar' }))
 
     expect(
       await screen.findByText(/resuélvelas antes de volver a planificarlo/),
@@ -286,8 +328,8 @@ describe('emergencias · pantalla', () => {
     const driver = within((await findCard()).getByRole('region', { name: /Repartidor de/ }))
 
     await user.click(driver.getByRole('button', { name: 'Confirmar retorno del repartidor' }))
-    await user.type(driver.getByLabelText(/Motivo del retorno del repartidor/), 'Llegó')
-    await user.click(driver.getByRole('button', { name: 'Sí, volvió al depósito' }))
+    await user.type(screen.getByLabelText(/Motivo del retorno del repartidor/), 'Llegó')
+    await user.click(screen.getByRole('button', { name: 'Sí, volvió al depósito' }))
 
     expect(release).toHaveBeenCalledWith('r1', 'Llegó')
   })

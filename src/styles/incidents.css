@@ -128,3 +128,661 @@
 .incident__losses {
   margin: 0;
 }
+
+/* Entrega fallida: tarjeta sobria, menos cajas y los datos en una franja compacta. */
+.incident {
+  gap: 18px;
+  padding: 24px 28px;
+}
+
+.incident__header h3 {
+  font-size: 1.0625rem;
+}
+
+/* Etiqueta de estado en tonos arena (sin rojo ni rosa intensos). */
+.incident .badge--danger,
+.incident .badge--warning {
+  background: var(--color-sand-soft);
+  color: var(--color-sand-strong);
+}
+
+.incident__note {
+  margin: -6px 0 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.incident__note strong {
+  color: var(--color-heading);
+}
+
+.incident__meta {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px 24px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.incident__meta dt {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.incident__meta dd {
+  margin-top: 2px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-heading);
+}
+
+.incident h4 {
+  margin: 0 0 6px;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.incident__history,
+.incident__management {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.incident__history li strong {
+  font-weight: 500;
+  color: var(--color-heading);
+}
+
+/* Registrar contacto y retiro en tienda: bloques sin caja, con título pequeño y campos compactos. */
+.incident__contact,
+.incident__pickup fieldset {
+  gap: 14px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+}
+
+.incident__contact legend,
+.incident__pickup legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.incident__contact legend + *,
+.incident__pickup legend + * {
+  clear: both;
+}
+
+.incident__window {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.incident__window-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.incident .field {
+  gap: 4px;
+}
+
+.incident .field__label {
+  font-size: 0.75rem;
+}
+
+.incident .field__input {
+  min-height: 38px;
+  padding: 5px 12px;
+  font-size: 0.875rem;
+}
+
+.incident .btn {
+  min-height: 38px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.incident__contact > .btn {
+  align-self: flex-start;
+}
+
+.incident__reschedule {
+  gap: 6px;
+}
+
+.incident__reschedule p {
+  font-size: 0.8125rem;
+}
+
+.incident__losses {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+@media (max-width: 700px) {
+  .incident__window {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Explicación breve de cada paso, en lenguaje sencillo. */
+.incident__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* Tamaños de texto parejos dentro de la tarjeta: 14px para el contenido y 13px para las explicaciones. */
+.incident p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.incident__pickup p.text-muted,
+.incident__pickup fieldset > p {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+/* Los campos del retiro ocupan todo el ancho; los botones conservan su tamaño. */
+.incident__pickup fieldset {
+  align-items: stretch;
+}
+
+.incident__pickup fieldset > .btn {
+  align-self: flex-start;
+}
+
+.incident__pickup fieldset .choices {
+  align-self: flex-start;
+}
+
+.incident__pickup > p,
+.incident__pickup h4 {
+  margin: 0;
+}
+
+/* «Última actualización»: dato secundario, más pequeño que el contenido. */
+.planning-routes__header + .text-muted {
+  margin: 0 0 16px;
+  font-size: 0.8125rem;
+}
+
+/* Campos de texto del contacto y del retiro: tan anchos como las opciones de arriba, sin estirarse de más. */
+.incident__pickup .field,
+.incident__contact > .field {
+  width: 100%;
+  max-width: 560px;
+}
+
+/* Elección del camino: contactar al destinatario o retiro en tienda. */
+.incident__path {
+  min-width: 0;
+  margin: 0;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.incident__path legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.incident__path legend + * {
+  clear: both;
+}
+
+/* Reprogramar: el acuerdo registrado a la izquierda y su botón a la derecha, en una sola fila. */
+.incident__reschedule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 24px;
+}
+
+.incident__reschedule > .btn {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+}
+
+@media (max-width: 700px) {
+  .incident__reschedule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .incident__reschedule > .btn {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}
+
+/* Situación: el motivo, cuándo y con quién, el avance en tres pasos y lo que sigue. El resto queda plegado. */
+.incident__status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.incident__reason {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  color: var(--color-heading);
+}
+
+.incident__when {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.incident__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 14px 0 12px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.incident__steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  counter-increment: step;
+}
+
+.incident__steps li::before {
+  content: counter(step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.incident__steps li[data-state='done'] {
+  color: var(--color-heading);
+}
+
+.incident__steps li[data-state='done']::before {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.incident__steps li[data-state='current'] {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.incident__steps li[data-state='current']::before {
+  border-color: var(--color-sand);
+  color: var(--color-sand-strong);
+}
+
+.incident__next {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.incident__next strong {
+  color: var(--color-heading);
+}
+
+/* Detalle del intento plegado: solo se ve si se necesita. */
+.incident__details {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.incident__details > summary {
+  width: fit-content;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.incident__details[open] > summary {
+  margin-bottom: 18px;
+}
+
+/* Los tres pasos van centrados en la tarjeta. */
+.incident__steps {
+  justify-content: center;
+}
+
+/* Historial: línea de tiempo con la fecha a la izquierda y lo ocurrido a la derecha, en orden. */
+.incident__state {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.incident__timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.incident__timeline li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 16px;
+  padding: 0 0 20px 24px;
+}
+
+.incident__timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.incident__timeline li::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.incident__timeline li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  bottom: 2px;
+  left: 4px;
+  width: 1px;
+  background: var(--color-border);
+}
+
+.incident__timeline time {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.incident__timeline li div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.incident__timeline strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.incident__timeline span {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+@media (max-width: 700px) {
+  .incident__timeline li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* Situación en una sola fila: el motivo en la esquina izquierda, los pasos al centro y lo que sigue a la derecha. */
+.incident__status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 32px;
+}
+
+.incident__status .incident__steps {
+  margin: 0;
+}
+
+.incident__what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.incident__status .incident__next {
+  text-align: right;
+}
+
+@media (max-width: 1000px) {
+  .incident__status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .incident__status .incident__next {
+    text-align: left;
+  }
+}
+
+/* Los tres pasos bajan a una segunda fila y quedan centrados bajo el motivo y el siguiente paso. */
+.incident__status {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  row-gap: 22px;
+}
+
+.incident__status .incident__next {
+  order: 2;
+}
+
+.incident__status .incident__steps {
+  order: 3;
+  grid-column: 1 / -1;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+@media (max-width: 1000px) {
+  .incident__status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* El acuerdo registrado va en la esquina derecha del bloque de contacto, a la altura de su título. */
+.incident__contact-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.incident__agreement {
+  position: absolute;
+  top: 16px;
+  right: 0;
+  max-width: 60%;
+  margin: 0;
+  font-size: 0.8125rem;
+  text-align: right;
+  color: var(--color-muted);
+}
+
+.incident__agreement strong {
+  color: var(--color-heading);
+}
+
+@media (max-width: 700px) {
+  .incident__agreement {
+    position: static;
+    max-width: none;
+    text-align: left;
+  }
+}
+
+/* «Reprogramar» queda justo debajo del contacto, a la izquierda y como acción principal: ahí lo espera quien registró el acuerdo. */
+.incident__reschedule {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.incident__reschedule > .btn {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* El motivo de la visita fallida se lee con el mismo peso que el resto del historial. */
+.incident__timeline .incident__why {
+  color: var(--color-heading);
+}
+
+/* Una falla a la vez: «Falla 2 de 5» con Anterior y Siguiente, y la tarjeta de esa falla debajo. */
+.incident-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.incident-nav strong {
+  color: var(--color-heading);
+}
+
+.incident-nav__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.incident-nav .btn {
+  min-height: 34px;
+  margin: 0;
+  padding: 0 16px;
+  font-size: 0.8125rem;
+}
+
+/* Navegación sin caja: el contador a la izquierda y dos flechas a la derecha. */
+.incident-nav {
+  padding: 0;
+  background: transparent;
+}
+
+.incident-nav__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.incident-nav__icon:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.incident-nav__icon:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.incident-nav__icon:disabled {
+  color: var(--color-border);
+  cursor: not-allowed;
+}
+
+/* El aviso bajo las opciones de camino respira un poco respecto a los botones. */
+.incident__path .incident__hint {
+  margin-top: 14px;
+}
+
+/* Confirmación de una acción: una línea de texto con un punto verde, dentro del recuadro y sin caja grande. */
+.incident__notice {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.incident__notice::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--color-success);
+  vertical-align: middle;
+}
+
+/* Los botones de retiro mantienen su tamaño: no se estiran a todo el ancho. */
+.incident__pickup > .btn,
+.incident__pickup fieldset .btn {
+  align-self: flex-start;
+}
+
+/* El enlace de pérdida o reemplazo va centrado al pie de la tarjeta. */
+.incident__losses {
+  text-align: center;
+}
+
+/* Aviso bajo el botón de confirmar: pequeño y gris, con un respiro respecto al botón. */
+.incident__pickup .incident__pickup-note {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}

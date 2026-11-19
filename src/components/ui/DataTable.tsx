@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 
 export interface Column<T> {
   header: string
+  /** Clase opcional para la celda y el encabezado de la columna (alineación, ancho). */
+  className?: string
   render: (row: T) => ReactNode
 }
 
@@ -32,7 +34,7 @@ export function DataTable<T>({
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.header} scope="col">
+              <th key={column.header} scope="col" className={column.className}>
                 {column.header}
               </th>
             ))}
@@ -42,7 +44,9 @@ export function DataTable<T>({
           {rows.map((row) => (
             <tr key={getRowKey(row)}>
               {columns.map((column) => (
-                <td key={column.header}>{column.render(row)}</td>
+                <td key={column.header} className={column.className}>
+                  {column.render(row)}
+                </td>
               ))}
             </tr>
           ))}
