@@ -66,9 +66,7 @@ export function QuoteSummary({
           <dd>Envío gratis {formatCents(quote.shipping.amountCents)}</dd>
         </div>
         <div>
-          <dt>
-            {quote.tax.enabled ? `IVA ${quote.tax.ratePercent} %` : 'IVA no aplicado'}
-          </dt>
+          <dt>{quote.tax.enabled ? `IVA ${quote.tax.ratePercent} %` : 'IVA no aplicado'}</dt>
           <dd>{formatCents(quote.tax.amountCents)}</dd>
         </div>
         <div className="cart-summary__total">
@@ -76,9 +74,7 @@ export function QuoteSummary({
           <dd>{formatCents(quote.totalCents)}</dd>
         </div>
       </dl>
-      <p className="text-muted">
-        Total vigente hasta las {formatDateTime(quote.validUntil)}.
-      </p>
+      <p className="text-muted">Total vigente hasta las {formatDateTime(quote.validUntil)}.</p>
     </section>
   )
 }

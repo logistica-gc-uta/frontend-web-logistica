@@ -64,7 +64,9 @@ export function CatalogPage() {
       </div>
 
       <div className="catalog-layout catalog__layout" id="regalos">
-        <aside className={`filters-sidebar catalog__filters${filtersOpen ? ' is-open catalog__filters--open' : ''}`}>
+        <aside
+          className={`filters-sidebar catalog__filters${filtersOpen ? ' is-open catalog__filters--open' : ''}`}
+        >
           <button
             type="button"
             className="reset filter-toggle catalog__filter-toggle"
@@ -85,24 +87,30 @@ export function CatalogPage() {
           </div>
         </aside>
 
-        <section className="results-region catalog__results" aria-labelledby="catalog-results-title">
+        <section
+          className="results-region catalog__results"
+          aria-labelledby="catalog-results-title"
+        >
           <div className="results-bar catalog__toolbar">
             <div>
               <h2 className="results-heading" id="catalog-results-title" aria-live="polite">
-                {state.search ? `Resultados para «${state.search}»` : total === null ? 'Regalos' : countLabel}
-                {state.search && total !== null && (
-                  <small>
-                    {' '}
-                    · {countLabel}
-                  </small>
-                )}
+                {state.search
+                  ? `Resultados para «${state.search}»`
+                  : total === null
+                    ? 'Regalos'
+                    : countLabel}
+                {state.search && total !== null && <small> · {countLabel}</small>}
               </h2>
             </div>
             {hasActiveFilters(state) && (
               <ul className="filter-chips" aria-label="Filtros activos">
                 {state.search ? (
                   <li>
-                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, search: '' })}>
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      onClick={() => applyFilters({ ...state, search: '' })}
+                    >
                       Búsqueda: {state.search} ×
                     </button>
                   </li>
@@ -120,21 +128,33 @@ export function CatalogPage() {
                 ) : null}
                 {state.minPrice ? (
                   <li>
-                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, minPrice: '' })}>
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      onClick={() => applyFilters({ ...state, minPrice: '' })}
+                    >
                       Mín. {state.minPrice} ×
                     </button>
                   </li>
                 ) : null}
                 {state.maxPrice ? (
                   <li>
-                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, maxPrice: '' })}>
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      onClick={() => applyFilters({ ...state, maxPrice: '' })}
+                    >
                       Máx. {state.maxPrice} ×
                     </button>
                   </li>
                 ) : null}
                 {state.inStock ? (
                   <li>
-                    <button type="button" className="filter-chip" onClick={() => applyFilters({ ...state, inStock: false })}>
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      onClick={() => applyFilters({ ...state, inStock: false })}
+                    >
                       En stock ×
                     </button>
                   </li>
@@ -172,7 +192,9 @@ export function CatalogPage() {
             </div>
           </div>
 
-          <p className="shop-section__note catalog__shipping">Todos nuestros regalos incluyen envío gratis.</p>
+          <p className="shop-section__note catalog__shipping">
+            Todos nuestros regalos incluyen envío gratis.
+          </p>
 
           <div className={products.isLoading && products.data ? 'is-refreshing' : undefined}>
             <AsyncContent

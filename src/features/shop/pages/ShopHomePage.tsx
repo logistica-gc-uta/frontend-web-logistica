@@ -26,8 +26,16 @@ function HeroCollage({ products }: { products: readonly ShopProduct[] }) {
   if (withPhoto.length === 0) return null
 
   return (
-    <figure className="hero-art shop-hero__art" aria-label="Regalos destacados" aria-describedby="hero-hint">
-      <div className={`hero-collage hero-collage--${withPhoto.length}`} role="group" aria-label="Regalos de la tienda">
+    <figure
+      className="hero-art shop-hero__art"
+      aria-label="Regalos destacados"
+      aria-describedby="hero-hint"
+    >
+      <div
+        className={`hero-collage hero-collage--${withPhoto.length}`}
+        role="group"
+        aria-label="Regalos de la tienda"
+      >
         {withPhoto.map((product) => (
           <button
             key={product.id}
@@ -45,12 +53,15 @@ function HeroCollage({ products }: { products: readonly ShopProduct[] }) {
               onError={() => setFailed((current) => [...current, product.id])}
             />
             <span className="hero-card-name hero-collage__name">{product.name}</span>
-            <span className="hero-card-price hero-collage__price">{formatCents(product.priceCents)}</span>
+            <span className="hero-card-price hero-collage__price">
+              {formatCents(product.priceCents)}
+            </span>
           </button>
         ))}
       </div>
       <figcaption id="hero-hint" className="visually-hidden">
-        Pasa el puntero o enfoca con Tab para ver cada tarjeta al frente; toca para mantenerla seleccionada aquí.
+        Pasa el puntero o enfoca con Tab para ver cada tarjeta al frente; toca para mantenerla
+        seleccionada aquí.
       </figcaption>
     </figure>
   )
@@ -66,7 +77,8 @@ export function ShopHomePage() {
         <div className="hero-copy shop-hero__copy">
           <p className="eyebrow shop-eyebrow">Detalles con intención</p>
           <h1 id="shop-hero-title">
-            Hay regalos que <br />lo dicen todo.
+            Hay regalos que <br />
+            lo dicen todo.
           </h1>
           <p>Para celebrar, agradecer o simplemente decir: pensé en ti.</p>
           <ShopSearch />

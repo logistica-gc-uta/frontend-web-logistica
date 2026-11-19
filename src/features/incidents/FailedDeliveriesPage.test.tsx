@@ -9,12 +9,24 @@ import { auditRecord, failedDelivery } from '../../test/dispatchFixtures'
 import { adminSession, adminUser, guestOrder } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
 import { monitorRoute, stopWith } from '../../test/monitorFixtures'
+import { shopSettings } from '../../test/shopFixtures'
+import { shopService } from '../shop/shopService'
 import { renderWithProviders } from '../../test/renderWithProviders'
+import { formatTimeLabel } from '../orders/orderInput'
 import { dispatchService } from '../dispatch/dispatchService'
 import { monitorService } from '../monitor/monitorService'
 import { ordersService } from '../orders/ordersService'
 import { IncidentCard, type IncidentCardProps, type RegisteredAgreement } from './IncidentCard'
 import type { IncidentView } from './incidentsBoard'
+
+import { createFakeSocket } from '../../test/fakeSocket'
+
+/** La bandeja sigue las entregas fallidas en vivo: el socket se simula para no abrir una conexión real. */
+const socket = createFakeSocket()
+vi.mock('../../lib/realtime/realtimeClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/realtime/realtimeClient')>()),
+  createRealtimeSocket: () => socket,
+}))
 
 const ORDER = { ...guestOrder, id: 'f1', status: 'IN_TRANSIT' as const }
 const TITLE = ORDER.deliveryAddress
@@ -71,32 +83,49 @@ const renderCard = (overrides: Partial<IncidentCardProps> = {}) => {
 }
 
 const card = () => within(screen.getByRole('article', { name: `Entrega fallida ${TITLE}` }))
-const reasonField = () => card().getByLabelText(`Motivo de la gestión de ${TITLE}`)
-const setWindow = (day: string, from: string, to: string) => {
+const reasonField = () => card().getByLabelText('Qué se habló con el destinatario')
+/** Las horas se eligen en una lista propia: se abre el desplegable y se toma la opción. */
+const pickTime = async (label: string, time: string) => {
+  await userEvent.click(card().getByLabelText(label))
+  await userEvent.click(await screen.findByRole('option', { name: formatTimeLabel(time) }))
+}
+const setWindow = async (day: string, from: string, to: string) => {
   fireEvent.change(card().getByLabelText('Día acordado'), { target: { value: day } })
-  fireEvent.change(card().getByLabelText('Desde (hora de Guayaquil)'), { target: { value: from } })
-  fireEvent.change(card().getByLabelText('Hasta (hora de Guayaquil)'), { target: { value: to } })
+  await pickTime('Desde', from)
+  await pickTime('Hasta', to)
 }
 
 describe('IncidentCard', () => {
-  it('muestra el intento con su motivo, la ruta original y que el pedido no está cancelado ni entregado', () => {
+  it('muestra el intento con su motivo, la ruta original, el avance y el siguiente paso', () => {
     renderCard()
 
-    expect(card().getByRole('note')).toHaveTextContent(
-      'Intento fallido. El pedido no está cancelado ni entregado',
-    )
-    expect(card().getByText('En camino · en revisión')).toBeInTheDocument()
-    expect(card().getByText('Destinatario ausente')).toBeInTheDocument()
-    expect(card().getByText('14/02/2030, 11:00')).toBeInTheDocument()
-    expect(card().getByText('Ruta FIC-02 · 21/10/2026, 10:00')).toBeInTheDocument()
-    expect(card().getByText('Carlos Chofer')).toBeInTheDocument()
+    // Resumen corto de la situación: qué pasó, el avance y lo que sigue; el detalle queda plegado.
+    expect(card().getByRole('list', { name: 'Avance de la gestión' })).toBeInTheDocument()
     expect(
-      within(card().getByRole('region', { name: `Historial de visitas de ${TITLE}` })).getByRole(
-        'listitem',
-      ),
-    ).toHaveTextContent(
-      'Ruta FIC-02 · 21/10/2026, 10:00 (Completada (COMPLETED))Visita fallida: destinatario ausente',
+      card()
+        .getByText(/Siguiente paso:/)
+        .closest('p'),
+    ).toHaveTextContent('contactar al destinatario o acordar el retiro en tienda')
+    // El resumen cuenta qué pasó; el historial plegado detalla la visita.
+    expect(card().getByText('Destinatario ausente')).toBeInTheDocument()
+    const history = within(card().getByRole('list', { name: `Historial de ${TITLE}` }))
+    // La visita fallida dice su motivo de forma explícita.
+    expect(history.getByText('Visita fallida')).toBeInTheDocument()
+    expect(history.getByText('Motivo: Destinatario ausente')).toBeInTheDocument()
+    expect(history.getByText(/Ruta FIC-02 · 21\/10\/2026, 10:00/)).toHaveTextContent(
+      'Completada · Chofer Carlos Chofer',
     )
+  })
+
+  it('la visita fallida del historial muestra lo que anotó el chofer en la app', () => {
+    const stop = { ...FAILED_STOP, failureContext: 'Nadie abrió la puerta y el timbre no funciona' }
+    renderCard({ incident: incidentView({ visits: [{ route: R1, stop }] }) })
+
+    const history = within(card().getByRole('list', { name: `Historial de ${TITLE}` }))
+    expect(history.getByText('Motivo: Destinatario ausente')).toBeInTheDocument()
+    expect(
+      history.getByText('Qué pasó: Nadie abrió la puerta y el timbre no funciona'),
+    ).toBeInTheDocument()
   })
 
   it('muestra las gestiones registradas con su responsable', () => {
@@ -113,27 +142,38 @@ describe('IncidentCard', () => {
       }),
     })
 
-    expect(
-      card().getByText(
-        /Contacto con el destinatario · 15\/02\/2030, 10:00 · Otro administrador · Motivo: No contestó/,
-      ),
-    ).toBeInTheDocument()
+    const entry = within(card().getByRole('list', { name: `Historial de ${TITLE}` }))
+    expect(entry.getByText('15/02/2030, 10:00')).toBeInTheDocument()
+    expect(entry.getByText('Contacto con el destinatario · Otro administrador')).toBeInTheDocument()
+    expect(entry.getByText('Motivo: No contestó')).toBeInTheDocument()
   })
 
-  it('exige indicar el resultado y un motivo antes de registrar el contacto', async () => {
+  it('exige indicar el resultado antes de registrar el contacto', async () => {
     const { onContact } = renderCard()
 
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
 
     expect(card().getByText('Indica si se acordó una nueva entrega')).toBeInTheDocument()
+    expect(card().queryByLabelText('Qué se habló con el destinatario')).not.toBeInTheDocument()
+    expect(onContact).not.toHaveBeenCalled()
+  })
+
+  it('con acuerdo pide un motivo; sin acuerdo no lo pide ni muestra el campo', async () => {
+    const { onContact } = renderCard()
+
+    await userEvent.click(card().getByLabelText('Se acordó una nueva entrega'))
+    await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
     expect(card().getByText('Escribe un motivo breve de la gestión')).toBeInTheDocument()
     expect(onContact).not.toHaveBeenCalled()
+
+    await userEvent.click(card().getByLabelText('No se logró acordar'))
+    expect(card().queryByLabelText('Qué se habló con el destinatario')).not.toBeInTheDocument()
+    expect(card().queryByText('Escribe un motivo breve de la gestión')).not.toBeInTheDocument()
   })
 
   it('un contacto sin acuerdo se registra con el último intento y sin fecha, y limpia el formulario', async () => {
     const { onContact } = renderCard()
     await userEvent.click(card().getByLabelText('No se logró acordar'))
-    await userEvent.type(reasonField(), '  No contestó  ')
 
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
 
@@ -141,9 +181,9 @@ describe('IncidentCard', () => {
       orderId: 'f1',
       attemptId: 'a1',
       agreement: null,
-      reason: 'No contestó',
+      reason: 'No se logró acordar con el destinatario',
     })
-    expect(reasonField()).toHaveValue('')
+    expect(card().getByLabelText('No se logró acordar')).not.toBeChecked()
   })
 
   it('con acuerdo exige una franja válida y futura, y la envía en hora de Guayaquil', async () => {
@@ -154,16 +194,16 @@ describe('IncidentCard', () => {
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
     expect(card().getByText('Indica el día y la franja horaria acordados')).toBeInTheDocument()
 
-    setWindow('2030-02-15', '11:00', '09:00')
+    await setWindow('2030-02-15', '11:00', '09:00')
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
     expect(card().getByText('La hora final debe ser posterior a la inicial')).toBeInTheDocument()
 
-    setWindow('2001-01-01', '09:00', '10:00')
+    await setWindow('2001-01-01', '09:00', '10:00')
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
     expect(card().getByText('La franja acordada debe ser futura')).toBeInTheDocument()
     expect(onContact).not.toHaveBeenCalled()
 
-    setWindow('2030-02-15', '09:00', '11:30')
+    await setWindow('2030-02-15', '09:00', '11:30')
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
 
     expect(onContact).toHaveBeenCalledWith({
@@ -174,23 +214,22 @@ describe('IncidentCard', () => {
     })
   })
 
-  it('si el contacto no se registra, conserva lo escrito para reintentar', async () => {
+  it('si el contacto no se registra, conserva lo elegido para reintentar', async () => {
     renderCard({ onContact: vi.fn().mockResolvedValue(false) })
-    await userEvent.click(card().getByLabelText('No se logró acordar'))
-    await userEvent.type(reasonField(), 'No contestó')
+    await userEvent.click(card().getByLabelText('Se acordó una nueva entrega'))
+    await userEvent.type(reasonField(), 'Acordó el sábado')
 
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
 
-    expect(reasonField()).toHaveValue('No contestó')
+    expect(card().getByLabelText('Se acordó una nueva entrega')).toBeChecked()
+    expect(reasonField()).toHaveValue('Acordó el sábado')
   })
 
   it('sin acuerdo registrado no se puede reprogramar', () => {
     renderCard()
 
     expect(card().getByRole('button', { name: 'Reprogramar con este acuerdo' })).toBeDisabled()
-    expect(
-      card().getByText(/registra primero un contacto en el que se haya acordado/),
-    ).toBeInTheDocument()
+    expect(card().getByText(/primero registra un contacto en el que se acordó/)).toBeInTheDocument()
   })
 
   it('con acuerdo y la ruta original completada, reprograma con ese acuerdo', async () => {
@@ -252,6 +291,7 @@ describe('FailedDeliveriesPage', () => {
     vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([R1])
     vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
     vi.spyOn(ordersService, 'get').mockResolvedValue(ORDER)
+    vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
     return { inbox }
   }
 
@@ -273,8 +313,8 @@ describe('FailedDeliveriesPage', () => {
     const cardOf = await findCard()
 
     await user.click(cardOf.getByLabelText('Se acordó una nueva entrega'))
-    await user.type(cardOf.getByLabelText(`Motivo de la gestión de ${TITLE}`), 'Acordó el sábado')
-    setWindow('2030-02-15', '09:00', '11:30')
+    await user.type(cardOf.getByLabelText('Qué se habló con el destinatario'), 'Acordó el sábado')
+    await setWindow('2030-02-15', '09:00', '11:30')
     await user.click(cardOf.getByRole('button', { name: 'Registrar contacto' }))
 
     expect(
@@ -296,23 +336,22 @@ describe('FailedDeliveriesPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('un contacto posterior sin acuerdo anula el acuerdo anterior', async () => {
+  it('con un acuerdo registrado el formulario queda bloqueado: no se vuelve a ingresar información', async () => {
     mockApi()
     vi.spyOn(dispatchService, 'recordContact').mockResolvedValue(auditRecord({ action: 'CONTACT' }))
     const { user } = renderPage()
     const cardOf = await findCard()
     await user.click(cardOf.getByLabelText('Se acordó una nueva entrega'))
-    await user.type(cardOf.getByLabelText(`Motivo de la gestión de ${TITLE}`), 'Acordó')
-    setWindow('2030-02-15', '09:00', '11:30')
+    await user.type(cardOf.getByLabelText('Qué se habló con el destinatario'), 'Acordó')
+    await setWindow('2030-02-15', '09:00', '11:30')
     await user.click(cardOf.getByRole('button', { name: 'Registrar contacto' }))
     await cardOf.findByText(/Acuerdo registrado/)
 
-    await user.click(cardOf.getByLabelText('No se logró acordar'))
-    await user.type(cardOf.getByLabelText(`Motivo de la gestión de ${TITLE}`), 'Canceló el acuerdo')
-    await user.click(cardOf.getByRole('button', { name: 'Registrar contacto' }))
-
-    await waitFor(() => expect(cardOf.queryByText(/Acuerdo registrado/)).not.toBeInTheDocument())
-    expect(cardOf.getByRole('button', { name: 'Reprogramar con este acuerdo' })).toBeDisabled()
+    expect(cardOf.getByLabelText('Se acordó una nueva entrega')).toBeChecked()
+    expect(cardOf.getByLabelText('Se acordó una nueva entrega')).toBeDisabled()
+    expect(cardOf.getByLabelText('No se logró acordar')).toBeDisabled()
+    expect(cardOf.queryByLabelText('Qué se habló con el destinatario')).not.toBeInTheDocument()
+    expect(cardOf.queryByRole('button', { name: 'Registrar contacto' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -339,8 +378,8 @@ describe('FailedDeliveriesPage', () => {
     const { user } = renderPage()
     const cardOf = await findCard()
     await user.click(cardOf.getByLabelText('Se acordó una nueva entrega'))
-    await user.type(cardOf.getByLabelText(`Motivo de la gestión de ${TITLE}`), 'Acordó')
-    setWindow('2030-02-15', '09:00', '11:30')
+    await user.type(cardOf.getByLabelText('Qué se habló con el destinatario'), 'Acordó')
+    await setWindow('2030-02-15', '09:00', '11:30')
 
     await user.click(cardOf.getByRole('button', { name: 'Registrar contacto' }))
 
@@ -358,7 +397,6 @@ describe('FailedDeliveriesPage', () => {
     const { user } = renderPage()
     const cardOf = await findCard()
     await user.click(cardOf.getByLabelText('No se logró acordar'))
-    await user.type(cardOf.getByLabelText(`Motivo de la gestión de ${TITLE}`), 'No contestó')
 
     await user.dblClick(cardOf.getByRole('button', { name: 'Registrar contacto' }))
 
@@ -367,6 +405,24 @@ describe('FailedDeliveriesPage', () => {
     await waitFor(() =>
       expect(cardOf.getByRole('button', { name: 'Registrar contacto' })).toBeEnabled(),
     )
+  })
+
+  it('con varias fallas se atiende una a la vez, con Anterior y Siguiente', async () => {
+    mockApi([
+      failedDelivery('f1', { attempts: [incidentView().latestAttempt!] }),
+      failedDelivery('f2', { attempts: [{ ...incidentView().latestAttempt!, id: 'a2' }] }),
+    ])
+    const { user } = renderPage()
+
+    expect(await screen.findByText('Falla 1')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    expect(screen.getByText('Falla 2')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
   })
 
   it('indica cuando no hay entregas fallidas', async () => {

@@ -21,7 +21,12 @@ interface RawRoute {
     orderId: string
     sequence: number | null
     outcome: StopOutcome
-    attempts: { outcome: string; failureReason: string | null; recordedAt: string }[]
+    attempts: {
+      outcome: string
+      failureReason: string | null
+      context?: string | null
+      recordedAt: string
+    }[]
   }[]
 }
 
@@ -29,14 +34,15 @@ interface RawRoute {
 const bySequence = (a: MonitorStop, b: MonitorStop): number =>
   (a.sequence ?? Number.MAX_SAFE_INTEGER) - (b.sequence ?? Number.MAX_SAFE_INTEGER)
 
-const lastFailureReason = (attempts: RawRoute['stops'][number]['attempts']): string | null =>
+const lastFailedAttempt = (attempts: RawRoute['stops'][number]['attempts']) =>
   attempts
     .filter((attempt) => attempt.outcome === 'FAILED')
-    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))[0]?.failureReason ?? null
+    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))[0]
 
 /**
- * Copia solo los campos que muestra el monitor: no entran datos del destinatario, el texto libre
- * de los intentos ni el usuario del chofer (que incluye su hash de contraseña).
+ * Copia solo los campos que muestra el panel: no entran datos del destinatario ni el usuario del
+ * chofer (que incluye su hash de contraseña). Del intento fallido pasa el motivo y lo que anotó el
+ * chofer en la app («Qué pasó»), porque la persona que gestiona la entrega necesita leerlo.
  */
 const toMonitorRoute = (raw: RawRoute): MonitorRoute => {
   const addresses = new Map(raw.orders.map((order) => [order.id, order.deliveryAddress]))
@@ -58,7 +64,8 @@ const toMonitorRoute = (raw: RawRoute): MonitorRoute => {
         sequence: stop.sequence,
         deliveryAddress: addresses.get(stop.orderId) ?? `Pedido ${stop.orderId.slice(0, 8)}`,
         outcome: stop.outcome,
-        failureReason: lastFailureReason(stop.attempts),
+        failureReason: lastFailedAttempt(stop.attempts)?.failureReason ?? null,
+        failureContext: lastFailedAttempt(stop.attempts)?.context?.trim() || null,
       }))
       .sort(bySequence),
   }

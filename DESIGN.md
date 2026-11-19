@@ -129,6 +129,15 @@ Alturas táctiles: controles de 44 px (botón de menú, cerrar sesión en rail, 
 - Encabezado mínimo: título y fecha de la operación. Sin etiqueta "REGALÍA · Logística" ni saludo (la marca y el nombre ya están en el menú lateral).
 - Tarjetas con radio `--radius-lg` (6 px).
 
+### Pedidos (formulario de venta)
+- Cuadros con una **línea fina bajo el título** que lo separa del contenido.
+- Formulario en dos columnas: a la izquierda los grupos (Comprador, Quién recibe, Pago, Entrega, Productos) con título en mayúsculas pequeñas; a la derecha el mapa y el **resumen de la venta** (comprador, pago, entrega, productos, subtotal y botón), que acompaña al desplazarse.
+- Controles compactos: **38 px** de alto (no 44 px).
+- Radios y casillas como opciones: la elegida se pinta de verde con borde y círculo/visto marcados.
+- Nombres solo con letras; teléfonos con prefijo fijo **+593** y 9 dígitos que empiezan con 9; notas y dirección admiten cualquier carácter.
+- Fecha con calendario y hora en una lista cada 30 min dentro del horario, escrita con a. m. / p. m.
+- Cantidad con − / +, tope en el stock y aviso al lado del campo con el problema.
+
 ### Login de admin
 - Tarjeta blanca, inputs beige igual que el de cliente, sin selector de tema.
 

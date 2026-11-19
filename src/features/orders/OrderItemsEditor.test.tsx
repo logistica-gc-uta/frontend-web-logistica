@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { products } from '../../test/fixtures'
@@ -17,22 +17,56 @@ const renderEditor = (items: OrderItemFormValue[], error?: string) => {
 }
 
 describe('OrderItemsEditor', () => {
-  it('muestra una fila por línea con sus opciones de producto y el stock', () => {
+  it('muestra una fila por línea con el producto elegido y su cantidad', () => {
     renderEditor(twoItems)
 
-    expect(screen.getByLabelText('Producto 1')).toHaveValue('product-1')
+    expect(screen.getByLabelText('Producto 1')).toHaveValue('Laptop HP Pavilion 15')
     expect(screen.getByLabelText('Cantidad 2')).toHaveValue(2)
-    expect(
-      within(screen.getByLabelText('Producto 1')).getByRole('option', {
-        name: /Laptop HP Pavilion 15 · .*750,00 · 15 en stock/,
-      }),
-    ).toBeInTheDocument()
+  })
+
+  it('al abrir lista los productos con precio y stock', async () => {
+    renderEditor(twoItems)
+
+    await userEvent.click(screen.getByLabelText('Producto 1'))
+
+    const option = screen.getByRole('option', { name: /Laptop HP Pavilion 15/ })
+    expect(option).toHaveTextContent(/750,00 · 15 en stock/)
+    expect(option).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('filtra escribiendo, sin importar mayúsculas ni tildes, y avisa si nada coincide', async () => {
+    renderEditor(twoItems)
+    await userEvent.click(screen.getByLabelText('Producto 1'))
+
+    await userEvent.type(screen.getByLabelText('Producto 1'), 'MOUSE')
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('option', { name: /Mouse/ })).toBeInTheDocument()
+
+    await userEvent.clear(screen.getByLabelText('Producto 1'))
+    await userEvent.type(screen.getByLabelText('Producto 1'), 'zzz')
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(screen.getByText('Ningún producto coincide')).toBeInTheDocument()
+  })
+
+  it('se elige con el teclado: flechas, Enter y Escape', async () => {
+    const { onChange } = renderEditor(twoItems)
+    const input = screen.getByLabelText('Producto 2')
+
+    await userEvent.click(input)
+    await userEvent.keyboard('{ArrowDown}{Enter}')
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0][0]).toEqual(twoItems[0])
+
+    await userEvent.click(input)
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('cambia el producto de una línea sin tocar las demás', async () => {
     const { onChange } = renderEditor(twoItems)
 
-    await userEvent.selectOptions(screen.getByLabelText('Producto 2'), 'product-1')
+    await userEvent.click(screen.getByLabelText('Producto 2'))
+    await userEvent.click(screen.getByRole('option', { name: /Laptop HP Pavilion 15/ }))
 
     expect(onChange).toHaveBeenCalledWith([
       { productId: 'product-1', quantity: '1' },

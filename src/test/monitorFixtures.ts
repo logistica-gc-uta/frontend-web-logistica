@@ -4,6 +4,7 @@ export const stopWith = (
   index: number,
   outcome: StopOutcome,
   failureReason: string | null = null,
+  failureContext: string | null = null,
 ): MonitorStop => ({
   id: `stop-${index}`,
   orderId: `order-${index}`,
@@ -11,6 +12,7 @@ export const stopWith = (
   deliveryAddress: `Parada ${index}`,
   outcome,
   failureReason,
+  failureContext,
 })
 
 /** Ruta de hoy (21/10/2026) en curso con 4 paradas pendientes. */

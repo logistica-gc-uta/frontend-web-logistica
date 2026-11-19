@@ -10,15 +10,27 @@ import { auditRecord, failedDelivery } from '../../test/dispatchFixtures'
 import { adminSession, adminUser, guestOrder } from '../../test/fixtures'
 import { createHttpError, createHttpResponse } from '../../test/http'
 import { monitorRoute, stopWith } from '../../test/monitorFixtures'
+import { shopSettings } from '../../test/shopFixtures'
+import { shopService } from '../shop/shopService'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { dispatchService } from '../dispatch/dispatchService'
 import type { OrderPickup } from '../dispatch/types'
 import { monitorService } from '../monitor/monitorService'
+import type { MonitorRoute } from '../monitor/types'
 import { ordersService } from '../orders/ordersService'
 import { trackingBadgeClass, trackingLabel } from '../shop/orders/orderStatus'
 import { IncidentCard, type IncidentCardProps } from './IncidentCard'
 import { describeIncidentError } from './incidentError'
 import type { IncidentView } from './incidentsBoard'
+
+import { createFakeSocket } from '../../test/fakeSocket'
+
+/** La bandeja sigue las entregas fallidas en vivo: el socket se simula para no abrir una conexión real. */
+const socket = createFakeSocket()
+vi.mock('../../lib/realtime/realtimeClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/realtime/realtimeClient')>()),
+  createRealtimeSocket: () => socket,
+}))
 
 const ORDER = { ...guestOrder, id: 'f1', status: 'IN_TRANSIT' as const }
 const TITLE = ORDER.deliveryAddress
@@ -39,19 +51,34 @@ const PENDING: OrderPickup = {
 const conflict = (code: string) =>
   createHttpError(409, { data: { statusCode: 409, code, message: 'x', error: 'Conflict' } })
 
-const view = (pickup: OrderPickup | null = null): IncidentView => ({
+/** Contacto con el destinatario ya registrado (sin acuerdo): habilita ofrecer el retiro en tienda. */
+const CONTACT = auditRecord({
+  action: 'CONTACT',
+  orderId: 'f1',
+  reason: 'No se logró acordar con el destinatario',
+})
+
+const view = (
+  pickup: OrderPickup | null = null,
+  contacted = false,
+  route: MonitorRoute = R1,
+): IncidentView => ({
   orderId: 'f1',
   order: ORDER,
   latestAttempt: ATTEMPT,
-  originalRoute: R1,
-  visits: [{ route: R1, stop: FAILED_STOP }],
-  management: [],
+  originalRoute: route,
+  visits: [{ route, stop: FAILED_STOP }],
+  management: contacted ? [CONTACT] : [],
   pickup,
 })
 
-const renderCard = (pickup: OrderPickup | null = null) => {
+const renderCard = (
+  pickup: OrderPickup | null = null,
+  contacted = false,
+  route: MonitorRoute = R1,
+) => {
   const props: IncidentCardProps = {
-    incident: view(pickup),
+    incident: view(pickup, contacted, route),
     agreement: undefined,
     state: undefined,
     currentUserId: adminUser.id,
@@ -125,16 +152,37 @@ describe('retiro en tienda · lógica (#38, backend #50)', () => {
 })
 
 describe('retiro en tienda · tarjeta de entrega fallida', () => {
+  it('el retiro en tienda solo se puede ofrecer después de registrar el contacto con el destinatario', () => {
+    renderCard()
+
+    expect(card().getByLabelText('Retiro en tienda')).toBeDisabled()
+    expect(card().getByLabelText('Contactar al destinatario')).toBeChecked()
+    expect(card().getByText(/Primero registra el contacto con el destinatario/)).toBeInTheDocument()
+  })
+
+  it('con la ruta original todavía abierta no se puede acordar el retiro: el servidor lo rechazaría', () => {
+    renderCard(null, true, { ...R1, status: 'IN_PROGRESS' })
+
+    expect(card().getByLabelText('Retiro en tienda')).toBeDisabled()
+    expect(card().getByText(/cuando el chofer termine la ruta original/)).toBeInTheDocument()
+  })
+
   it('sin acuerdo ofrece el retiro junto a la reprogramación y exige respuesta y motivo', async () => {
-    const { props, user } = renderCard()
+    const { props, user } = renderCard(null, true)
 
     expect(card().getByText('Entrega pendiente de gestión')).toBeInTheDocument()
+    // Dos caminos excluyentes: por defecto se contacta al destinatario; el retiro se elige aparte.
     expect(card().getByRole('button', { name: 'Reprogramar con este acuerdo' })).toBeInTheDocument()
+    expect(card().getByLabelText('Contactar al destinatario')).toBeChecked()
+    expect(card().queryByRole('region', { name: `Retiro en tienda de ${TITLE}` })).toBeNull()
+
+    await user.click(card().getByLabelText('Retiro en tienda'))
+    expect(card().queryByRole('button', { name: 'Reprogramar con este acuerdo' })).toBeNull()
     await user.click(pickupBox().getByRole('button', { name: 'Registrar respuesta' }))
     expect(pickupBox().getByText('Indica si el cliente acepta retirar')).toBeInTheDocument()
 
     await user.click(pickupBox().getByLabelText('El cliente retirará en tienda'))
-    await user.type(pickupBox().getByLabelText(`Motivo del retiro de ${TITLE}`), 'Prefiere ir')
+    await user.type(pickupBox().getByLabelText('Respuesta del cliente'), 'Prefiere ir')
     await user.click(pickupBox().getByRole('button', { name: 'Registrar respuesta' }))
 
     expect(props.onPickupDecision).toHaveBeenCalledWith('f1', 'a1', 'agree', 'Prefiere ir')
@@ -155,10 +203,7 @@ describe('retiro en tienda · tarjeta de entrega fallida', () => {
     expect(pickupBox().getByText('Escribe un motivo breve')).toBeInTheDocument()
     expect(props.onPickupConfirm).not.toHaveBeenCalled()
 
-    await user.type(
-      pickupBox().getByLabelText(`Motivo de la confirmación del retiro de ${TITLE}`),
-      'Vino con su cédula',
-    )
+    await user.type(pickupBox().getByLabelText('Cómo se confirmó el retiro'), 'Vino con su cédula')
     await user.click(pickupBox().getByRole('button', { name: 'Sí, el cliente lo retiró' }))
 
     expect(props.onPickupConfirm).toHaveBeenCalledWith('f1', 'Vino con su cédula')
@@ -167,13 +212,14 @@ describe('retiro en tienda · tarjeta de entrega fallida', () => {
 
 describe('retiro en tienda · bandeja de entregas fallidas', () => {
   const mockApi = (pickup: OrderPickup | null = null) => {
+    vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
     const inbox = vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
       date: '2030-02-15',
       urgencies: [],
       failedDeliveries: [failedDelivery('f1', { attempts: [ATTEMPT], pickup })],
     })
     vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([R1])
-    vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
+    vi.spyOn(dispatchService, 'audit').mockResolvedValue([CONTACT])
     vi.spyOn(ordersService, 'get').mockResolvedValue(ORDER)
     return { inbox }
   }
@@ -190,10 +236,11 @@ describe('retiro en tienda · bandeja de entregas fallidas', () => {
       .spyOn(dispatchService, 'agreePickup')
       .mockResolvedValue(auditRecord({ action: 'PICKUP_AGREE', orderId: 'f1' }))
     const { user } = renderPage()
+    await user.click(await screen.findByLabelText('Retiro en tienda'))
     const box = await findPickup()
 
     await user.click(box.getByLabelText('El cliente retirará en tienda'))
-    await user.type(box.getByLabelText(`Motivo del retiro de ${TITLE}`), 'Prefiere ir')
+    await user.type(box.getByLabelText('Respuesta del cliente'), 'Prefiere ir')
     await user.click(box.getByRole('button', { name: 'Registrar respuesta' }))
 
     expect(agree).toHaveBeenCalledWith({ orderId: 'f1', attemptId: 'a1', reason: 'Prefiere ir' })
@@ -210,10 +257,7 @@ describe('retiro en tienda · bandeja de entregas fallidas', () => {
     const box = await findPickup()
 
     await user.click(box.getByRole('button', { name: 'Confirmar retiro' }))
-    await user.type(
-      box.getByLabelText(`Motivo de la confirmación del retiro de ${TITLE}`),
-      'Vino a la tienda',
-    )
+    await user.type(box.getByLabelText('Cómo se confirmó el retiro'), 'Vino a la tienda')
     await user.click(box.getByRole('button', { name: 'Sí, el cliente lo retiró' }))
 
     expect(await screen.findByText(/No se pudo conectar con el servidor/)).toBeInTheDocument()
@@ -230,10 +274,7 @@ describe('retiro en tienda · bandeja de entregas fallidas', () => {
     const box = await findPickup()
 
     await user.click(box.getByRole('button', { name: 'Confirmar retiro' }))
-    await user.type(
-      box.getByLabelText(`Motivo de la confirmación del retiro de ${TITLE}`),
-      'Otra vez',
-    )
+    await user.type(box.getByLabelText('Cómo se confirmó el retiro'), 'Otra vez')
     await user.click(box.getByRole('button', { name: 'Sí, el cliente lo retiró' }))
 
     expect(await screen.findByText(/El retiro ya fue confirmado/)).toBeInTheDocument()

@@ -78,7 +78,9 @@
   text-decoration: none;
   font-size: 0.8125rem;
   color: var(--color-muted);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .shop .account-presentation .account__tabs a:hover {
@@ -166,7 +168,10 @@
   background: var(--color-bg);
   font-size: 0.875rem;
   color: var(--color-text);
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .shop .account-presentation .field__input:hover {
@@ -222,7 +227,9 @@
   font: inherit;
   font-size: 0.8125rem;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .shop .account-presentation .account__reveal:hover {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
+import { Drawer } from '../../components/ui/Drawer'
 import { Pagination } from '../../components/ui/Pagination'
 import { useFetch } from '../../hooks/useFetch'
 import { productsService } from '../products/productsService'
@@ -14,8 +15,9 @@ import { ordersService } from './ordersService'
 import { OrdersTable } from './OrdersTable'
 import type { AdminPurchaseResult, OrdersQuery } from './types'
 import '../../styles/orders-admin.css'
+import '../../styles/order-form.css'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 4
 
 /** Solo se cargan los datos de tienda necesarios para registrar ventas. */
 const loadFormOptions = () =>
@@ -29,6 +31,8 @@ export function OrdersPage() {
   const options = useFetch(loadFormOptions, 'No se pudo cargar lo necesario para registrar ventas')
   const [filters, setFilters] = useState<OrderFiltersValue>(NO_FILTERS)
   const [page, setPage] = useState(1)
+  const [listOpen, setListOpen] = useState(false)
+  const closeList = useCallback(() => setListOpen(false), [])
 
   const query = useMemo<OrdersQuery>(
     () => ({
@@ -55,12 +59,38 @@ export function OrdersPage() {
   return (
     <main className="page orders-admin">
       <header className="orders-admin__head">
-        <p className="dashboard__eyebrow">REGALÍA · Logística</p>
-        <h1>Pedidos</h1>
-        <p className="text-muted">
-          Registra ventas pagadas en la tienda (efectivo o transferencia) con su entrega, y consulta
-          los pedidos existentes.
-        </p>
+        <div>
+          <h1>Pedidos</h1>
+          <p className="text-muted">Registra ventas en tienda y consulta los pedidos existentes.</p>
+        </div>
+        <button
+          type="button"
+          className="orders-admin__list-button"
+          aria-haspopup="dialog"
+          aria-label="Ver pedidos registrados"
+          title="Pedidos registrados"
+          onClick={() => setListOpen(true)}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 8 12 3 3 8v8l9 5 9-5V8ZM3 8l9 5 9-5M12 13v8" />
+          </svg>
+          <span className="orders-admin__list-label">Pedidos registrados</span>
+          {orders.data !== undefined && orders.data.total > 0 && (
+            <span className="orders-admin__list-count" aria-hidden="true">
+              {orders.data.total}
+            </span>
+          )}
+        </button>
       </header>
 
       <div className="page-stack">
@@ -93,37 +123,42 @@ export function OrdersPage() {
             }
           </AsyncContent>
         </section>
-
-        <section className="card" aria-labelledby={listTitleId}>
-          <h2 id={listTitleId}>Pedidos registrados</h2>
-          <OrderFilters value={filters} onChange={handleFiltersChange} />
-          <div
-            aria-busy={orders.isLoading}
-            className={orders.isLoading && orders.data ? 'is-refreshing' : undefined}
-          >
-            <AsyncContent
-              {...orders}
-              onRetry={orders.reload}
-              loadingText="Cargando pedidos..."
-              loading={<div className="admin-skeleton" />}
-            >
-              {(result) => (
-                <>
-                  <OrdersTable orders={result.items} />
-                  {result.total > 0 && (
-                    <Pagination
-                      page={result.page}
-                      pageSize={result.pageSize}
-                      total={result.total}
-                      onPageChange={setPage}
-                    />
-                  )}
-                </>
-              )}
-            </AsyncContent>
-          </div>
-        </section>
       </div>
+
+      <Drawer
+        open={listOpen}
+        onClose={closeList}
+        title="Pedidos registrados"
+        titleId={listTitleId}
+        className="orders-admin"
+      >
+        <OrderFilters value={filters} onChange={handleFiltersChange} />
+        <div
+          aria-busy={orders.isLoading}
+          className={orders.isLoading && orders.data ? 'is-refreshing' : undefined}
+        >
+          <AsyncContent
+            {...orders}
+            onRetry={orders.reload}
+            loadingText="Cargando pedidos..."
+            loading={<div className="admin-skeleton" />}
+          >
+            {(result) => (
+              <>
+                <OrdersTable orders={result.items} />
+                {result.total > 0 && (
+                  <Pagination
+                    page={result.page}
+                    pageSize={result.pageSize}
+                    total={result.total}
+                    onPageChange={setPage}
+                  />
+                )}
+              </>
+            )}
+          </AsyncContent>
+        </div>
+      </Drawer>
     </main>
   )
 }

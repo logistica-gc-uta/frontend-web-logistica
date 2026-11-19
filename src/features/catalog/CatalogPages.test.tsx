@@ -25,6 +25,16 @@ const page = (items: AdminProduct[], total = items.length) => ({
   totalPages: Math.max(1, Math.ceil(total / 20)),
 })
 
+/** Los desplegables son propios: se abre el campo y se toma la opción por su nombre. */
+const pick = async (
+  user: ReturnType<typeof renderAdmin>['user'],
+  field: HTMLElement,
+  option: string,
+) => {
+  await user.click(field)
+  await user.click(await screen.findByRole('option', { name: option }))
+}
+
 const renderAdmin = (route: string) =>
   renderWithProviders(<App />, { route, session: adminSession })
 
@@ -94,10 +104,36 @@ describe('ADMIN-01 · listado de productos', () => {
     expect(within(rows[2]).getByText('Sin categoría')).toBeInTheDocument()
     expect(within(rows[2]).getByText('Despublicado')).toBeInTheDocument()
     expect(within(rows[3]).getByText('Publicado')).toBeInTheDocument()
-    expect(within(rows[1]).getByRole('link', { name: /Editar/ })).toHaveAttribute(
-      'href',
-      '/admin/productos/prod-1',
+    // Ver, editar y publicar son iconos de la fila; el nombre abre el detalle.
+    expect(within(rows[1]).getByRole('button', { name: /Editar/ })).toBeInTheDocument()
+    expect(within(rows[1]).getByRole('button', { name: /Ver/ })).toBeInTheDocument()
+  })
+
+  it('ver, editar y crear un producto se abren en un panel lateral, sin salir del listado', async () => {
+    vi.spyOn(catalogService, 'listCategories').mockResolvedValue(CATEGORIES)
+    vi.spyOn(catalogService, 'listProducts').mockResolvedValue(
+      page([adminProduct({ images: [adminImage('a', 0, true)] })]),
     )
+    vi.spyOn(catalogService, 'getProduct').mockResolvedValue(
+      adminProduct({ images: [adminImage('a', 0, true)] }),
+    )
+    const { user } = renderAdmin('/admin/productos')
+
+    const table = await screen.findByRole('table', { name: 'Productos del catálogo' })
+    await user.click(within(table).getByRole('button', { name: 'Ver Ramo de rosas' }))
+    const view = within(await screen.findByRole('dialog', { name: 'Producto' }))
+    expect(await view.findByText('Ramo de rosas', { selector: 'h3' })).toBeInTheDocument()
+    expect(view.getByText('SKU')).toBeInTheDocument()
+
+    await user.click(view.getByRole('button', { name: 'Editar producto' }))
+    const edit = within(await screen.findByRole('dialog', { name: 'Editar producto' }))
+    expect(await edit.findByRole('form', { name: 'Datos del producto' })).toBeInTheDocument()
+
+    await user.click(edit.getByRole('button', { name: 'Cerrar' }))
+    await user.click(screen.getByRole('button', { name: 'Nuevo producto' }))
+    const create = within(await screen.findByRole('dialog', { name: 'Nuevo producto' }))
+    expect(await create.findByRole('button', { name: 'Crear producto' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Productos del catálogo' })).toBeInTheDocument()
   })
 
   it('filtra por texto, categoría y estado en el servidor y pagina', async () => {
@@ -110,8 +146,8 @@ describe('ADMIN-01 · listado de productos', () => {
 
     const filters = screen.getByRole('form', { name: 'Filtrar productos' })
     await user.type(within(filters).getByLabelText(/Buscar/), 'rosa')
-    await user.selectOptions(within(filters).getByLabelText('Categoría'), 'cat-flores')
-    await user.selectOptions(within(filters).getByLabelText('Estado'), 'out_of_stock')
+    await pick(user, within(filters).getByLabelText('Categoría'), 'Flores')
+    await pick(user, within(filters).getByLabelText('Estado'), 'Agotados (stock 0)')
     await user.click(within(filters).getByRole('button', { name: 'Filtrar' }))
     await waitFor(() =>
       expect(list).toHaveBeenLastCalledWith({
@@ -122,7 +158,9 @@ describe('ADMIN-01 · listado de productos', () => {
         status: 'out_of_stock',
       }),
     )
-    expect(within(filters).getByRole('option', { name: 'Antigua (inactiva)' })).toBeInTheDocument()
+    await user.click(within(filters).getByLabelText('Categoría'))
+    expect(await screen.findByRole('option', { name: 'Antigua (inactiva)' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })))
@@ -138,7 +176,11 @@ describe('ADMIN-01 · listado de productos', () => {
     const { user } = renderAdmin('/admin/productos')
 
     await user.click(await screen.findByRole('button', { name: 'Publicar Ramo de rosas' }))
-    expect(screen.getByText('¿Mostrarlo en el Shop?')).toBeInTheDocument()
+    // La confirmación es un modal al centro, con un título y lo que va a pasar.
+    expect(
+      screen.getByRole('alertdialog', { name: '¿Publicar este producto?' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/se mostrará en el Shop/)).toBeInTheDocument()
     expect(publish).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Sí, publicar' }))
     expect(
@@ -178,12 +220,17 @@ describe('ADMIN-02 · alta y edición', () => {
     await user.click(form.getByRole('button', { name: 'Crear producto' }))
     expect(form.getByText('Elige una categoría')).toBeInTheDocument()
     expect(create).not.toHaveBeenCalled()
-    expect(form.getByRole('option', { name: 'Antigua (inactiva)' })).toBeDisabled()
+    await user.click(form.getByLabelText('Categoría'))
+    expect(await screen.findByRole('option', { name: 'Antigua (inactiva)' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    await user.keyboard('{Escape}')
 
     await user.type(form.getByLabelText('SKU'), ' ROSAS-12 ')
     await user.type(form.getByLabelText('Nombre'), 'Ramo de rosas')
     await user.type(form.getByLabelText('Descripción'), 'Doce rosas')
-    await user.selectOptions(form.getByLabelText('Categoría'), 'cat-flores')
+    await pick(user, form.getByLabelText('Categoría'), 'Flores')
     await user.type(form.getByLabelText('Precio (USD)'), '25,99')
     await user.clear(form.getByLabelText('Stock'))
     await user.type(form.getByLabelText('Stock'), '10')
@@ -212,7 +259,7 @@ describe('ADMIN-02 · alta y edición', () => {
     await user.type(form.getByLabelText('SKU'), 'ROSAS-12')
     await user.type(form.getByLabelText('Nombre'), 'Ramo')
     await user.type(form.getByLabelText('Descripción'), 'x')
-    await user.selectOptions(form.getByLabelText('Categoría'), 'cat-flores')
+    await pick(user, form.getByLabelText('Categoría'), 'Flores')
     await user.type(form.getByLabelText('Precio (USD)'), '1')
     await user.click(form.getByRole('button', { name: 'Crear producto' }))
 
@@ -261,12 +308,12 @@ describe('ADMIN-02 · alta y edición', () => {
     const publication = within(await screen.findByRole('region', { name: 'Publicación' }))
     expect(publication.queryByRole('note')).not.toBeInTheDocument()
     await user.click(publication.getByRole('button', { name: 'Publicar Ramo de rosas' }))
-    await user.click(publication.getByRole('button', { name: 'Sí, publicar' }))
-    expect(await publication.findByText('Publicado: ya se muestra en el Shop.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sí, publicar' }))
+    expect(await screen.findByText('Publicado: ya se muestra en el Shop.')).toBeInTheDocument()
 
     await user.click(await publication.findByRole('button', { name: 'Despublicar Ramo de rosas' }))
-    expect(publication.getByText(/Los pedidos ya hechos no cambian/)).toBeInTheDocument()
-    await user.click(publication.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.getByText(/Los pedidos ya hechos no cambian/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(publish).toHaveBeenCalledTimes(1)
   })
 
@@ -332,7 +379,7 @@ describe('ADMIN-04 · imágenes', () => {
     await user.type(region.getByLabelText('Texto alternativo (describe la imagen)'), 'Ramo rojo')
     await user.click(region.getByRole('button', { name: 'Subir imagen' }))
 
-    expect(await region.findByText('Imagen subida y asociada al producto.')).toBeInTheDocument()
+    expect(await screen.findByText('Imagen subida y asociada al producto.')).toBeInTheDocument()
     expect(upload).toHaveBeenCalledWith(png, expect.any(Function))
     expect(attach).toHaveBeenCalledWith('prod-1', {
       uploadId: 'up-1',
@@ -363,10 +410,10 @@ describe('ADMIN-04 · imágenes', () => {
 
     await user.click(region.getByRole('button', { name: 'Subir imagen' }))
     expect(await region.findByText(/se subió pero no se pudo asociar/)).toBeInTheDocument()
-    expect(region.queryByText('Imagen subida y asociada al producto.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Imagen subida y asociada al producto.')).not.toBeInTheDocument()
 
     await user.click(region.getByRole('button', { name: 'Reintentar asociación' }))
-    expect(await region.findByText('Imagen subida y asociada al producto.')).toBeInTheDocument()
+    expect(await screen.findByText('Imagen subida y asociada al producto.')).toBeInTheDocument()
     expect(upload).toHaveBeenCalledTimes(2)
     expect(attach).toHaveBeenLastCalledWith('prod-1', {
       uploadId: 'up-2',
@@ -403,7 +450,7 @@ describe('ADMIN-04 · imágenes', () => {
 })
 
 describe('ADMIN-03 · categorías', () => {
-  it('lista con conteo, crea con slug generado y avisa antes de desactivar una con productos', async () => {
+  it('lista con conteo, crea en el panel con slug generado y avisa antes de desactivar una con productos', async () => {
     vi.spyOn(catalogService, 'listCategories').mockResolvedValue(CATEGORIES)
     vi.spyOn(catalogService, 'countProducts').mockImplementation(async (id) =>
       id === 'cat-flores' ? 3 : 0,
@@ -416,13 +463,14 @@ describe('ADMIN-03 · categorías', () => {
       .mockResolvedValue(adminCategory({ isActive: false }))
     const { user } = renderAdmin('/categorias')
 
-    const flowers = await screen.findByRole('listitem', { name: 'Flores' })
-    expect(within(flowers).getByText(/3 productos/)).toBeInTheDocument()
+    const flowers = within(await screen.findByRole('row', { name: /Flores/ }))
+    expect(flowers.getByText('3 productos')).toBeInTheDocument()
     expect(
-      within(screen.getByRole('listitem', { name: 'Antigua' })).getByText('Inactiva'),
+      within(screen.getByRole('row', { name: /Antigua/ })).getByText('Inactiva'),
     ).toBeInTheDocument()
 
-    const form = within(screen.getByRole('form', { name: 'Nueva categoría' }))
+    await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
+    const form = within(await screen.findByRole('form', { name: 'Nueva categoría' }))
     await user.type(form.getByLabelText('Nombre'), 'Día de la Madre')
     expect(form.getByLabelText('Slug (enlace en el Shop)')).toHaveValue('dia-de-la-madre')
     await user.click(form.getByRole('button', { name: 'Crear categoría' }))
@@ -434,12 +482,12 @@ describe('ADMIN-03 · categorías', () => {
     })
     expect(await screen.findByText('Categoría «Día de la Madre» creada.')).toBeInTheDocument()
 
-    await user.click(within(flowers).getByRole('button', { name: 'Desactivar Flores' }))
-    expect(within(flowers).getByRole('group')).toHaveTextContent(
-      'Tiene 3 productos: dejarán de verse en el Shop',
-    )
+    await user.click(flowers.getByRole('button', { name: 'Desactivar Flores' }))
+    expect(
+      screen.getByRole('alertdialog', { name: '¿Desactivar esta categoría?' }),
+    ).toHaveTextContent('Tiene 3 productos: dejarán de verse en el Shop')
     expect(update).not.toHaveBeenCalled()
-    await user.click(within(flowers).getByRole('button', { name: 'Sí, desactivar' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, desactivar' }))
     await waitFor(() => expect(update).toHaveBeenCalledWith('cat-flores', { isActive: false }))
   })
 
@@ -449,19 +497,22 @@ describe('ADMIN-03 · categorías', () => {
     const update = vi.spyOn(catalogService, 'updateCategory').mockResolvedValue(adminCategory())
     const { user } = renderAdmin('/categorias')
 
-    const flowers = within(await screen.findByRole('listitem', { name: 'Flores' }))
+    const flowers = within(await screen.findByRole('row', { name: /Flores/ }))
     await user.click(flowers.getByRole('button', { name: 'Desactivar Flores' }))
-    expect(flowers.getByRole('group')).toHaveTextContent('Tiene 1 producto')
-    await user.click(flowers.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Tiene 1 producto')
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(update).not.toHaveBeenCalled()
+
     await user.click(flowers.getByRole('button', { name: 'Editar Flores' }))
-    expect(flowers.getByText(/El slug no se cambia/)).toBeInTheDocument()
-    await user.clear(flowers.getByLabelText('Nombre'))
-    await user.type(flowers.getByLabelText('Nombre'), 'F')
-    await user.click(flowers.getByRole('button', { name: 'Guardar' }))
-    expect(flowers.getByText('El nombre debe tener entre 2 y 80 caracteres')).toBeInTheDocument()
-    await user.type(flowers.getByLabelText('Nombre'), 'lores y plantas')
-    await user.type(flowers.getByLabelText('Descripción (opcional)'), 'Ramos')
-    await user.click(flowers.getByRole('button', { name: 'Guardar' }))
+    const panel = within(await screen.findByRole('group', { name: 'Editar Flores' }))
+    expect(panel.getByText(/El slug no se cambia/)).toBeInTheDocument()
+    await user.clear(panel.getByLabelText('Nombre'))
+    await user.type(panel.getByLabelText('Nombre'), 'F')
+    await user.click(panel.getByRole('button', { name: 'Guardar' }))
+    expect(screen.getByText('El nombre debe tener entre 2 y 80 caracteres')).toBeInTheDocument()
+    await user.type(panel.getByLabelText('Nombre'), 'lores y plantas')
+    await user.type(panel.getByLabelText('Descripción (opcional)'), 'Ramos')
+    await user.click(panel.getByRole('button', { name: 'Guardar' }))
     await waitFor(() =>
       expect(update).toHaveBeenCalledWith('cat-flores', {
         name: 'Flores y plantas',
@@ -469,7 +520,7 @@ describe('ADMIN-03 · categorías', () => {
       }),
     )
 
-    const old = within(screen.getByRole('listitem', { name: 'Antigua' }))
+    const old = within(await screen.findByRole('row', { name: /Antigua/ }))
     await user.click(old.getByRole('button', { name: 'Activar Antigua' }))
     await waitFor(() => expect(update).toHaveBeenLastCalledWith('cat-old', { isActive: true }))
   })
@@ -482,7 +533,8 @@ describe('ADMIN-03 · categorías', () => {
     const { user } = renderAdmin('/categorias')
 
     expect(await screen.findByText('Todavía no hay categorías.')).toBeInTheDocument()
-    const form = within(screen.getByRole('form', { name: 'Nueva categoría' }))
+    await user.click(screen.getByRole('button', { name: 'Nueva categoría' }))
+    const form = within(await screen.findByRole('form', { name: 'Nueva categoría' }))
     await user.type(form.getByLabelText('Nombre'), 'Flores')
     await user.click(form.getByRole('button', { name: 'Crear categoría' }))
     expect(
@@ -522,7 +574,7 @@ describe('ADMIN-05 · configuración del Shop', () => {
     const form = within(await screen.findByRole('form', { name: 'Configuración del Shop' }))
 
     await user.click(form.getByRole('button', { name: 'Guardar configuración' }))
-    expect(await form.findByText('No hay cambios para guardar.')).toBeInTheDocument()
+    expect(await screen.findByText('No hay cambios para guardar.')).toBeInTheDocument()
 
     await user.click(form.getByLabelText('Aplicar IVA simulado en los checkouts'))
     await user.clear(form.getByLabelText('Tasa del IVA simulado (%)'))

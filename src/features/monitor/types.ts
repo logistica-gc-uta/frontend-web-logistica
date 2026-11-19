@@ -12,6 +12,8 @@ export interface MonitorStop {
   outcome: StopOutcome
   /** Motivo del último intento fallido, si lo hubo. */
   failureReason: string | null
+  /** Lo que escribió el chofer en la app al registrar la visita fallida («Qué pasó»), si lo hubo. */
+  failureContext: string | null
 }
 
 /** `INTERRUPTED`: se declaró una emergencia en ruta (backend #51). */

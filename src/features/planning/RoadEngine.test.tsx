@@ -133,7 +133,7 @@ describe('motor vial · avisos y tarjeta', () => {
     const notice = screen.getByRole('note')
     expect(notice).toHaveTextContent('Distancias y duraciones estimadas por calles')
     expect(notice).toHaveTextContent('sin tráfico en vivo')
-    expect(notice).toHaveTextContent('no es una hora de llegada garantizada')
+    expect(notice).toHaveTextContent('no es una hora de llegada')
   })
 
   it('la tarjeta muestra km por calles, la línea recta, la duración y cada tramo', () => {

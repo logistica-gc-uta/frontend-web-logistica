@@ -32,12 +32,14 @@ function readCollapsed(): boolean {
  * En pantallas angostas la barra pasa arriba y el menú se despliega con el botón «Menú».
  */
 export function AppLayout() {
-  const { user, logout } = useAuth()
+  const { logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const { pathname } = useLocation()
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(readGroups)
-  const activeGroup = navGroups.find((group) => group.items.some((item) => item.to === pathname))?.title
+  const activeGroup = navGroups.find((group) =>
+    group.items.some((item) => item.to === pathname),
+  )?.title
   const [seenGroup, setSeenGroup] = useState(activeGroup)
 
   // Al llegar a una página de otro grupo, ese grupo se abre (sin necesidad de un efecto).
@@ -97,7 +99,11 @@ export function AppLayout() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              {collapsed ? <path d="m6 17 5-5-5-5M13 17l5-5-5-5" /> : <path d="m18 17-5-5 5-5M11 17l-5-5 5-5" />}
+              {collapsed ? (
+                <path d="m6 17 5-5-5-5M13 17l5-5-5-5" />
+              ) : (
+                <path d="m18 17-5-5 5-5M11 17l-5-5 5-5" />
+              )}
             </svg>
           </button>
           <div className="app-header__tools">
@@ -173,10 +179,8 @@ export function AppLayout() {
             })}
           </nav>
           <div className="app-header__user">
-            <span className="app-header__greeting">Hola, {user?.name}</span>
-            <Button variant="secondary" onClick={logout} title="Cerrar sesión">
+            <button type="button" className="app-logout" onClick={logout} title="Cerrar sesión">
               <svg
-                className="app-header__logout-icon"
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
@@ -189,8 +193,8 @@ export function AppLayout() {
               >
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
               </svg>
-              <span className="app-header__logout-label">Cerrar sesión</span>
-            </Button>
+              <span className="app-logout__label">Cerrar sesión</span>
+            </button>
           </div>
         </div>
       </header>

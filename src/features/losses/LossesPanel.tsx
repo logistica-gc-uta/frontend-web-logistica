@@ -162,7 +162,16 @@ function ActionForm({
  * ADMIN · Pérdidas de unidades de un pedido, su reemplazo y la recuperación del original
  * (backend #52). Todo lo que se muestra viene del servidor: la web nunca suma ni resta stock.
  */
-export function LossesPanel({ orderId, attemptId }: { orderId: string; attemptId?: string }) {
+export function LossesPanel({
+  orderId,
+  attemptId,
+  bare = false,
+}: {
+  orderId: string
+  attemptId?: string
+  /** Dentro de un panel que ya lleva el título: sin tarjeta ni encabezado propios. */
+  bare?: boolean
+}) {
   const load = useCallback(async (): Promise<LossesData> => {
     const [order, losses] = await Promise.all([
       ordersService.get(orderId),
@@ -195,8 +204,13 @@ export function LossesPanel({ orderId, attemptId }: { orderId: string; attemptId
   }
 
   return (
-    <section className="card losses" id="perdidas" aria-labelledby="losses-title">
-      <h2 id="losses-title">Pérdidas y reemplazos</h2>
+    <section
+      className={bare ? 'losses' : 'card losses'}
+      id="perdidas"
+      aria-labelledby={bare ? undefined : 'losses-title'}
+      aria-label={bare ? 'Pérdidas y reemplazos' : undefined}
+    >
+      {!bare && <h2 id="losses-title">Pérdidas y reemplazos</h2>}
       <p className="text-muted">
         Si una unidad se perdió o se dañó en el camino, decláralo aquí. El reemplazo y el original
         se siguen por separado. La entrega del reemplazo se coordina con el contacto y la

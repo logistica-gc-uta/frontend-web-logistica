@@ -75,26 +75,36 @@ describe('Shop · cabecera', () => {
 })
 
 describe('Shop · inicio', () => {
-  it.each([5, 8])('ocasiones: conserva las %i categorías reales y sus enlaces en las filas', async (count) => {
-    const categories = Array.from({ length: count }, (_, index) => shopCategory({
-      id: `cat-${index}`, name: `Ocasión ${index + 1}`, productCount: count - index,
-    }))
-    mockShop({ categories: [...categories, shopCategory({ name: 'Vacía', productCount: 0 })] })
-    renderShop('/')
-    const section = screen.getByRole('region', { name: 'Cada ocasión, un detalle.' })
-    await waitFor(() => expect(section.querySelector('.occasion-marquee')).toBeInTheDocument())
-    // Solo la primera vuelta de la fila superior es real; las copias son decorativas (aria-hidden).
-    const real = within(section).getAllByRole('link').filter((link) => link.getAttribute('href')?.includes('categoria='))
-    expect(real).toHaveLength(count)
-    expect(section.querySelectorAll('.occasion-row[aria-hidden="true"]')).toHaveLength(1)
-    for (const category of categories) {
-      expect(within(section).getByRole('link', { name: category.name })).toHaveAttribute(
-        'href', `/catalogo?categoria=${category.id}`,
+  it.each([5, 8])(
+    'ocasiones: conserva las %i categorías reales y sus enlaces en las filas',
+    async (count) => {
+      const categories = Array.from({ length: count }, (_, index) =>
+        shopCategory({
+          id: `cat-${index}`,
+          name: `Ocasión ${index + 1}`,
+          productCount: count - index,
+        }),
       )
-    }
-    expect(within(section).queryByText('Vacía')).not.toBeInTheDocument()
-    expect(section.closest('.shop-home')).toBeInTheDocument()
-  })
+      mockShop({ categories: [...categories, shopCategory({ name: 'Vacía', productCount: 0 })] })
+      renderShop('/')
+      const section = screen.getByRole('region', { name: 'Cada ocasión, un detalle.' })
+      await waitFor(() => expect(section.querySelector('.occasion-marquee')).toBeInTheDocument())
+      // Solo la primera vuelta de la fila superior es real; las copias son decorativas (aria-hidden).
+      const real = within(section)
+        .getAllByRole('link')
+        .filter((link) => link.getAttribute('href')?.includes('categoria='))
+      expect(real).toHaveLength(count)
+      expect(section.querySelectorAll('.occasion-row[aria-hidden="true"]')).toHaveLength(1)
+      for (const category of categories) {
+        expect(within(section).getByRole('link', { name: category.name })).toHaveAttribute(
+          'href',
+          `/catalogo?categoria=${category.id}`,
+        )
+      }
+      expect(within(section).queryByText('Vacía')).not.toBeInTheDocument()
+      expect(section.closest('.shop-home')).toBeInTheDocument()
+    },
+  )
 
   it('contenedores: eleva fotos reales con foco y selecciona en sitio sin navegar ni desplazar', async () => {
     const api = mockShop()
@@ -108,21 +118,28 @@ describe('Shop · inicio', () => {
     expect(card).toHaveAttribute('aria-pressed', 'true')
     expect(scroll).not.toHaveBeenCalled()
     expect(api.product).not.toHaveBeenCalled()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Hay regalos que lo dicen todo.')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Hay regalos que lo dicen todo.',
+    )
     await user.click(screen.getByRole('button', { name: /Destacar Taza personalizada/ }))
     expect(card).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('contenedores: limita el collage a tres fotos reales y retira imágenes fallidas sin dejar un hero vacío', async () => {
-    mockShop({ products: productPage([
-      ROSES, MUG,
-      shopProduct({ id: 'p-3', name: 'Tercero' }),
-      shopProduct({ id: 'p-4', name: 'Cuarto' }),
-    ]) })
+    mockShop({
+      products: productPage([
+        ROSES,
+        MUG,
+        shopProduct({ id: 'p-3', name: 'Tercero' }),
+        shopProduct({ id: 'p-4', name: 'Cuarto' }),
+      ]),
+    })
     renderShop('/')
     const collage = await screen.findByRole('group', { name: 'Regalos de la tienda' })
     expect(within(collage).getAllByRole('button')).toHaveLength(3)
-    fireEvent.error(within(screen.getByRole('button', { name: 'Destacar Ramo de rosas' })).getByRole('img'))
+    fireEvent.error(
+      within(screen.getByRole('button', { name: 'Destacar Ramo de rosas' })).getByRole('img'),
+    )
     expect(screen.queryByRole('button', { name: 'Destacar Ramo de rosas' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Destacar Cuarto' })).toBeInTheDocument()
     for (const button of within(collage).getAllByRole('button')) {
@@ -191,9 +208,10 @@ describe('Shop · tarjeta de regalo', () => {
     expect(within(card).getByText('Flores').closest('figure')).toBeInTheDocument()
     expect(within(card).getByText('Agotado').closest('figure')).toBeInTheDocument()
     expect(within(card).getByRole('img', { name: 'Ramo de rosas rojas' })).toBeInTheDocument()
-    expect(
-      within(card).getByRole('link', { name: 'Ramo de rosas' }),
-    ).toHaveAttribute('href', '/productos/p-rosas')
+    expect(within(card).getByRole('link', { name: 'Ramo de rosas' })).toHaveAttribute(
+      'href',
+      '/productos/p-rosas',
+    )
     const link = within(card).getByRole('link', { name: 'Ramo de rosas' })
     expect(link).toContainElement(within(card).getByRole('img'))
     expect(link).toContainElement(within(card).getByRole('heading'))
@@ -445,7 +463,9 @@ describe('Shop · detalle', () => {
     await user.click(screen.getByRole('button', { name: 'Añadir al carrito' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('Se añadieron 2 unidades al carrito.')
-    expect(within(screen.getByRole('banner')).getByRole('link', { name: 'Carrito: 2 unidades' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('banner')).getByRole('link', { name: 'Carrito: 2 unidades' }),
+    ).toBeInTheDocument()
     expect(within(screen.getByRole('banner')).getByText('2')).toBeInTheDocument()
     expect(cartStorage.load()).toEqual([{ productId: 'p-rosas', quantity: 2 }])
     expect(screen.getByText(/ya tienes 2 en el carrito/)).toBeInTheDocument()

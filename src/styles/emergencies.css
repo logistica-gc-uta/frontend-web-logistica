@@ -113,3 +113,279 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Declarar emergencia en un panel lateral: la ruta, lo que pasa al confirmar y el motivo, con aire. */
+.emergency-declare {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.emergency-declare__route {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.emergency-declare__effects {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 18px 16px 34px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-heading);
+}
+
+.emergency-declare__effects li::marker {
+  color: var(--color-signal);
+}
+
+.emergency-declare__buttons {
+  gap: 10px;
+}
+
+.emergency-declare__buttons .btn {
+  min-height: 38px;
+  margin: 0;
+}
+
+/* Tarjeta de emergencia: encabezado, cifras en una franja con divisores y dos columnas de contenido. */
+.emergency {
+  gap: 20px;
+  padding: 28px 32px;
+}
+
+.emergency__header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.emergency__header h3 {
+  font-size: 1.125rem;
+}
+
+.emergency__why {
+  margin-top: -8px;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.emergency__why strong {
+  color: var(--color-heading);
+}
+
+.emergency__counts {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.emergency__counts > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 16px 12px;
+  border-left: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.emergency__counts > div:first-child {
+  border-left: 0;
+}
+
+.emergency__counts dt {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.emergency__counts dd {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-heading);
+}
+
+.emergency__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 32px 48px;
+  align-items: start;
+}
+
+.emergency__col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.emergency h4 {
+  margin: 0 0 10px;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.emergency p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.emergency__stops li {
+  font-size: 0.875rem;
+}
+
+/* Cada producto en custodia: nombre y estado arriba, y debajo sus acciones. */
+.emergency__order {
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.emergency__order h4 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-heading);
+}
+
+.emergency__unit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.emergency__buttons {
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.emergency .btn {
+  min-height: 36px;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.emergency__close {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 1000px) {
+  .emergency__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .emergency__counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .emergency__counts > div {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+
+/* El motivo a la izquierda y cuándo se declaró en la esquina derecha. */
+.emergency__why {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 24px;
+}
+
+.emergency__declared {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* Producto en custodia: nombre a la izquierda, estado en la esquina derecha y las acciones separadas debajo. */
+.emergency__unit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.emergency__unit {
+  gap: 14px;
+}
+
+.emergency__unit .emergency__buttons {
+  margin-top: 2px;
+}
+
+.emergency__order {
+  gap: 16px;
+}
+
+.emergency__order > p.text-muted {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+}
+
+/* Repartidor: la explicación y, con aire, el botón debajo. */
+.emergency__col section > p + .btn,
+.emergency__col section > p + div {
+  margin-top: 14px;
+}
+
+.emergency__col section > p + .btn {
+  align-self: flex-start;
+}
+
+/* Pedido en custodia: su estado en la esquina superior derecha y, junto al producto, el acceso a declarar la pérdida. */
+.emergency__order-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.emergency__lost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-signal);
+  text-decoration: none;
+}
+
+.emergency__lost:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

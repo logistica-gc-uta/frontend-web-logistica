@@ -21,9 +21,9 @@ describe('DistanceNotice', () => {
 
     const notice = screen.getByRole('note')
     expect(notice).toHaveTextContent('Km geodésicos estimados')
-    expect(notice).toHaveTextContent('no son distancia por carretera')
-    expect(notice).toHaveTextContent('ni consideran calles, tráfico ni tiempos de llegada')
-    expect(notice).toHaveTextContent('no es un ahorro real de combustible')
+    expect(notice).toHaveTextContent('en línea recta')
+    expect(notice).toHaveTextContent('sin calles ni tráfico')
+    expect(notice).toHaveTextContent('no es ahorro real de combustible')
   })
 })
 
@@ -58,7 +58,7 @@ describe('PlanningSummary', () => {
 
 describe('ExcludedOrders', () => {
   it('no muestra nada si no hay pedidos excluidos', () => {
-    const { container } = render(<ExcludedOrders excluded={[]} />)
+    const { container } = render(<ExcludedOrders excluded={[]} open onClose={() => undefined} />)
 
     expect(container).toBeEmptyDOMElement()
   })
@@ -66,6 +66,8 @@ describe('ExcludedOrders', () => {
   it('lista cada pedido con sus motivos traducidos y el identificador abreviado', () => {
     render(
       <ExcludedOrders
+        open
+        onClose={() => undefined}
         excluded={[
           { orderId: 'abcdef1234567890', zoneId: 'z', reasons: ['ACTIVE_ROUTE_CLAIM'] },
           {
@@ -172,7 +174,7 @@ describe('ProposalCard', () => {
   it('una vez guardada muestra el estado DRAFT y ya no ofrece confirmar', () => {
     renderCard({ status: 'saved', route: savedDraft() })
 
-    expect(screen.getByRole('status')).toHaveTextContent('Guardada como borrador (DRAFT)')
+    expect(screen.getByRole('status')).toHaveTextContent('Guardada como borrador')
     expect(screen.queryByRole('button', { name: 'Confirmar ruta' })).not.toBeInTheDocument()
   })
 

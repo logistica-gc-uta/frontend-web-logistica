@@ -83,10 +83,11 @@ const fillValidForm = async (user: User) => {
   await user.type(form.getByLabelText('Teléfono del comprador'), '0991234567')
   await user.click(form.getByRole('radio', { name: 'Efectivo' }))
   await user.type(form.getByLabelText('Dirección de entrega'), 'Av. Los Chasquis')
-  fireEvent.change(form.getByLabelText('Fecha y hora aproximada de entrega (hora de Ecuador)'), {
-    target: { value: '2099-01-15T10:30' },
-  })
-  await user.selectOptions(form.getByLabelText('Producto 1'), 'product-1')
+  fireEvent.change(form.getByLabelText('Fecha de entrega'), { target: { value: '2099-01-15' } })
+  await user.click(form.getByLabelText('Hora de entrega'))
+  await user.click(await form.findByRole('option', { name: '10:30 a. m.' }))
+  await user.click(form.getByLabelText('Producto 1'))
+  await user.click(await form.findByRole('option', { name: /Laptop HP Pavilion 15/ }))
   fireEvent.change(form.getByLabelText('Cantidad 1'), { target: { value: '2' } })
   await user.click(form.getByRole('button', { name: 'Colocar marcador' }))
   await waitFor(() =>
@@ -131,7 +132,7 @@ describe('Venta ADMIN a un cliente con cuenta (#34, backend #64)', () => {
 
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
     expect(create.mock.calls[0][0]).toEqual({
-      buyer: { type: 'REGISTERED_CLIENT', clientId: 'client-1', contactPhone: '0991234567' },
+      buyer: { type: 'REGISTERED_CLIENT', clientId: 'client-1', contactPhone: '+593991234567' },
       payment: { method: 'CASH' },
       deliveryAddress: 'Av. Los Chasquis',
       items: [{ productId: 'product-1', quantity: 2 }],
@@ -172,7 +173,7 @@ describe('Venta ADMIN a un cliente con cuenta (#34, backend #64)', () => {
 
     await user.click(form.getByRole('radio', { name: 'Invitado (sin cuenta)' }))
     expect(form.getByLabelText('Nombre del comprador')).toHaveValue('María Pérez')
-    expect(form.getByLabelText('Teléfono del comprador')).toHaveValue('0991234567')
+    expect(form.getByLabelText('Teléfono del comprador')).toHaveValue('991234567')
   })
 
   it('avisa si no hay coincidencias y carga más resultados por páginas', async () => {

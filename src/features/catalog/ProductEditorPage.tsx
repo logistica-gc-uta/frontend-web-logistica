@@ -5,7 +5,7 @@ import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
-import { SelectField } from '../../components/ui/SelectField'
+import { SelectMenu } from '../orders/SelectMenu'
 import { TextField } from '../../components/ui/TextField'
 import { useFetch } from '../../hooks/useFetch'
 import { useForm } from '../../hooks/useForm'
@@ -135,25 +135,19 @@ function ProductFields({
             />
           )}
         </Field>
-        <SelectField
+        <SelectMenu
+          id="product-category"
           label="Categoría"
-          name="categoryId"
           value={values.categoryId}
-          onChange={handleChange}
+          placeholder="Selecciona una categoría"
+          options={categories.map((category) => ({
+            value: category.id,
+            label: `${category.name}${category.isActive ? '' : ' (inactiva)'}`,
+            disabled: !category.isActive && category.id !== product?.categoryId,
+          }))}
+          onChange={(categoryId) => form.setFields({ categoryId })}
           error={errors.categoryId}
-        >
-          <option value="">Selecciona una categoría</option>
-          {categories.map((category) => (
-            <option
-              key={category.id}
-              value={category.id}
-              disabled={!category.isActive && category.id !== product?.categoryId}
-            >
-              {category.name}
-              {category.isActive ? '' : ' (inactiva)'}
-            </option>
-          ))}
-        </SelectField>
+        />
         <div className="catalog-form__row">
           <TextField
             label="Precio (USD)"
@@ -173,7 +167,7 @@ function ProductFields({
             error={errors.stock}
           />
         </div>
-        <label className="catalog-form__check">
+        <label className="catalog-form__check check-option">
           <input
             type="checkbox"
             checked={values.isFeatured}
@@ -264,12 +258,25 @@ function PublicationPanel({
   )
 }
 
-/** ADMIN-02 · Alta (`/productos/nuevo`) y edición (`/productos/:id`) de un producto del Shop. */
-export function ProductEditorPage() {
-  const { id } = useParams()
-  const isNew = id === undefined
-  const navigate = useNavigate()
-  const created = (useLocation().state as EditorLocationState | null)?.created
+/**
+ * Formulario completo de un producto (datos, publicación e imágenes). Lo usan la página de
+ * `/productos/nuevo` y `/productos/:id` y el panel lateral del listado.
+ */
+export function ProductEditor({
+  id,
+  created,
+  onCreated,
+  onChanged,
+}: {
+  /** Producto a editar; sin id es un alta. */
+  id?: string
+  /** Se acaba de crear: avisa que falta la imagen principal para poder publicarlo. */
+  created?: boolean
+  /** Se llama con el producto recién creado (la página navega a su edición; el panel cambia a editarlo). */
+  onCreated: (product: AdminProduct) => void
+  /** Se llama cuando algo se guardó, para que el listado se vuelva a leer. */
+  onChanged?: () => void
+}) {
   const [savedNotice, setSavedNotice] = useState(false)
   const categories = useFetch(catalogService.listCategories, 'No se pudieron cargar las categorías')
   const loadProduct = useCallback(
@@ -277,18 +284,13 @@ export function ProductEditorPage() {
     [id],
   )
   const product = useFetch(loadProduct, 'No se pudo cargar el producto')
+  const reload = () => {
+    product.reload()
+    onChanged?.()
+  }
 
   return (
-    <main className="page page-stack catalog-page">
-      <nav aria-label="Ruta de navegación" className="breadcrumb">
-        <ol>
-          <li>
-            <Link to={paths.products}>Productos</Link>
-          </li>
-          <li aria-current="page">{isNew ? 'Nuevo producto' : (product.data?.name ?? 'Editar')}</li>
-        </ol>
-      </nav>
-      <h1>{isNew ? 'Nuevo producto' : 'Editar producto'}</h1>
+    <>
       {savedNotice && <Alert variant="success">Cambios guardados.</Alert>}
       {created && (
         <Alert variant="success">
@@ -308,9 +310,10 @@ export function ProductEditorPage() {
                 <ProductFields
                   product={null}
                   categories={categoryList}
-                  onSaved={(saved) =>
-                    navigate(productEditPath(saved.id), { replace: true, state: { created: true } })
-                  }
+                  onSaved={(saved) => {
+                    onChanged?.()
+                    onCreated(saved)
+                  }}
                 />
               ) : (
                 <div className="catalog-editor">
@@ -320,21 +323,50 @@ export function ProductEditorPage() {
                     categories={categoryList}
                     onSaved={() => {
                       setSavedNotice(true)
-                      product.reload()
+                      reload()
                     }}
                   />
                   <PublicationPanel
                     product={current}
                     categories={categoryList}
-                    onChanged={product.reload}
+                    onChanged={reload}
                   />
-                  <ProductImagesEditor product={current} onChanged={product.reload} />
+                  <ProductImagesEditor product={current} onChanged={reload} />
                 </div>
               )
             }
           </AsyncContent>
         )}
       </AsyncContent>
+    </>
+  )
+}
+
+/** ADMIN-02 · Alta (`/productos/nuevo`) y edición (`/productos/:id`) de un producto del Shop. */
+export function ProductEditorPage() {
+  const { id } = useParams()
+  const isNew = id === undefined
+  const navigate = useNavigate()
+  const created = (useLocation().state as EditorLocationState | null)?.created
+
+  return (
+    <main className="page page-stack catalog-page">
+      <nav aria-label="Ruta de navegación" className="breadcrumb">
+        <ol>
+          <li>
+            <Link to={paths.products}>Productos</Link>
+          </li>
+          <li aria-current="page">{isNew ? 'Nuevo producto' : 'Editar producto'}</li>
+        </ol>
+      </nav>
+      <h1>{isNew ? 'Nuevo producto' : 'Editar producto'}</h1>
+      <ProductEditor
+        id={id}
+        created={created}
+        onCreated={(saved) =>
+          navigate(productEditPath(saved.id), { replace: true, state: { created: true } })
+        }
+      />
     </main>
   )
 }

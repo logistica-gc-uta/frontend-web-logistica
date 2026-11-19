@@ -42,7 +42,7 @@ describe('App', () => {
     renderWithProviders(<App />, { route: paths.home, session: adminSession })
 
     expect(homeHeading()).toBeInTheDocument()
-    expect(screen.getByRole('banner')).toHaveTextContent(adminSession.user.name)
+    expect(screen.getByRole('banner')).toBeInTheDocument()
     // El panel es siempre claro: no hay selector de tema.
     expect(screen.queryByRole('button', { name: 'Modo oscuro' })).not.toBeInTheDocument()
   })

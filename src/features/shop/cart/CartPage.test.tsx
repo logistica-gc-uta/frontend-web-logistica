@@ -106,7 +106,9 @@ describe('Shop · carrito', () => {
     const { user } = renderCart()
 
     expect(screen.getByRole('heading', { name: 'Tu bolsa espera un detalle.' })).toBeInTheDocument()
-    expect(screen.queryByRole('complementary', { name: 'Resumen estimado' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('complementary', { name: 'Resumen estimado' }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/0,00/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('link', { name: 'Explorar el catálogo' }))

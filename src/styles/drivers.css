@@ -170,3 +170,167 @@
   margin-top: 6px;
   padding-left: 20px;
 }
+
+/* Repartidores: una sola tabla, con el filtro del día a la derecha del título. */
+.drivers-card {
+  padding: 28px 32px 32px;
+}
+
+.drivers-head {
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.drivers-head h2 {
+  font-size: 1.125rem;
+}
+
+.drivers-filter .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.drivers-filter .field__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.drivers-filter .field__input {
+  min-height: 38px;
+  padding: 5px 12px;
+  font-size: 0.875rem;
+  color-scheme: light;
+}
+
+.drivers-card .table th {
+  background: var(--color-bg);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.drivers-card .table td {
+  padding: 14px 12px;
+  font-size: 0.9375rem;
+  vertical-align: middle;
+}
+
+.drivers-table__name {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.drivers-table__actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.drivers-table__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.drivers-table__buttons .btn {
+  min-height: 34px;
+  margin: 0;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+}
+
+/* Tabla con marco y bordes entre filas y columnas, para que se distinga bien. */
+.drivers-card .table-wrapper {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.drivers-card .table th,
+.drivers-card .table td {
+  padding-inline: 18px;
+  border-right: 1px solid var(--color-border);
+}
+
+.drivers-card .table th:last-child,
+.drivers-card .table td:last-child {
+  border-right: 0;
+}
+
+.drivers-card .table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* El título ya está arriba de la página: el recuadro solo lleva el filtro del día, a la derecha. */
+.drivers-head {
+  justify-content: flex-end;
+}
+
+/* «+ Nuevo repartidor»: solo texto con su signo más, a la izquierda de la franja del recuadro (sin botón). */
+.drivers-head {
+  justify-content: space-between;
+}
+
+.drivers-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.drivers-new:hover {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.drivers-new:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Acciones de la fila: iconos sin caja (editar y ausencias) que se marcan al pasar el cursor. */
+.drivers-table__buttons {
+  justify-content: center;
+  gap: 4px;
+}
+
+.drivers-table__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.drivers-table__icon:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.drivers-table__icon:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

@@ -258,7 +258,10 @@
 }
 
 .shop .order-history-page .results-bar h2 {
-  font: 600 14px/1.5 system-ui, -apple-system, sans-serif;
+  font:
+    600 14px/1.5 system-ui,
+    -apple-system,
+    sans-serif;
   margin: 0;
   color: var(--color-heading);
 }
@@ -312,7 +315,7 @@
   width: 88px;
   height: 88px;
   border-radius: 4px;
-  background: var(--shop-peach, #F5E8D9);
+  background: var(--shop-peach, #f5e8d9);
   overflow: hidden;
 }
 
@@ -645,7 +648,7 @@
   gap: 0;
   font-size: 1.1rem;
   border-radius: 4px;
-  background: var(--shop-peach, #F5E8D9);
+  background: var(--shop-peach, #f5e8d9);
 }
 
 .shop .order-page .order-items__image.product-image--placeholder small {
@@ -1002,14 +1005,14 @@
   .shop[data-theme='dark'],
   .shop .order-receipt-page {
     color-scheme: light !important;
-    --color-text: #234D3E !important;
-    --color-heading: #234D3E !important;
-    --color-muted: #4F6257 !important;
-    --color-border: #D7DDD7 !important;
+    --color-text: #234d3e !important;
+    --color-heading: #234d3e !important;
+    --color-muted: #4f6257 !important;
+    --color-border: #d7ddd7 !important;
     --color-surface: #ffffff !important;
     --color-bg: #ffffff !important;
-    --color-accent: #234D3E !important;
-    color: #234D3E !important;
+    --color-accent: #234d3e !important;
+    color: #234d3e !important;
     background: #ffffff !important;
   }
 
@@ -1049,8 +1052,8 @@
   .shop .order-receipt-page .receipt__items td {
     display: table-cell !important;
     padding: 10px !important;
-    border-bottom: 1px solid #D7DDD7 !important;
-    color: #234D3E !important;
+    border-bottom: 1px solid #d7ddd7 !important;
+    color: #234d3e !important;
   }
 
   .shop .order-receipt-page .receipt__items td[data-label]::before {

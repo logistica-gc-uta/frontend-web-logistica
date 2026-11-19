@@ -1,18 +1,19 @@
 import { useCallback, useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
-import { paths, productEditPath } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
 import { DataTable, type Column } from '../../components/ui/DataTable'
-import { Pagination } from '../../components/ui/Pagination'
-import { SelectField } from '../../components/ui/SelectField'
+import { Drawer } from '../../components/ui/Drawer'
+import { StepNav } from '../../components/ui/StepNav'
+import { SelectMenu } from '../orders/SelectMenu'
 import { TextField } from '../../components/ui/TextField'
 import { useFetch } from '../../hooks/useFetch'
 import { ProductImage } from '../shop/components/ProductImage'
 import { formatCents } from '../shop/money'
 import { describeCatalogError } from './catalogErrors'
 import { catalogService } from './catalogService'
+import { ProductEditor } from './ProductEditorPage'
+import { ProductView } from './ProductView'
 import { PublicationButton } from './PublicationButton'
 import type { AdminProduct, ProductStatusFilter } from './types'
 
@@ -33,6 +34,19 @@ interface Filters {
 
 const NO_FILTERS: Filters = { search: '', categoryId: '', status: 'all' }
 
+/** Atributos de los iconos de las acciones de la tabla. */
+const ICON = {
+  width: 18,
+  height: 18,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.7,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const
+
 /**
  * ADMIN-01 · Catálogo completo del Shop: también agotados, despublicados y productos antiguos,
  * con búsqueda, filtros y paginación del servidor. Las cifras salen siempre del backend.
@@ -43,6 +57,14 @@ export function CatalogProductsPage() {
   const [page, setPage] = useState(1)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  // Crear, editar y ver un producto se hacen en un panel lateral, sin salir del listado.
+  const [panel, setPanel] = useState<
+    | { mode: 'create' }
+    | { mode: 'edit'; id: string; created?: boolean }
+    | { mode: 'view'; id: string }
+    | null
+  >(null)
+  const closePanel = useCallback(() => setPanel(null), [])
 
   const loadProducts = useCallback(
     () =>
@@ -96,7 +118,13 @@ export function CatalogProductsPage() {
       header: 'Producto',
       render: (product) => (
         <>
-          <Link to={productEditPath(product.id)}>{product.name}</Link>
+          <button
+            type="button"
+            className="catalog-table__name"
+            onClick={() => setPanel({ mode: 'view', id: product.id })}
+          >
+            {product.name}
+          </button>
           <br />
           <small className="text-muted">SKU {product.sku}</small>
         </>
@@ -129,9 +157,29 @@ export function CatalogProductsPage() {
       header: 'Acciones',
       render: (product) => (
         <div className="catalog-actions">
-          <Link to={productEditPath(product.id)} className="btn btn--secondary">
-            Editar <span className="visually-hidden">{product.name}</span>
-          </Link>
+          <button
+            type="button"
+            className="catalog-table__icon"
+            title="Ver producto"
+            onClick={() => setPanel({ mode: 'view', id: product.id })}
+          >
+            <svg {...ICON}>
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <span className="visually-hidden">Ver {product.name}</span>
+          </button>
+          <button
+            type="button"
+            className="catalog-table__icon"
+            title="Editar producto"
+            onClick={() => setPanel({ mode: 'edit', id: product.id })}
+          >
+            <svg {...ICON}>
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
+            </svg>
+            <span className="visually-hidden">Editar {product.name}</span>
+          </button>
           <PublicationButton
             name={product.name}
             isPublished={product.isPublished}
@@ -144,58 +192,69 @@ export function CatalogProductsPage() {
   ]
 
   return (
-    <main className="page page-stack catalog-page">
-      <div className="catalog-header">
+    <main className="page page--wide page-stack catalog-page">
+      <header className="catalog-header">
         <div>
           <h1>Productos</h1>
-          <p className="text-muted">
-            Catálogo del Shop REGALÍA: incluye productos agotados y despublicados, que el Shop no
-            muestra.
-          </p>
+          <p className="text-muted">Catálogo del Shop, con productos agotados y despublicados.</p>
         </div>
-        <Link to={paths.productNew} className="btn btn--primary">
-          Nuevo producto
-        </Link>
-      </div>
+      </header>
 
-      <section className="card" aria-labelledby="catalog-list-title">
-        <h2 id="catalog-list-title">Catálogo</h2>
-        <form className="filters" aria-label="Filtrar productos" onSubmit={apply}>
+      <section className="card catalog-card" aria-labelledby="catalog-list-title">
+        <h2 id="catalog-list-title" className="visually-hidden">
+          Catálogo
+        </h2>
+        <div className="catalog-strip">
+          <button
+            type="button"
+            className="catalog-new"
+            onClick={() => setPanel({ mode: 'create' })}
+          >
+            <svg {...ICON} width={18} height={18} strokeWidth={2}>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nuevo producto
+          </button>
+          {products.data && (
+            <p className="catalog-strip__count" aria-live="polite">
+              {products.data.total} {products.data.total === 1 ? 'producto' : 'productos'}
+            </p>
+          )}
+        </div>
+
+        <form className="filters catalog-filters" aria-label="Filtrar productos" onSubmit={apply}>
           <TextField
             label="Buscar por nombre, SKU o descripción"
             type="search"
             value={draft.search}
             onChange={(event) => setDraft({ ...draft, search: event.target.value })}
           />
-          <SelectField
+          <SelectMenu
+            id="filter-category"
             label="Categoría"
             value={draft.categoryId}
-            onChange={(event) => setDraft({ ...draft, categoryId: event.target.value })}
-          >
-            <option value="">Todas</option>
-            {(categories.data ?? []).map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-                {category.isActive ? '' : ' (inactiva)'}
-              </option>
-            ))}
-          </SelectField>
-          <SelectField
+            placeholder="Todas"
+            options={[
+              { value: '', label: 'Todas' },
+              ...(categories.data ?? []).map((category) => ({
+                value: category.id,
+                label: `${category.name}${category.isActive ? '' : ' (inactiva)'}`,
+              })),
+            ]}
+            onChange={(categoryId) => setDraft({ ...draft, categoryId })}
+          />
+          <SelectMenu
+            id="filter-status"
             label="Estado"
             value={draft.status}
-            onChange={(event) =>
-              setDraft({ ...draft, status: event.target.value as ProductStatusFilter })
-            }
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </SelectField>
+            placeholder="Todos"
+            options={STATUS_OPTIONS}
+            onChange={(status) => setDraft({ ...draft, status: status as ProductStatusFilter })}
+          />
           <Button type="submit">Filtrar</Button>
-          <Button
-            variant="secondary"
+          <button
+            type="button"
+            className="catalog-filters__clear"
             onClick={() => {
               setDraft(NO_FILTERS)
               setFilters(NO_FILTERS)
@@ -203,7 +262,7 @@ export function CatalogProductsPage() {
             }}
           >
             Quitar filtros
-          </Button>
+          </button>
         </form>
 
         {notice && <Alert variant={notice.ok ? 'success' : 'error'}>{notice.text}</Alert>}
@@ -211,9 +270,15 @@ export function CatalogProductsPage() {
         <AsyncContent {...products} onRetry={products.reload} loadingText="Cargando productos...">
           {(data) => (
             <div className={products.isLoading ? 'is-refreshing' : undefined}>
-              <p className="text-muted" aria-live="polite">
-                {data.total} {data.total === 1 ? 'producto' : 'productos'}
-              </p>
+              <StepNav
+                noun="Productos"
+                singular="Producto"
+                label="Productos"
+                position={page - 1}
+                total={data.total}
+                pageSize={data.pageSize}
+                onChange={(position) => setPage(position + 1)}
+              />
               <DataTable
                 caption="Productos del catálogo"
                 columns={columns}
@@ -221,18 +286,43 @@ export function CatalogProductsPage() {
                 getRowKey={(product) => product.id}
                 emptyMessage="No hay productos con esos criterios."
               />
-              {data.total > 0 && (
-                <Pagination
-                  page={page}
-                  pageSize={data.pageSize}
-                  total={data.total}
-                  onPageChange={setPage}
-                />
-              )}
             </div>
           )}
         </AsyncContent>
       </section>
+
+      <Drawer
+        open={panel !== null}
+        onClose={closePanel}
+        title={
+          panel?.mode === 'create'
+            ? 'Nuevo producto'
+            : panel?.mode === 'edit'
+              ? 'Editar producto'
+              : 'Producto'
+        }
+        titleId="catalog-panel-title"
+        className="drawer__panel--wide"
+      >
+        {panel?.mode === 'create' && (
+          <ProductEditor
+            onChanged={products.reload}
+            onCreated={(saved) => setPanel({ mode: 'edit', id: saved.id, created: true })}
+          />
+        )}
+        {panel?.mode === 'edit' && (
+          <ProductEditor
+            key={panel.id}
+            id={panel.id}
+            created={panel.created}
+            onChanged={products.reload}
+            onCreated={() => undefined}
+          />
+        )}
+        {panel?.mode === 'view' && (
+          <ProductView id={panel.id} onEdit={() => setPanel({ mode: 'edit', id: panel.id })} />
+        )}
+      </Drawer>
     </main>
   )
 }

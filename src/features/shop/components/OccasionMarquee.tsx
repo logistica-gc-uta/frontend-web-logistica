@@ -74,7 +74,11 @@ export function OccasionMarquee({ categories }: OccasionMarqueeProps) {
   if (categories.length === 0) return null
   const rows = [
     { id: 'a', slots: buildRow(categories, 'a', 0, false), decorative: false },
-    { id: 'b', slots: buildRow(categories, 'b', Math.ceil(categories.length / 2), true), decorative: true },
+    {
+      id: 'b',
+      slots: buildRow(categories, 'b', Math.ceil(categories.length / 2), true),
+      decorative: true,
+    },
   ]
 
   return (
@@ -87,7 +91,11 @@ export function OccasionMarquee({ categories }: OccasionMarqueeProps) {
         >
           {row.slots.map((slot) => (
             <li key={slot.key} aria-hidden={slot.decorative && !row.decorative ? true : undefined}>
-              <CategoryCard category={slot.category} index={slot.index} decorative={slot.decorative} />
+              <CategoryCard
+                category={slot.category}
+                index={slot.index}
+                decorative={slot.decorative}
+              />
             </li>
           ))}
         </ul>

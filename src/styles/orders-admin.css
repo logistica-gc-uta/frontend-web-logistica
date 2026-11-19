@@ -1,9 +1,21 @@
+/* Con `.page` delante gana a la regla general (1240px) sin importar el orden de los CSS. */
+.page.orders-admin {
+  max-width: 1600px;
+}
+
 .orders-admin__head {
-  margin-bottom: 8px;
+  margin-bottom: 24px;
 }
 
 .orders-admin__head h1 {
   margin: 0 0 4px;
+}
+
+/* Cada cuadro separa su título del contenido con una línea fina. */
+.orders-admin .card > h2 {
+  margin: 0 0 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .orders-admin .filters {
@@ -38,41 +50,7 @@
   }
 }
 
-/* Venta ADMIN (#34): opciones, avisos y comprobante imprimible */
-.order-form__choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-}
-
-.order-form__choices label,
-.order-form__check {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-  color: var(--color-heading);
-}
-
-.order-form__choices label.is-disabled {
-  opacity: 0.55;
-}
-
-.order-form__hint {
-  margin: 0;
-  font-size: 0.875rem;
-}
-
-.order-form__notice {
-  margin: 0;
-  padding: 8px 12px;
-  border-left: 3px solid var(--color-sand);
-  border-radius: var(--radius-sm);
-  background: var(--color-sand-soft);
-  font-size: 0.875rem;
-  color: var(--color-heading);
-}
-
+/* Comprobante imprimible de la venta ADMIN (#34). El formulario vive en order-form.css. */
 .order-receipt-page {
   display: flex;
   flex-direction: column;
@@ -300,4 +278,441 @@
 .losses__form legend {
   padding: 0 4px;
   font-weight: 600;
+}
+
+/* Encabezado: título a la izquierda y, a la derecha, el botón que abre la lista de pedidos. */
+.orders-admin__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Dentro del panel lateral la tabla ocupa todo el ancho, sin la caja de tarjeta. */
+.drawer__panel.orders-admin .filters {
+  border-top: 0;
+  padding-top: 8px;
+}
+
+/* Tabla de pedidos dentro del panel: filas con aire, sin fondo en el encabezado y cifras alineadas. */
+.drawer__panel .table th {
+  padding: 14px 16px 10px;
+  background: transparent;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.drawer__panel .table td {
+  padding: 16px;
+  font-size: 0.9375rem;
+  vertical-align: top;
+  color: var(--color-heading);
+}
+
+.drawer__panel .table tbody tr:hover {
+  background: var(--color-bg);
+}
+
+.drawer__panel .table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.orders-table__when {
+  min-width: 96px;
+  white-space: nowrap;
+}
+
+.orders-table__person {
+  min-width: 140px;
+  font-weight: 600;
+}
+
+.orders-table__items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 170px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.table th.orders-table__total,
+.table td.orders-table__total {
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.drawer__panel .badge {
+  white-space: nowrap;
+}
+
+.drawer__panel .pagination {
+  margin-top: 16px;
+}
+
+/* Panel de pedidos: filtros compactos y la tabla dentro de un marco con esquinas mínimas. */
+.drawer__panel .filters {
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 16px 0 0;
+  border: 0;
+}
+
+.drawer__panel .filters .field {
+  gap: 4px;
+}
+
+.drawer__panel .filters .field__label {
+  font-size: 0.75rem;
+}
+
+.drawer__panel .filters .field__input {
+  min-height: 34px;
+  padding: 3px 10px;
+  font-size: 0.875rem;
+}
+
+.drawer__panel .filters .btn {
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  font-size: 0.8125rem;
+}
+
+.drawer__panel .table-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.drawer__panel .table th {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.drawer__panel .table td {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.drawer__panel .pagination .btn {
+  min-height: 34px;
+  margin: 0;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+}
+
+.drawer__panel .pagination {
+  font-size: 0.875rem;
+}
+
+/* «Limpiar filtros» como texto subrayado, igual que «Quitar filtros» de la tienda. */
+.drawer__panel .filters .btn {
+  min-height: 34px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.drawer__panel .filters .btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--color-accent-strong);
+}
+
+.drawer__panel .filters .btn:disabled {
+  color: var(--color-muted);
+  opacity: 0.55;
+  text-decoration: none;
+}
+
+/* Comprobante: una hoja blanca sobre el fondo beige, con la información en bloques ordenados. */
+.page.order-receipt-page {
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+.order-receipt-page .admin-receipt {
+  gap: 28px;
+  padding: 56px 64px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow:
+    0 1px 2px rgb(35 77 62 / 6%),
+    0 16px 40px rgb(35 77 62 / 8%);
+}
+
+.admin-receipt__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-receipt .admin-receipt__merchant {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-receipt__title {
+  text-align: right;
+}
+
+.admin-receipt__head h1 {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.admin-receipt__title p {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+}
+
+.admin-receipt .receipt__disclaimer {
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.admin-receipt__people {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px 32px;
+}
+
+.admin-receipt__people dt {
+  margin-bottom: 4px;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-receipt__people dd {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.admin-receipt__items th,
+.admin-receipt__items td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-receipt__items th {
+  background: transparent;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.admin-receipt__items tbody tr:hover {
+  background: transparent;
+}
+
+.admin-receipt__items .admin-receipt__num {
+  width: 110px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.order-receipt-page .admin-receipt__amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: flex-end;
+  width: min(100%, 340px);
+}
+
+.admin-receipt__amounts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-receipt__amounts dt {
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
+.admin-receipt__amounts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-receipt .admin-receipt__total {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-heading);
+}
+
+.admin-receipt__total dt {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.admin-receipt__total dd {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+}
+
+.admin-receipt .admin-receipt__payment {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.admin-receipt__payment strong {
+  color: var(--color-heading);
+}
+
+@media (max-width: 640px) {
+  .order-receipt-page .admin-receipt {
+    padding: 32px 20px;
+  }
+
+  .admin-receipt__title {
+    text-align: left;
+  }
+}
+
+@media print {
+  .order-receipt-page .admin-receipt {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+}
+
+/* Hoja del comprobante con sus acciones a un costado (contacto, pérdidas, imprimir). */
+.page.order-receipt-page {
+  max-width: none;
+}
+
+.order-receipt__sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.order-receipt__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 820px) 220px;
+  gap: 24px;
+  align-items: start;
+  justify-content: center;
+}
+
+.order-receipt__sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.order-receipt__rail {
+  margin-top: 60px;
+}
+
+.order-receipt__toolbar {
+  margin-bottom: 16px;
+}
+
+.order-receipt__rail {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.receipt-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.receipt-action svg {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.receipt-action:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.receipt-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 1100px) {
+  .order-receipt__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .order-receipt__rail {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    order: -1;
+    margin-top: 0;
+  }
+
+  .receipt-action {
+    width: auto;
+  }
+}
+
+@media print {
+  .order-receipt__rail {
+    display: none !important;
+  }
+
+  .order-receipt__layout {
+    display: block;
+  }
 }

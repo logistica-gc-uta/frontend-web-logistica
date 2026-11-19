@@ -1,3 +1,4 @@
+import { areaSuffix } from '../../lib/planning/routeArea'
 import type { RealtimeSubscription } from '../../lib/realtime/realtimeClient'
 import { dayInGuayaquil, todayInGuayaquil } from '../../lib/time/guayaquil'
 import { driversService } from '../planning/driversService'
@@ -29,7 +30,7 @@ export async function loadMonitorBoard(now: Date = new Date()): Promise<MonitorB
     day,
     routes: tracked.map((route, index) => ({
       route,
-      name: `Ruta ${index + 1} · ${route.zoneCode}`,
+      name: `Ruta ${index + 1}${areaSuffix(route.zoneCode)}`,
     })),
     drafts: ofDay.filter((route) => route.status === 'DRAFT').length,
     drivers: Object.fromEntries(drivers.map((driver) => [driver.id, driver])),

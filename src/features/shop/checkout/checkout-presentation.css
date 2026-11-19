@@ -212,13 +212,18 @@
   min-width: 0;
 }
 
-.shop .checkout-presentation :is(.checkout__unquoted-image, .quote-summary__thumb).product-image--placeholder {
+.shop
+  .checkout-presentation
+  :is(.checkout__unquoted-image, .quote-summary__thumb).product-image--placeholder {
   padding: 4px;
   gap: 2px;
   font-size: 1rem;
 }
 
-.shop .checkout-presentation :is(.checkout__unquoted-image, .quote-summary__thumb).product-image--placeholder small {
+.shop
+  .checkout-presentation
+  :is(.checkout__unquoted-image, .quote-summary__thumb).product-image--placeholder
+  small {
   font-size: 0.625rem;
   line-height: 1.15;
 }

@@ -144,6 +144,11 @@ a:hover {
   padding: 32px 40px 48px;
 }
 
+/* Páginas cuyos recuadros ocupan todo el ancho disponible. */
+.page.page--wide {
+  max-width: none;
+}
+
 .page > h1:first-child {
   margin: 0 0 4px;
 }
@@ -269,23 +274,30 @@ a:hover {
 
 /* Alertas */
 .alert {
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 16px;
-  border: 1px solid;
-  border-left-width: 4px;
+  padding: 2px 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.alert__icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.alert__body {
+  min-width: 0;
 }
 
 .alert--error {
   color: var(--color-danger);
-  border-color: var(--color-danger);
-  background: var(--color-danger-soft);
 }
 
 .alert--success {
   color: var(--color-success);
-  border-color: var(--color-success);
-  background: var(--color-success-soft);
 }
 
 /*
@@ -547,6 +559,63 @@ a:hover {
   min-width: 0;
 }
 
+/* «Cerrar sesión» al pie del menú lateral: botón con borde fino y esquinas poco redondeadas. */
+.app-header__user {
+  margin-top: auto;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--sidebar-line);
+}
+
+.app-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sidebar-active);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.app-logout:hover {
+  border-color: var(--color-sand);
+  background: color-mix(in srgb, var(--sidebar-line) 55%, transparent);
+}
+
+.app-logout:focus-visible {
+  outline: 2px solid var(--color-sand);
+  outline-offset: 2px;
+}
+
+@media (min-width: 901px) {
+  .app-shell[data-collapsed='true'] .app-logout__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .app-shell[data-collapsed='true'] .app-logout {
+    width: 44px;
+    height: 44px;
+    margin-inline: auto;
+    padding: 0;
+  }
+}
+
 .app-header {
   position: sticky;
   top: 0;
@@ -635,31 +704,6 @@ a:hover {
   padding: 4px 12px 16px;
 }
 
-.app-header__user {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: auto;
-  padding: 16px 8px 0;
-  border-top: 1px solid var(--sidebar-line);
-  font-size: 0.875rem;
-  color: var(--sidebar-text);
-}
-
-.app-header__user .btn--secondary {
-  padding: 6px 12px;
-  font-size: 0.875rem;
-  background: transparent;
-  border-color: var(--sidebar-line);
-  color: var(--sidebar-text);
-}
-
-.app-header__user .btn--secondary:hover:not(:disabled) {
-  border-color: var(--color-sand);
-  color: var(--sidebar-active);
-}
-
 /* Menú lateral: filas limpias con ícono, tipografía Figtree y esquinas mínimas. */
 .app-header .brand__name {
   font-family: 'Young Serif', Georgia, 'Times New Roman', serif;
@@ -727,7 +771,9 @@ a:hover {
   font-weight: 400;
   text-decoration: none;
   color: var(--sidebar-text);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .app-nav__link::before {
@@ -764,16 +810,6 @@ a:hover {
   outline-offset: 0;
 }
 
-.app-header__user {
-  font-size: 0.8125rem;
-  color: var(--sidebar-muted);
-  border-top-color: color-mix(in srgb, var(--sidebar-line) 70%, transparent);
-}
-
-.app-header__user .btn--secondary {
-  border-radius: 4px;
-}
-
 /* Botón para ocultar y volver a mostrar el menú lateral (solo en pantallas anchas). */
 .app-header__collapse {
   display: inline-flex;
@@ -789,7 +825,9 @@ a:hover {
   background: transparent;
   color: var(--sidebar-active);
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .app-header__collapse:hover {
@@ -800,16 +838,6 @@ a:hover {
 .app-header__collapse:focus-visible {
   outline: 2px solid var(--color-sand);
   outline-offset: 2px;
-}
-
-.app-header__logout-icon {
-  display: none;
-}
-
-.app-header__user .btn--secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .app-shell {
@@ -833,8 +861,7 @@ a:hover {
   }
 
   .app-shell[data-collapsed='true'] .app-header .brand,
-  .app-shell[data-collapsed='true'] .app-nav__title,
-  .app-shell[data-collapsed='true'] .app-header__greeting {
+  .app-shell[data-collapsed='true'] .app-nav__title {
     display: none;
   }
 
@@ -861,27 +888,11 @@ a:hover {
     left: calc(50% - 1px);
   }
 
-  .app-shell[data-collapsed='true'] .app-header__user {
-    align-items: center;
-    padding-inline: 0;
-  }
-
-  .app-shell[data-collapsed='true'] .app-header__user .btn--secondary {
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .app-shell[data-collapsed='true'] .app-header__logout-icon {
-    display: block;
-  }
 }
 
 /* El texto de cada opción se oculta a la vista, pero sigue disponible para lectores de pantalla. */
 @media (min-width: 901px) {
-  .app-shell[data-collapsed='true'] .app-nav__label,
-  .app-shell[data-collapsed='true'] .app-header__logout-label {
+  .app-shell[data-collapsed='true'] .app-nav__label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1001,13 +1012,6 @@ a:hover {
     padding-bottom: 16px;
   }
 
-  .app-header__user {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 8px 0;
-  }
 }
 
 /* Páginas de administración */
@@ -1637,4 +1641,91 @@ a:hover {
   background: var(--color-sand-soft);
   font-size: 0.875rem;
   color: var(--color-heading);
+}
+
+/* Todas las vistas del panel: el mismo espacio entre el título y su descripción. */
+.app-shell main h1:first-of-type {
+  margin: 0 0 6px;
+  line-height: 1.2;
+}
+
+.app-shell main h1:first-of-type + p {
+  margin-top: 0;
+}
+
+/* Notificaciones: un cuadrito arriba a la derecha que avisa lo que pasó y se va solo. */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(360px, calc(100vw - 40px));
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgb(35 77 62 / 16%);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-heading);
+  animation: toast-in 0.25s ease;
+}
+
+.toast__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-success);
+}
+
+.toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast__close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  background: var(--color-bg);
+  color: var(--color-heading);
+}
+
+.toast__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+@media print {
+  .toast {
+    display: none;
+  }
 }
