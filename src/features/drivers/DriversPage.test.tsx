@@ -191,6 +191,58 @@ describe('ADMIN · repartidores (#36)', () => {
     expect(form.getByLabelText('Correo')).toHaveValue('ana@delivery.com')
   })
 
+  it('muestra la capacidad configurada y 4 por defecto cuando es nula', async () => {
+    const api = mockApi()
+    api.list.mockResolvedValue([
+      profile('ana', 'Ana Ruta', { vehicleCapacity: null }),
+      profile('luis', 'Luis Moto', { vehicleCapacity: 6 }),
+    ])
+    renderPage()
+
+    const list = within(await findList())
+    expect(list.getByText('4 unidades (por defecto)')).toBeInTheDocument()
+    expect(list.getByText('6 unidades')).toBeInTheDocument()
+  })
+
+  it('crea un repartidor con capacidad explícita y restaura null al dejarla vacía al editar', async () => {
+    const api = mockApi()
+    api.list.mockResolvedValue([profile('ana', 'Ana Ruta', { vehicleCapacity: 6 })])
+    const create = vi.spyOn(driversAdminService, 'create').mockResolvedValue({
+      ...profile('nuevo', 'Nuevo Chofer', { vehicleCapacity: 8 }),
+      temporaryPassword: 'Temporal-ABC123xyz',
+    })
+    const update = vi
+      .spyOn(driversAdminService, 'update')
+      .mockResolvedValue(profile('ana', 'Ana Ruta', { vehicleCapacity: null }))
+    const { user } = renderPage()
+    await findList()
+
+    await openNew(user)
+    const createForm = within(screen.getByRole('form', { name: 'Nuevo repartidor' }))
+    await user.type(createForm.getByLabelText('Nombre'), 'Nuevo Chofer')
+    await user.type(createForm.getByLabelText('Correo'), 'nuevo@delivery.com')
+    await user.type(createForm.getByLabelText('Vehículo'), 'Camión')
+    await user.type(createForm.getByLabelText('Capacidad del vehículo (unidades, opcional)'), '8')
+    await user.click(createForm.getByRole('button', { name: 'Crear repartidor' }))
+
+    expect(create).toHaveBeenCalledWith({
+      name: 'Nuevo Chofer',
+      email: 'nuevo@delivery.com',
+      vehicle: 'Camión',
+      vehicleCapacity: 8,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Ya la entregué' }))
+
+    await user.click(screen.getByRole('button', { name: 'Editar datos de Ana Ruta' }))
+    const editForm = within(screen.getByRole('form', { name: 'Corregir datos de Ana Ruta' }))
+    const capInput = editForm.getByLabelText('Capacidad del vehículo (unidades, opcional)')
+    expect(capInput).toHaveValue('6')
+    await user.clear(capInput)
+    await user.click(editForm.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(update).toHaveBeenCalledWith('ana', { vehicleCapacity: null })
+  })
+
   it('corrige solo los datos que cambiaron y avisa que sus rutas no cambian', async () => {
     mockApi()
     const update = vi.spyOn(driversAdminService, 'update').mockResolvedValue(ANA)

@@ -10,7 +10,11 @@ import { todayInGuayaquil } from '../../lib/time/guayaquil'
 import { AbsencesPanel } from './AbsencesPanel'
 import { DriverProfileForm } from './DriverProfileForm'
 import { driversAdminService } from './driversAdminService'
-import { availabilityLabel } from './driverValidation'
+import {
+  availabilityLabel,
+  formatVehicleCapacity,
+  parseVehicleCapacity,
+} from './driverValidation'
 import { TemporaryPassword } from './TemporaryPassword'
 import type { CreatedDriver, DriverDayAvailability, DriverProfile } from './types'
 import '../../styles/drivers.css'
@@ -68,7 +72,7 @@ function DriversTable({
   )
 }
 
-const EMPTY_PROFILE = { name: '', email: '', vehicle: '' }
+const EMPTY_PROFILE = { name: '', email: '', vehicle: '', vehicleCapacity: '' }
 
 interface DriversOfDay {
   drivers: DriverProfile[]
@@ -115,6 +119,10 @@ export function DriversPage() {
     },
     { header: 'Correo', render: (driver) => driver.user.email },
     { header: 'Vehículo', render: (driver) => driver.vehicle },
+    {
+      header: 'Capacidad',
+      render: (driver) => formatVehicleCapacity(driver.vehicleCapacity),
+    },
     {
       header: 'Disponibilidad',
       render: (driver) => {
@@ -258,10 +266,12 @@ export function DriversPage() {
             label="Nuevo repartidor"
             submitLabel="Crear repartidor"
             onSave={async (values) => {
+              const vehicleCapacity = parseVehicleCapacity(values.vehicleCapacity)
               const driver = await driversAdminService.create({
                 name: values.name.trim(),
                 email: values.email.trim(),
                 vehicle: values.vehicle.trim(),
+                ...(vehicleCapacity !== null ? { vehicleCapacity } : {}),
               })
               setCreated(driver)
               data.reload()
@@ -287,6 +297,10 @@ export function DriversPage() {
                   name: selectedDriver.user.name,
                   email: selectedDriver.user.email,
                   vehicle: selectedDriver.vehicle,
+                  vehicleCapacity:
+                    selectedDriver.vehicleCapacity != null
+                      ? String(selectedDriver.vehicleCapacity)
+                      : '',
                 }}
                 label={`Corregir datos de ${selectedDriver.user.name}`}
                 submitLabel="Guardar cambios"
