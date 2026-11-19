@@ -582,3 +582,100 @@ describe('PlanningPage · rutas guardadas', () => {
     expect(screen.getByRole('group', { name: `Corregir ${FIRST}` })).toBeInTheDocument()
   })
 })
+
+describe('PlanningPage · capacidad del vehículo', () => {
+  it('carga los choferes del día elegido antes de previsualizar, reenvía driverId a GET y POST borrador, muestra loadUnits y sugiere alternativas', async () => {
+    const driverCap4 = {
+      ...availableDriver,
+      id: 'd-4',
+      name: 'Ana Moto',
+      vehicle: 'Moto',
+      vehicleCapacity: null,
+    }
+    const driverCap6 = {
+      ...availableDriver,
+      id: 'd-6',
+      name: 'Carlos Furgón',
+      vehicle: 'Furgón',
+      vehicleCapacity: 6,
+    }
+    const listForDay = vi
+      .spyOn(driversService, 'listForDay')
+      .mockResolvedValue([driverCap4, driverCap6])
+    const response: RouteProposalsResponse = {
+      ...proposalsResponse,
+      capacity: 4,
+      proposals: [{ ...proposalsResponse.proposals[0], stops: proposalsResponse.proposals[0].stops.slice(0, 1), orderIds: ['order-a'], loadUnits: 3 }],
+      excluded: [
+        {
+          orderId: 'order-big-5555',
+          zoneId: 'zone-1',
+          reasons: ['VEHICLE_CAPACITY_EXCEEDED'],
+          requiredUnits: 5,
+        },
+      ],
+    }
+    const getProposals = mockApi(response)
+    const confirmRoute = vi.spyOn(planningService, 'confirmRoute').mockResolvedValue(savedDraft())
+    const { user } = renderPlanningPage()
+
+    await setDate('2030-02-14')
+    await waitFor(() => expect(listForDay).toHaveBeenCalledWith('2030-02-14'))
+
+    const driverSelect = await screen.findByLabelText('Chofer para planificar')
+    await waitFor(() => expect(within(driverSelect).getByText(/Ana Moto/)).toBeInTheDocument())
+    await user.selectOptions(driverSelect, 'd-4')
+    await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
+
+    await waitFor(() =>
+      expect(getProposals).toHaveBeenCalledWith({ date: '2030-02-14', driverId: 'd-4' }),
+    )
+    expect(card('Ruta 1').getByText('3/4 unidades')).toBeInTheDocument()
+
+    await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
+    expect(confirmRoute).toHaveBeenCalledWith({
+      zoneId: 'zone-1',
+      routeDate: '2030-02-14T15:00:00Z',
+      orderIds: ['order-a'],
+      driverId: 'd-4',
+    })
+    expect(await card('Ruta 1').findByText('Guardada como borrador')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ver pedidos excluidos' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Pedidos excluidos (1)' })
+    const excludedItem = within(dialog).getByRole('listitem')
+    expect(excludedItem).toHaveTextContent(/5 unidades/)
+    expect(excludedItem).toHaveTextContent(/Carlos Furgón/)
+    expect(excludedItem).toHaveTextContent(/no garantiza/)
+  })
+
+  it('si confirmar borrador responde 409 VEHICLE_CAPACITY_EXCEEDED explica capacidad y unidades sin guardar', async () => {
+    vi.spyOn(driversService, 'listForDay').mockResolvedValue([
+      { ...availableDriver, id: 'd-4', name: 'Ana Moto', vehicleCapacity: 4 },
+    ])
+    mockApi()
+    vi.spyOn(planningService, 'confirmRoute').mockRejectedValue(
+      createHttpError(409, {
+        data: {
+          statusCode: 409,
+          code: 'VEHICLE_CAPACITY_EXCEEDED',
+          message: 'Vehicle capacity exceeded',
+          capacity: 4,
+          requiredUnits: 6,
+        },
+      }),
+    )
+    const { user } = renderPlanningPage()
+    await setDate('2030-02-14')
+    const driverSelect = await screen.findByLabelText('Chofer para planificar')
+    await waitFor(() => expect(within(driverSelect).getByText(/Ana Moto/)).toBeInTheDocument())
+    await user.selectOptions(driverSelect, 'd-4')
+    await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
+    await screen.findByRole('heading', { name: /Rutas propuestas/ })
+
+    await user.click(card('Ruta 1').getByRole('button', { name: 'Confirmar ruta' }))
+
+    expect(await card('Ruta 1').findByRole('alert')).toHaveTextContent(/6 unidades.*4 unidades/)
+    expect(card('Ruta 1').queryByText('Guardada como borrador')).not.toBeInTheDocument()
+  })
+})

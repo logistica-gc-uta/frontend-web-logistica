@@ -226,10 +226,13 @@ describe(`Integración real · planificación (/route-proposals, /routes) · dí
 
     expect(routes).not.toContain('password')
     expect(JSON.stringify(drivers)).not.toContain('password')
+    const capacity = drivers[0].vehicleCapacity
+    expect(capacity === null || (typeof capacity === 'number' && Number.isInteger(capacity) && capacity > 0)).toBe(true)
     expect(drivers[0]).toEqual({
       id: expect.any(String),
       name: expect.any(String),
       vehicle: expect.any(String),
+      vehicleCapacity: drivers[0].vehicleCapacity,
       isAvailable: expect.any(Boolean),
       unavailableReason: drivers[0].isAvailable
         ? null

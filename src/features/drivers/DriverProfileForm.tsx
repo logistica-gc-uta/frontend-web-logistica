@@ -5,19 +5,23 @@ import { useForm } from '../../hooks/useForm'
 import { AppError } from '../../lib/errors/AppError'
 import { describeDriverError } from './driverErrors'
 import { profileChanges, validateProfile } from './driverValidation'
-import type { DriverProfileInput } from './types'
+import {
+  DEFAULT_VEHICLE_CAPACITY,
+  type DriverProfileFormValues,
+  type DriverProfileInput,
+} from './types'
 
 interface DriverProfileFormProps {
   /** Valores actuales al corregir; vacíos al dar de alta. */
-  initial: DriverProfileInput
+  initial: DriverProfileFormValues
   label: string
   submitLabel: string
   /** Envía el alta o los cambios; devuelve cuando el servidor confirmó. */
-  onSave: (values: DriverProfileInput, changes: Partial<DriverProfileInput>) => Promise<void>
+  onSave: (values: DriverProfileFormValues, changes: Partial<DriverProfileInput>) => Promise<void>
   isEdit?: boolean
 }
 
-/** Nombre, correo y vehículo: los únicos campos del perfil (backend #43). */
+/** Nombre, correo, vehículo y capacidad opcional del perfil del repartidor. */
 export function DriverProfileForm({
   initial,
   label,
@@ -71,6 +75,19 @@ export function DriverProfileForm({
         onChange={form.handleChange}
         error={form.fieldErrors.vehicle}
       />
+      <TextField
+        label="Capacidad del vehículo (unidades, opcional)"
+        name="vehicleCapacity"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder={String(DEFAULT_VEHICLE_CAPACITY)}
+        value={form.values.vehicleCapacity ?? ''}
+        onChange={form.handleChange}
+        error={form.fieldErrors.vehicleCapacity}
+      />
+      <p className="text-muted">
+        Si se deja vacío, el vehículo usa {DEFAULT_VEHICLE_CAPACITY} unidades por defecto.
+      </p>
       <div>
         <Button type="submit" isLoading={form.isSubmitting} loadingText="Guardando...">
           {submitLabel}

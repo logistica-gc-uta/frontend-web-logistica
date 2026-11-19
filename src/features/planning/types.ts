@@ -56,6 +56,8 @@ export interface RouteProposal {
   /** Pedidos en orden de visita (1 a 4). */
   orderIds: string[]
   stops: RouteProposalStop[]
+  /** Suma de unidades de producto de los pedidos incluidos en la ruta propuesta. */
+  loadUnits?: number
   /** Recorrido depósito → paradas → depósito, en km: por calles con motor vial o en línea recta. */
   totalDistanceKm: number
   /** La misma visita en línea recta, para contrastar. Solo con motor vial. */
@@ -81,6 +83,8 @@ export interface ExcludedOrder {
   orderId: string
   zoneId: string
   reasons: string[]
+  /** Unidades totales del pedido cuando excede la capacidad del vehículo. */
+  requiredUnits?: number
 }
 
 export interface PlanningSummary {
@@ -98,7 +102,7 @@ export interface PlanningSummary {
 export interface RouteProposalsResponse {
   date: string
   timeZone: string
-  /** Máximo de paradas por ruta. */
+  /** Capacidad en unidades de producto aplicada en la propuesta (4 por defecto). */
   capacity: number
   /** `OSRM_ROAD_NETWORK` con motor vial; `HAVERSINE_STRAIGHT_LINE` sin él. */
   distanceMethod: DistanceMethod
@@ -120,6 +124,8 @@ export interface ProposalsQuery {
   /** Día a planificar (aaaa-mm-dd, horario de Guayaquil). */
   date: string
   zoneId?: string
+  /** Chofer elegido para planificar con la capacidad de su vehículo. */
+  driverId?: string
 }
 
 /** Cuerpo de `POST /routes`: confirma una propuesta como ruta DRAFT. */
@@ -128,6 +134,8 @@ export interface ConfirmRouteInput {
   zoneId: string | null
   routeDate: string
   orderIds: string[]
+  /** Chofer usado en la propuesta: valida capacidad al crear el borrador sin asignarlo. */
+  driverId?: string
 }
 
 /** `INTERRUPTED`: una emergencia detuvo la ruta en curso (backend #51). */
@@ -167,6 +175,8 @@ export interface Driver {
   id: string
   name: string
   vehicle: string
+  /** Capacidad del vehículo en unidades (`null` usa 4 por defecto). */
+  vehicleCapacity?: number | null
   /** Disponibilidad efectiva: sin rutas que lo retengan. */
   isAvailable: boolean
   /**
