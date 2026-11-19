@@ -35,6 +35,20 @@ describe('useRouteConfirmations', () => {
     expect(onSaved).toHaveBeenCalledWith(savedDraft())
   })
 
+  it('reenvía driverId al confirmar el borrador cuando la propuesta se planificó para un chofer', async () => {
+    const confirmRoute = vi.spyOn(planningService, 'confirmRoute').mockResolvedValue(savedDraft())
+    const { result } = renderHook(() => useRouteConfirmations(undefined, 'driver-6'))
+
+    await act(() => result.current.confirm(firstProposal))
+
+    expect(confirmRoute).toHaveBeenCalledWith({
+      zoneId: firstProposal.zoneId,
+      routeDate: firstProposal.routeDate,
+      orderIds: firstProposal.orderIds,
+      driverId: 'driver-6',
+    })
+  })
+
   it('preserves a zone-free proposal when confirming from the store', async () => {
     const confirmRoute = vi.spyOn(planningService, 'confirmRoute').mockResolvedValue(savedDraft())
     const proposal = { ...firstProposal, zoneId: null, zoneCode: null }

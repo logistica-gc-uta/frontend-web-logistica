@@ -6,6 +6,7 @@ import type { Driver, DriverUnavailableReason } from './types'
 interface RawDriver {
   id: string
   vehicle: string
+  vehicleCapacity?: number | null
   user: { name: string }
   effectiveAvailability: { isAvailable: boolean; hasPersistedHolds: boolean }
 }
@@ -23,6 +24,7 @@ const toDriver = (raw: RawDriver): Driver => ({
   id: raw.id,
   name: raw.user.name,
   vehicle: raw.vehicle,
+  vehicleCapacity: raw.vehicleCapacity ?? null,
   isAvailable: raw.effectiveAvailability.isAvailable,
   unavailableReason: unavailableReason(raw.effectiveAvailability),
 })
@@ -30,7 +32,24 @@ const toDriver = (raw: RawDriver): Driver => ({
 /** Lo que usamos de `GET /drivers/:id/availability?date=` (backend #44). */
 interface DayAvailability {
   isAvailable: boolean
+  hasPersistedHolds?: boolean
   absence: unknown | null
+}
+
+const applyDayAvailability = (driver: Driver, day: DayAvailability): Driver => {
+  if (day.absence) {
+    return { ...driver, isAvailable: false, unavailableReason: 'ABSENT' }
+  }
+  if (day.isAvailable) {
+    return { ...driver, isAvailable: true, unavailableReason: null }
+  }
+  return {
+    ...driver,
+    isAvailable: false,
+    unavailableReason: day.hasPersistedHolds
+      ? 'ROUTE_HOLD'
+      : (driver.unavailableReason ?? 'MARKED_UNAVAILABLE'),
+  }
 }
 
 export const driversService = {
@@ -55,9 +74,7 @@ export const driversService = {
             `/drivers/${encodeURIComponent(driver.id)}/availability`,
             { params: { date: day } },
           )
-          return data.absence
-            ? { ...driver, isAvailable: false, unavailableReason: 'ABSENT' as const }
-            : driver
+          return applyDayAvailability(driver, data)
         } catch {
           return driver
         }

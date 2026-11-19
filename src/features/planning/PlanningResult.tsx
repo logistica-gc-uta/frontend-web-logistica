@@ -7,11 +7,16 @@ import { DistanceNotice } from './DistanceNotice'
 import { PlanningSummary } from './PlanningSummary'
 import { ProposalCard } from './ProposalCard'
 import { proposalKey, routeColor, routeLabel } from './routeStyle'
-import type { RouteProposalsResponse } from './types'
+import type { Driver, RouteProposalsResponse } from './types'
 import { useRouteConfirmations } from './useRouteConfirmations'
+
+const unitsLabel = (count: number) => (count === 1 ? '1 unidad' : `${count} unidades`)
 
 interface PlanningResultProps {
   data: RouteProposalsResponse
+  /** Chofer usado en la propuesta; se reenvía al confirmar el borrador sin asignar automáticamente. */
+  driverId?: string
+  selectedDriver?: Driver
   /** Se llama al guardar una ruta: la página vuelve a leer las rutas guardadas del día. */
   onSaved: () => void
 }
@@ -20,8 +25,8 @@ interface PlanningResultProps {
  * Resultado de una previsualización: resumen, rutas con su mapa, pedidos excluidos y las rutas ya
  * guardadas del día. Las rutas propuestas son temporales hasta que el operador las confirma.
  */
-export function PlanningResult({ data, onSaved }: PlanningResultProps) {
-  const { states, confirm, confirmAll } = useRouteConfirmations(onSaved)
+export function PlanningResult({ data, driverId, selectedDriver, onSaved }: PlanningResultProps) {
+  const { states, confirm, confirmAll } = useRouteConfirmations(onSaved, driverId)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const routes = useMemo(
@@ -81,10 +86,17 @@ export function PlanningResult({ data, onSaved }: PlanningResultProps) {
         )}
         <PlanningSummary summary={data.summary} method={data.distanceMethod} />
         <div className="planning-notes">
+          {selectedDriver ? (
+            <p className="notice">
+              <strong>Capacidad aplicada:</strong> {selectedDriver.name} ({selectedDriver.vehicle},{' '}
+              {unitsLabel(data.capacity)}). Al confirmar se guarda como borrador sin asignar
+              automáticamente.
+            </p>
+          ) : null}
           <p className="notice">
             <strong>Horarios agrupados.</strong> Cada ruta reúne entregas con hasta{' '}
-            {data.timeWindowMarginMinutes} minutos de diferencia y máximo {data.capacity} paradas,
-            en orden de hora; no es una promesa de llegada.
+            {data.timeWindowMarginMinutes} minutos de diferencia, máximo 4 paradas y hasta{' '}
+            {unitsLabel(data.capacity)} de carga, en orden de hora; no es una promesa de llegada.
           </p>
           <DistanceNotice method={data.distanceMethod} />
         </div>
@@ -107,8 +119,16 @@ export function PlanningResult({ data, onSaved }: PlanningResultProps) {
             </svg>
           </span>
           <h2>Nada por planificar</h2>
-          <p className="empty-state">No hay pedidos pendientes para planificar en esta fecha.</p>
-          <p className="planning-empty__hint">Elige otro día arriba y vuelve a previsualizar.</p>
+          <p className="empty-state">
+            {data.excluded.length > 0
+              ? 'Ningún pedido pudo incluirse en una ruta con la capacidad planificada. Revisa los pedidos excluidos.'
+              : 'No hay pedidos pendientes para planificar en esta fecha.'}
+          </p>
+          <p className="planning-empty__hint">
+            {data.excluded.length > 0
+              ? 'Abre «Excluidos» arriba para ver el motivo y los choferes candidatos.'
+              : 'Elige otro día arriba y vuelve a previsualizar.'}
+          </p>
         </section>
       ) : (
         <section className="card" aria-labelledby="planning-routes-title">

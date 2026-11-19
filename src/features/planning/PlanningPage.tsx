@@ -29,24 +29,31 @@ async function loadProposals(query: ProposalsQuery) {
   }
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+
 export function PlanningPage() {
   const preview = useAsyncAction(loadProposals, 'No se pudo calcular la propuesta de rutas')
   /** Cambia en cada cálculo: el resultado nuevo empieza sin selección ni confirmaciones previas. */
   const [calculation, setCalculation] = useState(0)
   const [lastQuery, setLastQuery] = useState<ProposalsQuery | null>(null)
+  const [selectedDate, setSelectedDate] = useState(todayInGuayaquil)
 
+  const filterDay = ISO_DAY.test(selectedDate) ? selectedDate : todayInGuayaquil()
   // Rutas ya guardadas del día planificado (hoy mientras no haya una propuesta), en un panel lateral.
-  const day = preview.data?.date ?? todayInGuayaquil()
+  const day = preview.data?.date ?? filterDay
   const isToday = preview.data?.isToday ?? true
   const savedRoutes = useFetch(
     planningService.listRoutes,
     'No se pudieron cargar las rutas guardadas',
   )
-  // Disponibilidad del día planificado: un chofer ausente ese día no se ofrece (#36).
-  const loadDrivers = useCallback(() => driversService.listForDay(day), [day])
+  // Disponibilidad del día elegido antes de previsualizar: un chofer ausente ese día no se ofrece.
+  const loadDrivers = useCallback(() => driversService.listForDay(filterDay), [filterDay])
   const drivers = useFetch(loadDrivers, 'No se pudieron cargar los choferes')
   const { reload: reloadSavedRoutes } = savedRoutes
   const { reload: reloadDrivers } = drivers
+  const selectedDriver = lastQuery?.driverId
+    ? drivers.data?.find((driver) => driver.id === lastQuery.driverId)
+    : undefined
   // Asignar o corregir cambia rutas y la disponibilidad de los choferes: se consultan de nuevo.
   const refreshSavedState = useCallback(() => {
     reloadSavedRoutes()
@@ -144,7 +151,13 @@ export function PlanningPage() {
         <section className="card planning-form" aria-labelledby="planning-form-title">
           <h2 id="planning-form-title">Previsualizar</h2>
           <div className="planning-form__body">
-            <PlanningFilters onPreview={handlePreview} />
+            <PlanningFilters
+              onPreview={handlePreview}
+              drivers={drivers.data ?? undefined}
+              driversLoading={drivers.isLoading}
+              driversError={drivers.error}
+              onDateChange={setSelectedDate}
+            />
             <RoadEngineNotice />
           </div>
         </section>
@@ -165,11 +178,25 @@ export function PlanningPage() {
           </Alert>
         )}
         {preview.data && (
-          <PlanningResult key={calculation} data={preview.data} onSaved={reloadSavedRoutes} />
+          <PlanningResult
+            key={calculation}
+            data={preview.data}
+            driverId={lastQuery?.driverId}
+            selectedDriver={selectedDriver}
+            onSaved={reloadSavedRoutes}
+          />
         )}
       </div>
 
-      <ExcludedOrders excluded={excluded} open={excludedOpen} onClose={closeExcluded} />
+      <ExcludedOrders
+        excluded={excluded}
+        open={excludedOpen}
+        onClose={closeExcluded}
+        capacity={preview.data?.capacity}
+        date={preview.data?.date}
+        drivers={drivers.data ?? undefined}
+        selectedDriverId={lastQuery?.driverId}
+      />
 
       <Drawer
         open={savedOpen}

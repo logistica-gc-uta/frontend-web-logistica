@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { shopErrorInfo } from '../shop/shopError'
 import { describeActionError } from '../../lib/http/describeActionError'
 
@@ -7,14 +8,38 @@ export const ROUTE_DATE_NOT_TODAY_MESSAGE =
 
 const isNotToday = (error: unknown) => shopErrorInfo(error).code === 'ROUTE_DATE_NOT_TODAY'
 
-export const describeConfirmError = (error: unknown): string =>
-  isNotToday(error)
-    ? ROUTE_DATE_NOT_TODAY_MESSAGE
-    : describeActionError(error, {
-        fallback: 'No se pudo confirmar la ruta',
-        forbidden: 'No tienes permisos para confirmar rutas.',
-        conflictHint: 'Vuelve a previsualizar para ver el estado actual de los pedidos.',
-      })
+const unitsText = (count: number) => (count === 1 ? '1 unidad' : `${count} unidades`)
+
+function capacityExceededMessage(error: unknown, actionHint: string): string | null {
+  const info = shopErrorInfo(error)
+  if (info.code !== 'VEHICLE_CAPACITY_EXCEEDED') return null
+  const body = axios.isAxiosError<Record<string, unknown>>(error) ? error.response?.data : undefined
+  const bodyDetails =
+    body && typeof body.details === 'object' && body.details !== null
+      ? (body.details as Record<string, unknown>)
+      : undefined
+  const capacity = info.details.capacity ?? bodyDetails?.capacity ?? body?.capacity
+  const requiredUnits =
+    info.details.requiredUnits ?? bodyDetails?.requiredUnits ?? body?.requiredUnits
+  if (typeof requiredUnits === 'number' && typeof capacity === 'number') {
+    return `La carga de la ruta (${unitsText(requiredUnits)}) supera la capacidad del vehículo (${unitsText(capacity)}). ${actionHint}`
+  }
+  return `La carga de la ruta supera la capacidad del vehículo. ${actionHint}`
+}
+
+export const describeConfirmError = (error: unknown): string => {
+  if (isNotToday(error)) return ROUTE_DATE_NOT_TODAY_MESSAGE
+  const capacity = capacityExceededMessage(
+    error,
+    'No se guardó el borrador; vuelve a previsualizar o elige otro chofer.',
+  )
+  if (capacity) return capacity
+  return describeActionError(error, {
+    fallback: 'No se pudo confirmar la ruta',
+    forbidden: 'No tienes permisos para confirmar rutas.',
+    conflictHint: 'Vuelve a previsualizar para ver el estado actual de los pedidos.',
+  })
+}
 
 export const describeCorrectionError = (error: unknown): string =>
   describeActionError(error, {
@@ -30,6 +55,8 @@ export const describeAssignError = (error: unknown): string => {
     return 'Ese chofer está ausente el día de la ruta: elige otro.'
   }
   if (isNotToday(error)) return ROUTE_DATE_NOT_TODAY_MESSAGE
+  const capacity = capacityExceededMessage(error, 'Elige otro chofer.')
+  if (capacity) return capacity
   return describeActionError(error, {
     fallback: 'No se pudo asignar el chofer',
     forbidden: 'No tienes permisos para asignar choferes.',

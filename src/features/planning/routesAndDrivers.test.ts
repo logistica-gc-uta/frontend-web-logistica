@@ -99,11 +99,36 @@ describe('driversService.list', () => {
         id: 'driver-1',
         name: 'Carlos Chofer',
         vehicle: 'Camión Isuzu ABC-123',
+        vehicleCapacity: null,
         isAvailable: false,
         unavailableReason: 'ROUTE_HOLD',
       },
     ])
     expect(JSON.stringify(drivers)).not.toContain(LEAKED_HASH)
+  })
+
+  it('conserva vehicleCapacity cruda en list y en listForDay', async () => {
+    vi.spyOn(apiClient, 'get')
+      .mockResolvedValueOnce(
+        createHttpResponse([
+          { ...rawDriverFromApi, id: 'd1', vehicleCapacity: 6 },
+          { ...rawDriverFromApi, id: 'd2', vehicleCapacity: null },
+        ]),
+      )
+      .mockResolvedValueOnce(createHttpResponse({ isAvailable: true, absence: null }))
+      .mockResolvedValueOnce(createHttpResponse({ isAvailable: false, absence: { id: 'a1' } }))
+
+    const drivers = await driversService.listForDay('2099-01-15')
+
+    expect(drivers).toEqual([
+      expect.objectContaining({ id: 'd1', vehicleCapacity: 6, isAvailable: true }),
+      expect.objectContaining({
+        id: 'd2',
+        vehicleCapacity: null,
+        isAvailable: false,
+        unavailableReason: 'ABSENT',
+      }),
+    ])
   })
 })
 

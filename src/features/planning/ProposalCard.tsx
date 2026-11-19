@@ -7,11 +7,14 @@ import { formatDuration, formatKm, formatPercent } from '../../lib/format/format
 import type { DistanceMethod, RouteProposal } from './types'
 import type { ConfirmationState } from './useRouteConfirmations'
 
+/** Límite operativo fijo de paradas por ruta (independiente de las unidades de carga). */
+const MAX_STOPS_PER_ROUTE = 4
+
 interface ProposalCardProps {
   proposal: RouteProposal
   label: string
   color: string
-  /** Máximo de paradas por ruta, para mostrar N/capacidad. */
+  /** Capacidad en unidades de producto aplicada en la propuesta. */
   capacity: number
   /** Con red vial se muestran duración, tramos y el contraste con la línea recta. */
   method: DistanceMethod
@@ -63,8 +66,13 @@ export function ProposalCard({
           {areaSuffix(proposal.zoneCode)}
         </h3>
         <span className="badge">
-          {proposal.stops.length}/{capacity} paradas
+          {proposal.stops.length}/{MAX_STOPS_PER_ROUTE} paradas
         </span>
+        {proposal.loadUnits !== undefined ? (
+          <span className="badge">
+            {proposal.loadUnits}/{capacity} unidades
+          </span>
+        ) : null}
       </header>
 
       <dl className="proposal__metrics">
