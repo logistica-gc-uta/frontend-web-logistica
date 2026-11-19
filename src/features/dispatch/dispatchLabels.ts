@@ -28,6 +28,7 @@ export const DISPATCH_ACTION_LABELS: Record<DispatchAction, string> = {
   EMERGENCY_REQUEUE: 'Pedido habilitado para planificar',
   PRIORITIZE: 'Priorizar',
   CONTACT: 'Contacto con el destinatario',
+  CONFIRM_INCIDENT_READY: 'Disponibilidad en tienda confirmada',
   RESCHEDULE: 'Reprogramar',
 }
 

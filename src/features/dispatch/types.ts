@@ -9,6 +9,7 @@ export type DispatchAction =
   | 'REASSIGN_DRIVER'
   | 'PRIORITIZE'
   | 'CONTACT'
+  | 'CONFIRM_INCIDENT_READY'
   | 'RESCHEDULE'
   | 'RELEASE_DRAFT'
   | 'CANCEL_ROUTE'
@@ -110,6 +111,51 @@ export interface OrderPickup {
   pickedUpAt: string | null
 }
 
+export type IncidentOwnership =
+  | 'FAILED_DELIVERY'
+  | 'EMERGENCY_CUSTODY'
+  | 'ADMINISTRATIVE_REVIEW'
+
+export type IncidentStatus =
+  | 'WAITING_STORE_READINESS'
+  | 'CONTACTED'
+  | 'READY_AT_STORE'
+  | 'PENDING_PICKUP'
+  | 'PICKED_UP'
+  | 'EMERGENCY_CUSTODY'
+  | 'REVIEW_WITHOUT_FAILED_ATTEMPT'
+
+export interface IncidentReadiness {
+  auditId: string
+  attemptId: string
+  confirmedAt: string
+  confirmedById: string
+}
+
+export interface IncidentEmergencyContext {
+  emergencyId: string
+  routeId: string
+  recoveryResolved: boolean
+  pendingUnitsCount: number
+  totalUnitsCount: number
+}
+
+export type IncidentActionKey =
+  | 'CONTACT'
+  | 'CONFIRM_INCIDENT_READY'
+  | 'RESCHEDULE'
+  | 'PICKUP_AGREE'
+  | 'PICKUP_DECLINE'
+  | 'PICKUP_CONFIRM'
+
+export interface IncidentActionGate {
+  allowed: boolean
+  reasonCode: string | null
+  reason: string | null
+}
+
+export type IncidentAllowedActions = Partial<Record<IncidentActionKey, IncidentActionGate>>
+
 export interface FailedDelivery {
   orderId: string
   /** Retiro acordado para el pedido, o `null` si todavía espera gestión. */
@@ -118,6 +164,28 @@ export interface FailedDelivery {
   routeId: string | null
   /** Intentos fallidos, el más reciente primero. */
   attempts: FailedAttempt[]
+  /** Estado operativo proyectado por el servidor (ausente en backends anteriores). */
+  status?: IncidentStatus
+  /** Propietario operativo proyectado por el servidor. */
+  ownership?: IncidentOwnership
+  /** Último intento fallido canónico; `null` explícito cuando no existe. */
+  latestFailedAttemptId?: string | null
+  /** Confirmación de disponibilidad en tienda para `latestFailedAttemptId`, o `null`. */
+  readiness?: IncidentReadiness | null
+  /** Emergencia activa propietaria cuando `ownership === 'EMERGENCY_CUSTODY'`. */
+  emergencyId?: string | null
+  /** Resumen mínimo de la emergencia activa, o `null`. */
+  emergency?: IncidentEmergencyContext | null
+  /** Último acuerdo de contacto vigente no consumido para `latestFailedAttemptId`, o `null`. */
+  activeAgreementId?: string | null
+  /** Acciones permitidas/denegadas evaluadas por el servidor. */
+  allowedActions?: IncidentAllowedActions
+}
+
+export interface ConfirmIncidentReadyInput {
+  orderId: string
+  attemptId: string
+  reason: string
 }
 
 /** Bandeja del día (`GET /dispatch/inbox`): urgencias por despachar y entregas fallidas por gestionar. */

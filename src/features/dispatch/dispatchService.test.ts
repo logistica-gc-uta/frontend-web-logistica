@@ -78,6 +78,248 @@ describe('dispatchService.inbox', () => {
     })
     expect(JSON.stringify(inbox)).not.toContain('No estaba')
   })
+
+  it('conserva los metadatos del incidente del servidor (incluido null explícito) y descarta campos extra/PII', async () => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue(
+      createHttpResponse({
+        date: '2026-11-19',
+        timeZone: 'America/Guayaquil',
+        urgencies: [],
+        incidents: [
+          {
+            orderId: 'f1',
+            routeId: 'r1',
+            pickup: null,
+            attempts: [
+              {
+                id: 'a1',
+                stopId: 's1',
+                outcome: 'FAILED',
+                failureReason: 'RECIPIENT_ABSENT',
+                recordedAt: '2026-11-19T17:10:00Z',
+              },
+            ],
+            status: 'WAITING_STORE_READINESS',
+            ownership: 'FAILED_DELIVERY',
+            latestFailedAttemptId: 'a1',
+            readiness: null,
+            emergencyId: null,
+            emergency: null,
+            activeAgreementId: null,
+            allowedActions: {
+              CONTACT: { allowed: true, reasonCode: null, reason: null },
+              CONFIRM_INCIDENT_READY: { allowed: true, reasonCode: null, reason: null },
+              RESCHEDULE: {
+                allowed: false,
+                reasonCode: 'INCIDENT_NOT_READY_AT_STORE',
+                reason: 'Not ready',
+              },
+              PICKUP_AGREE: {
+                allowed: false,
+                reasonCode: 'INCIDENT_NOT_READY_AT_STORE',
+                reason: 'Not ready',
+              },
+              PICKUP_DECLINE: { allowed: true, reasonCode: null, reason: null },
+              PICKUP_CONFIRM: {
+                allowed: false,
+                reasonCode: 'PICKUP_NOT_AGREED',
+                reason: 'No pickup',
+              },
+              UNEXPECTED_ACTION: { allowed: true, reasonCode: null, reason: null },
+            },
+            recipientPhone: '0999999999',
+            rawAuditPayload: { secret: 'internal' },
+          },
+          {
+            orderId: 'f2',
+            routeId: 'r2',
+            pickup: null,
+            attempts: [],
+            status: 'EMERGENCY_CUSTODY',
+            ownership: 'EMERGENCY_CUSTODY',
+            latestFailedAttemptId: null,
+            readiness: null,
+            emergencyId: 'em-1',
+            emergency: {
+              emergencyId: 'em-1',
+              routeId: 'r2',
+              recoveryResolved: false,
+              pendingUnitsCount: 2,
+              totalUnitsCount: 3,
+              internalNotes: 'no exponer',
+            },
+            activeAgreementId: null,
+            allowedActions: {
+              CONTACT: {
+                allowed: false,
+                reasonCode: 'EMERGENCY_CUSTODY_SEPARATE',
+                reason: 'Managed in emergencies',
+              },
+            },
+          },
+        ],
+      }),
+    )
+
+    const inbox = await dispatchService.inbox()
+
+    expect(inbox.failedDeliveries[0]).toEqual({
+      orderId: 'f1',
+      routeId: 'r1',
+      pickup: null,
+      attempts: [
+        {
+          id: 'a1',
+          stopId: 's1',
+          failureReason: 'RECIPIENT_ABSENT',
+          recordedAt: '2026-11-19T17:10:00Z',
+        },
+      ],
+      status: 'WAITING_STORE_READINESS',
+      ownership: 'FAILED_DELIVERY',
+      latestFailedAttemptId: 'a1',
+      readiness: null,
+      emergencyId: null,
+      emergency: null,
+      activeAgreementId: null,
+      allowedActions: {
+        CONTACT: { allowed: true, reasonCode: null, reason: null },
+        CONFIRM_INCIDENT_READY: { allowed: true, reasonCode: null, reason: null },
+        RESCHEDULE: {
+          allowed: false,
+          reasonCode: 'INCIDENT_NOT_READY_AT_STORE',
+          reason: 'Not ready',
+        },
+        PICKUP_AGREE: {
+          allowed: false,
+          reasonCode: 'INCIDENT_NOT_READY_AT_STORE',
+          reason: 'Not ready',
+        },
+        PICKUP_DECLINE: { allowed: true, reasonCode: null, reason: null },
+        PICKUP_CONFIRM: {
+          allowed: false,
+          reasonCode: 'PICKUP_NOT_AGREED',
+          reason: 'No pickup',
+        },
+      },
+    })
+    expect(inbox.failedDeliveries[1]).toEqual({
+      orderId: 'f2',
+      routeId: 'r2',
+      pickup: null,
+      attempts: [],
+      status: 'EMERGENCY_CUSTODY',
+      ownership: 'EMERGENCY_CUSTODY',
+      latestFailedAttemptId: null,
+      readiness: null,
+      emergencyId: 'em-1',
+      emergency: {
+        emergencyId: 'em-1',
+        routeId: 'r2',
+        recoveryResolved: false,
+        pendingUnitsCount: 2,
+        totalUnitsCount: 3,
+      },
+      activeAgreementId: null,
+      allowedActions: {
+        CONTACT: {
+          allowed: false,
+          reasonCode: 'EMERGENCY_CUSTODY_SEPARATE',
+          reason: 'Managed in emergencies',
+        },
+      },
+    })
+    const serialized = JSON.stringify(inbox)
+    expect(serialized).not.toContain('0999999999')
+    expect(serialized).not.toContain('internal')
+    expect(serialized).not.toContain('no exponer')
+    expect(serialized).not.toContain('UNEXPECTED_ACTION')
+  })
+
+  it('tolera metadatos modernos malformados/nulos, exige booleano true literal y nunca propaga extras', async () => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue(
+      createHttpResponse({
+        date: '2026-11-19',
+        timeZone: 'America/Guayaquil',
+        urgencies: [],
+        incidents: [
+          {
+            orderId: 'f-null-gates',
+            routeId: 'r1',
+            pickup: null,
+            attempts: [],
+            allowedActions: null,
+            readiness: 'bad-readiness',
+            emergency: ['bad-emergency'],
+            latestFailedAttemptId: 123,
+            activeAgreementId: '',
+          },
+          {
+            orderId: 'f-truthy-gates',
+            routeId: 'r2',
+            pickup: null,
+            attempts: [],
+            status: 'WAITING_STORE_READINESS',
+            ownership: 'FAILED_DELIVERY',
+            allowedActions: {
+              CONTACT: { allowed: 'true', reasonCode: 42, reason: ['raw'], extra: 'drop' },
+              CONFIRM_INCIDENT_READY: { allowed: 1, reasonCode: null, reason: null },
+              RESCHEDULE: null,
+              PICKUP_AGREE: 'yes',
+              PICKUP_DECLINE: { allowed: true, reasonCode: null, reason: null, leaked: 'nope' },
+              ARBITRARY_EXTRA: { allowed: true, reasonCode: null, reason: null },
+            },
+          },
+          {
+            orderId: 'f-bad-status-only',
+            routeId: 'r3',
+            pickup: null,
+            attempts: [],
+            status: 999,
+          },
+        ],
+      }),
+    )
+
+    const inbox = await dispatchService.inbox()
+
+    expect(inbox.failedDeliveries[0]).toEqual({
+      orderId: 'f-null-gates',
+      routeId: 'r1',
+      pickup: null,
+      attempts: [],
+      latestFailedAttemptId: null,
+      readiness: null,
+      emergency: null,
+      activeAgreementId: null,
+      allowedActions: {},
+    })
+    expect(inbox.failedDeliveries[1]).toEqual({
+      orderId: 'f-truthy-gates',
+      routeId: 'r2',
+      pickup: null,
+      attempts: [],
+      status: 'WAITING_STORE_READINESS',
+      ownership: 'FAILED_DELIVERY',
+      allowedActions: {
+        CONTACT: { allowed: false, reasonCode: null, reason: null },
+        CONFIRM_INCIDENT_READY: { allowed: false, reasonCode: null, reason: null },
+        PICKUP_DECLINE: { allowed: true, reasonCode: null, reason: null },
+      },
+    })
+    // Aunque solo llegue un campo moderno inválido, preserva el modo moderno con compuertas cerradas.
+    expect(inbox.failedDeliveries[2]).toEqual({
+      orderId: 'f-bad-status-only',
+      routeId: 'r3',
+      pickup: null,
+      attempts: [],
+      allowedActions: {},
+    })
+    const serialized = JSON.stringify(inbox)
+    expect(serialized).not.toContain('ARBITRARY_EXTRA')
+    expect(serialized).not.toContain('leaked')
+    expect(serialized).not.toContain('drop')
+  })
 })
 
 describe('dispatchService · decisiones (POST /dispatch/interventions)', () => {
@@ -184,6 +426,46 @@ describe('dispatchService · decisiones (POST /dispatch/interventions)', () => {
     await expect(dispatchService.cancelRoute('route-1', 'Sin unidad')).rejects.toThrow(
       'El servidor no aplicó la decisión. Revisa la lista actualizada.',
     )
+  })
+
+  it('confirmar disponibilidad en tienda envía CONFIRM_INCIDENT_READY con attemptId, requestId y motivo recortado', async () => {
+    const post = mockPost('APPLIED')
+
+    await dispatchService.confirmIncidentReady({
+      orderId: 'f1',
+      attemptId: 'a1',
+      reason: '  Pedido devuelto verificado en bodega  ',
+    })
+
+    expect(post).toHaveBeenCalledOnce()
+    expect(post).toHaveBeenCalledWith('/dispatch/interventions', expect.any(Object), {
+      timeout: 30_000,
+    })
+    expect(lastBody(post)).toEqual({
+      requestId: expect.stringMatching(UUID),
+      action: 'CONFIRM_INCIDENT_READY',
+      orderId: 'f1',
+      attemptId: 'a1',
+      reason: 'Pedido devuelto verificado en bodega',
+    })
+  })
+
+  it('confirmar disponibilidad en tienda rechaza sin reintentar si el servidor no responde APPLIED o devuelve conflicto', async () => {
+    const post = mockPost('FAILED')
+
+    await expect(
+      dispatchService.confirmIncidentReady({ orderId: 'f1', attemptId: 'a1', reason: 'En tienda' }),
+    ).rejects.toThrow('El servidor no aplicó la decisión. Revisa la lista actualizada.')
+    expect(post).toHaveBeenCalledOnce()
+
+    post.mockReset()
+    post.mockRejectedValue(
+      createHttpError(409, { data: { code: 'INCIDENT_ALREADY_READY', message: 'Already ready' } }),
+    )
+    await expect(
+      dispatchService.confirmIncidentReady({ orderId: 'f1', attemptId: 'a1', reason: 'En tienda' }),
+    ).rejects.toBeTruthy()
+    expect(post).toHaveBeenCalledOnce()
   })
 
   it('reprogramar registra primero el acuerdo y luego reprograma con ese acuerdo', async () => {

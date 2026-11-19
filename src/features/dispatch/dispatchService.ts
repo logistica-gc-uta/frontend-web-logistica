@@ -1,11 +1,18 @@
 import { AppError } from '../../lib/errors/AppError'
 import { apiClient } from '../../lib/http/apiClient'
 import type {
+  ConfirmIncidentReadyInput,
   DispatchAction,
   DispatchAudit,
   DispatchOutcome,
   ContactInput,
   FailedDelivery,
+  IncidentActionKey,
+  IncidentAllowedActions,
+  IncidentEmergencyContext,
+  IncidentOwnership,
+  IncidentReadiness,
+  IncidentStatus,
   MoveOrderInput,
   OrderPickup,
   RescheduleInput,
@@ -19,6 +26,31 @@ import type { RouteEmergency, RouteEmergencyDetail } from '../emergencies/types'
 /** Las decisiones se validan con bloqueos en el servidor; más de esto se considera una falla. */
 const REQUEST_TIMEOUT_MS = 30_000
 
+const INCIDENT_ACTION_KEYS: readonly IncidentActionKey[] = [
+  'CONTACT',
+  'CONFIRM_INCIDENT_READY',
+  'RESCHEDULE',
+  'PICKUP_AGREE',
+  'PICKUP_DECLINE',
+  'PICKUP_CONFIRM',
+]
+
+const INCIDENT_STATUSES: ReadonlySet<IncidentStatus> = new Set([
+  'WAITING_STORE_READINESS',
+  'CONTACTED',
+  'READY_AT_STORE',
+  'PENDING_PICKUP',
+  'PICKED_UP',
+  'EMERGENCY_CUSTODY',
+  'REVIEW_WITHOUT_FAILED_ATTEMPT',
+])
+
+const INCIDENT_OWNERSHIPS: ReadonlySet<IncidentOwnership> = new Set([
+  'FAILED_DELIVERY',
+  'EMERGENCY_CUSTODY',
+  'ADMINISTRATIVE_REVIEW',
+])
+
 /** Lo que usamos de `GET /dispatch/inbox` (la respuesta trae algunos campos más). */
 interface RawInbox {
   date: string
@@ -29,7 +61,104 @@ interface RawInbox {
     /** Backend #50; un backend anterior no lo envía. */
     pickup?: OrderPickup | null
     attempts: { id: string; stopId: string; failureReason: string | null; recordedAt: string }[]
+    status?: unknown
+    ownership?: unknown
+    latestFailedAttemptId?: unknown
+    readiness?: unknown
+    emergencyId?: unknown
+    emergency?: unknown
+    activeAgreementId?: unknown
+    allowedActions?: unknown
   }[]
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const sanitizeNullableId = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() !== '' ? value : null
+
+const sanitizeStatus = (value: unknown): IncidentStatus | undefined =>
+  typeof value === 'string' && INCIDENT_STATUSES.has(value as IncidentStatus)
+    ? (value as IncidentStatus)
+    : undefined
+
+const sanitizeOwnership = (value: unknown): IncidentOwnership | undefined =>
+  typeof value === 'string' && INCIDENT_OWNERSHIPS.has(value as IncidentOwnership)
+    ? (value as IncidentOwnership)
+    : undefined
+
+const sanitizeReadiness = (readiness: unknown): IncidentReadiness | null => {
+  if (!isRecord(readiness)) return null
+  const { auditId, attemptId, confirmedAt, confirmedById } = readiness
+  if (
+    typeof auditId !== 'string' ||
+    auditId.trim() === '' ||
+    typeof attemptId !== 'string' ||
+    attemptId.trim() === '' ||
+    typeof confirmedAt !== 'string' ||
+    confirmedAt.trim() === '' ||
+    typeof confirmedById !== 'string' ||
+    confirmedById.trim() === ''
+  ) {
+    return null
+  }
+  return { auditId, attemptId, confirmedAt, confirmedById }
+}
+
+const sanitizeEmergency = (emergency: unknown): IncidentEmergencyContext | null => {
+  if (!isRecord(emergency)) return null
+  const { emergencyId, routeId, recoveryResolved, pendingUnitsCount, totalUnitsCount } = emergency
+  if (
+    typeof emergencyId !== 'string' ||
+    emergencyId.trim() === '' ||
+    typeof routeId !== 'string' ||
+    routeId.trim() === ''
+  ) {
+    return null
+  }
+  return {
+    emergencyId,
+    routeId,
+    recoveryResolved: recoveryResolved === true,
+    pendingUnitsCount:
+      typeof pendingUnitsCount === 'number' && Number.isFinite(pendingUnitsCount)
+        ? pendingUnitsCount
+        : 0,
+    totalUnitsCount:
+      typeof totalUnitsCount === 'number' && Number.isFinite(totalUnitsCount) ? totalUnitsCount : 0,
+  }
+}
+
+const sanitizeAllowedActions = (raw: unknown): IncidentAllowedActions => {
+  if (!isRecord(raw)) return {}
+  const sanitized: IncidentAllowedActions = {}
+  for (const key of INCIDENT_ACTION_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) continue
+    const gate = raw[key]
+    if (!isRecord(gate)) continue
+    sanitized[key] = {
+      allowed: gate.allowed === true,
+      reasonCode: typeof gate.reasonCode === 'string' ? gate.reasonCode : null,
+      reason: typeof gate.reason === 'string' ? gate.reason : null,
+    }
+  }
+  return sanitized
+}
+
+const sanitizePickup = (pickup: unknown): OrderPickup | null => {
+  if (!isRecord(pickup)) return null
+  if (
+    (pickup.state !== 'PENDING_PICKUP' && pickup.state !== 'PICKED_UP') ||
+    typeof pickup.agreedAt !== 'string'
+  ) {
+    return null
+  }
+  return {
+    state: pickup.state,
+    agreedAt: pickup.agreedAt,
+    pickedUpAt: typeof pickup.pickedUpAt === 'string' ? pickup.pickedUpAt : null,
+  }
 }
 
 const toFailedDelivery = ({
@@ -37,16 +166,67 @@ const toFailedDelivery = ({
   routeId,
   pickup,
   attempts,
-}: RawInbox['incidents'][number]): FailedDelivery => ({
-  orderId,
-  routeId,
-  pickup: pickup
-    ? { state: pickup.state, agreedAt: pickup.agreedAt, pickedUpAt: pickup.pickedUpAt }
-    : null,
-  attempts: attempts
-    .map(({ id, stopId, failureReason, recordedAt }) => ({ id, stopId, failureReason, recordedAt }))
-    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
-})
+  status,
+  ownership,
+  latestFailedAttemptId,
+  readiness,
+  emergencyId,
+  emergency,
+  activeAgreementId,
+  allowedActions,
+}: RawInbox['incidents'][number]): FailedDelivery => {
+  const hasRawModernMetadata =
+    status !== undefined ||
+    ownership !== undefined ||
+    latestFailedAttemptId !== undefined ||
+    readiness !== undefined ||
+    emergencyId !== undefined ||
+    emergency !== undefined ||
+    activeAgreementId !== undefined ||
+    allowedActions !== undefined
+
+  const sanitizedStatus = sanitizeStatus(status)
+  const sanitizedOwnership = sanitizeOwnership(ownership)
+  const hasSurvivingModernField =
+    sanitizedStatus !== undefined ||
+    sanitizedOwnership !== undefined ||
+    latestFailedAttemptId !== undefined ||
+    readiness !== undefined ||
+    emergencyId !== undefined ||
+    emergency !== undefined ||
+    activeAgreementId !== undefined ||
+    allowedActions !== undefined
+
+  return {
+    orderId,
+    routeId,
+    pickup: sanitizePickup(pickup),
+    attempts: (Array.isArray(attempts) ? attempts : [])
+      .map(({ id, stopId, failureReason, recordedAt }) => ({
+        id,
+        stopId,
+        failureReason,
+        recordedAt,
+      }))
+      .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
+    ...(sanitizedStatus !== undefined ? { status: sanitizedStatus } : {}),
+    ...(sanitizedOwnership !== undefined ? { ownership: sanitizedOwnership } : {}),
+    ...(latestFailedAttemptId !== undefined
+      ? { latestFailedAttemptId: sanitizeNullableId(latestFailedAttemptId) }
+      : {}),
+    ...(readiness !== undefined ? { readiness: sanitizeReadiness(readiness) } : {}),
+    ...(emergencyId !== undefined ? { emergencyId: sanitizeNullableId(emergencyId) } : {}),
+    ...(emergency !== undefined ? { emergency: sanitizeEmergency(emergency) } : {}),
+    ...(activeAgreementId !== undefined
+      ? { activeAgreementId: sanitizeNullableId(activeAgreementId) }
+      : {}),
+    ...(allowedActions !== undefined
+      ? { allowedActions: sanitizeAllowedActions(allowedActions) }
+      : hasRawModernMetadata && !hasSurvivingModernField
+        ? { allowedActions: {} }
+        : {}),
+  }
+}
 
 const toProposal = ({
   orderId,
@@ -188,6 +368,17 @@ export const dispatchService = {
    */
   cancelRoute: (routeId: string, reason: string) =>
     intervene('CANCEL_ROUTE', { routeId, reason: reason.trim() }),
+
+  /**
+   * Confirma explícitamente que el pedido devuelto o un reemplazo está disponible físicamente en
+   * tienda para el último intento fallido (`CONFIRM_INCIDENT_READY`). No replanifica automáticamente.
+   */
+  confirmIncidentReady: ({ orderId, attemptId, reason }: ConfirmIncidentReadyInput) =>
+    intervene('CONFIRM_INCIDENT_READY', {
+      orderId,
+      attemptId,
+      reason: reason.trim(),
+    }),
 
   /**
    * Retiro en tienda (backend #50). El acuerdo deja el pedido pendiente de retiro sin crear ruta y no
