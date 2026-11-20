@@ -18,7 +18,7 @@ import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
 import { shopService } from '../shopService'
 import type { DeliverySchedule } from '../types'
-import { describeCheckoutError, type CheckoutProblem } from './checkoutErrors'
+import { cartReturnState, describeCheckoutError, type CheckoutProblem } from './checkoutErrors'
 import { checkoutService } from './checkoutService'
 import { checkoutStorage, sameItems, type CheckoutDraft } from './checkoutStorage'
 import type { DeliveryInput, Quote } from './checkoutTypes'
@@ -308,7 +308,7 @@ function DeliveryStep({
         setQuote(null)
         const found = describeCheckoutError(error)
         if (found.action === 'cart') {
-          navigate(paths.shopCart, { state: { stockChanged: true } satisfies CartLocationState })
+          navigate(paths.shopCart, { state: cartReturnState(found) satisfies CartLocationState })
           return
         }
         setProblem(found)

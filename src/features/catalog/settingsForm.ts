@@ -6,6 +6,8 @@ export type SettingsForm = {
   taxEnabled: boolean
   taxPercent: string
   maxUnits: string
+  /** Máximo del pedido completo (backend #83); vacío = sin límite. */
+  maxOrderUnits: string
   startTime: string
   endTime: string
   /** Minutos para agrupar horas pedidas en una misma ruta (backend #48). */
@@ -17,6 +19,14 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 /** Límites del margen de agrupación horaria que acepta el backend (#48). */
 export const MARGIN_MIN = 5
 export const MARGIN_MAX = 180
+
+/** Rango del máximo de unidades por pedido que acepta el backend (#83). */
+export const ORDER_UNITS_MIN = 1
+export const ORDER_UNITS_MAX = 1000
+
+/** Texto del formulario → máximo por pedido: vacío es `null` (sin límite). */
+const parseOrderUnits = (text: string): number | null =>
+  text.trim() === '' ? null : Number(text.trim())
 
 /** Porcentaje con hasta 2 decimales → puntos básicos, sin decimales binarios ("12,5" → 1250). */
 export const percentToBps = (text: string): number | null => dollarsToCents(text)
@@ -34,6 +44,7 @@ export const formFromSettings = (settings: AdminShopSettings): SettingsForm => (
   taxEnabled: settings.tax.enabled,
   taxPercent: bpsToPercent(settings.tax.rateBps),
   maxUnits: String(settings.maxUnitsPerSkuPerOrder),
+  maxOrderUnits: settings.maxUnitsPerOrder === null ? '' : String(settings.maxUnitsPerOrder),
   startTime: settings.deliverySchedule.startTime,
   endTime: settings.deliverySchedule.endTime,
   marginMinutes: String(settings.routeTimeWindowMarginMinutes),
@@ -47,6 +58,15 @@ export function validateSettings(values: SettingsForm): FieldErrors<SettingsForm
   const max = Number(values.maxUnits)
   if (!/^\d+$/.test(values.maxUnits.trim()) || max < 1 || max > 100) {
     errors.maxUnits = 'Escribe un entero de 1 a 100'
+  }
+  const orderUnits = values.maxOrderUnits.trim()
+  if (
+    orderUnits !== '' &&
+    (!/^\d+$/.test(orderUnits) ||
+      Number(orderUnits) < ORDER_UNITS_MIN ||
+      Number(orderUnits) > ORDER_UNITS_MAX)
+  ) {
+    errors.maxOrderUnits = `Escribe un entero de ${ORDER_UNITS_MIN} a ${ORDER_UNITS_MAX}, o déjalo vacío para no limitar`
   }
   if (!TIME.test(values.startTime)) errors.startTime = 'Hora no válida'
   if (!TIME.test(values.endTime)) errors.endTime = 'Hora no válida'
@@ -71,8 +91,13 @@ export function settingsChanges(
   if (values.taxEnabled !== saved.tax.enabled || rateBps !== saved.tax.rateBps) {
     changes.tax = { enabled: values.taxEnabled, rateBps }
   }
+  // Los dos máximos viajan en `limits`; solo se envía el que cambió (el backend exige al menos uno).
+  const limits: NonNullable<ShopSettingsChanges['limits']> = {}
   const max = Number(values.maxUnits)
-  if (max !== saved.maxUnitsPerSkuPerOrder) changes.limits = { maxUnitsPerSkuPerOrder: max }
+  if (max !== saved.maxUnitsPerSkuPerOrder) limits.maxUnitsPerSkuPerOrder = max
+  const orderUnits = parseOrderUnits(values.maxOrderUnits)
+  if (orderUnits !== saved.maxUnitsPerOrder) limits.maxUnitsPerOrder = orderUnits
+  if (Object.keys(limits).length > 0) changes.limits = limits
   if (
     values.startTime !== saved.deliverySchedule.startTime ||
     values.endTime !== saved.deliverySchedule.endTime

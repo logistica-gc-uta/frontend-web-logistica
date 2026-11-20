@@ -27,11 +27,19 @@ interface OrderFormProps {
   products: Product[]
   schedule: DeliverySchedule
   coverage: ConfiguredStoreCoverage
+  /** Máximo de unidades del pedido completo (backend #83); `null` o ausente = sin límite. */
+  maxUnitsPerOrder?: number | null
   onCreated: (result: AdminPurchaseResult) => void
 }
 
 /** Alta de una venta ADMIN con pago externo declarado (backend #45), sin zona (#42). */
-export function OrderForm({ products, schedule, coverage, onCreated }: OrderFormProps) {
+export function OrderForm({
+  products,
+  schedule,
+  coverage,
+  maxUnitsPerOrder = null,
+  onCreated,
+}: OrderFormProps) {
   const area = useMemo(() => fromPolygon(coverage.coverage), [coverage])
   const purchase = useAdminPurchase()
   const [verifyError, setVerifyError] = useState<string | null>(null)
@@ -50,7 +58,8 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
 
   const form = useForm({
     initialValues: INITIAL_ORDER_FORM,
-    validate: (formValues) => validateOrder(formValues, products, schedule, coverageError),
+    validate: (formValues) =>
+      validateOrder(formValues, products, schedule, coverageError, new Date(), maxUnitsPerOrder),
     errorMessage: 'No se pudo registrar la venta',
     onSubmit: async (formValues) => {
       setVerifyError(null)
@@ -293,6 +302,7 @@ export function OrderForm({ products, schedule, coverage, onCreated }: OrderForm
           products={products}
           onChange={(items) => setFields({ items })}
           error={fieldErrors.items}
+          maxUnitsPerOrder={maxUnitsPerOrder}
         />
       </div>
 

@@ -52,6 +52,7 @@ describe('validación y cambios de la configuración', () => {
       taxEnabled: true,
       taxPercent: '15',
       maxUnits: '10',
+      maxOrderUnits: '',
       startTime: '07:00',
       endTime: '17:00',
       marginMinutes: '30',

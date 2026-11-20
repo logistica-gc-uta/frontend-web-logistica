@@ -49,6 +49,8 @@ export const productPage = (
 export const shopSettings = (overrides: Partial<ShopSettings> = {}): ShopSettings => ({
   version: 1,
   maxUnitsPerSkuPerOrder: 10,
+  // Sin límite total por defecto, como el backend #83 hasta que un ADMIN lo configure.
+  maxUnitsPerOrder: null,
   shippingFreeIncluded: true,
   tax: { enabled: true, rateBps: 1500, ratePercent: 15 },
   deliverySchedule: { timeZone: 'America/Guayaquil', startTime: '07:00', endTime: '17:00' },

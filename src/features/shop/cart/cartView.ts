@@ -1,3 +1,4 @@
+import { checkOrderUnits, type OrderUnitsCheck } from '../orderUnitsLimit'
 import type { ShopProduct, ShopSettings } from '../types'
 import type { CartItem } from './cartStorage'
 
@@ -87,11 +88,20 @@ export function buildCartView(
     totalCents: subtotalCents + taxCents,
   }
 
+  // Máximo del pedido completo (#83): suma TODAS las cantidades pedidas, aunque cada línea cumpla
+  // su propio máximo por SKU; dos productos válidos por separado pueden superar el tope total.
+  const orderUnits: OrderUnitsCheck = checkOrderUnits(
+    items.map((item) => item.quantity),
+    settings.maxUnitsPerOrder,
+  )
+
   return {
     lines,
     estimate,
+    orderUnits,
     hasProblems: lines.some((line) => line.problem !== null),
-    canCheckout: lines.length > 0 && lines.every((line) => line.problem === null),
+    canCheckout:
+      lines.length > 0 && lines.every((line) => line.problem === null) && !orderUnits.exceeded,
   }
 }
 
