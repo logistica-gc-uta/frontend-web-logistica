@@ -8,6 +8,8 @@ interface RawDriver {
   vehicle: string
   vehicleCapacity?: number | null
   user: { name: string }
+  /** Baja operativa (backend #82). Sin el campo cuenta como activo: solo `false` es una baja. */
+  isActive?: boolean
   effectiveAvailability: { isAvailable: boolean; hasPersistedHolds: boolean }
 }
 
@@ -20,14 +22,21 @@ const unavailableReason = ({
 }
 
 /** Copia solo los campos necesarios: lo demás (por ejemplo, el hash de contraseña) se descarta. */
-const toDriver = (raw: RawDriver): Driver => ({
-  id: raw.id,
-  name: raw.user.name,
-  vehicle: raw.vehicle,
-  vehicleCapacity: raw.vehicleCapacity ?? null,
-  isAvailable: raw.effectiveAvailability.isAvailable,
-  unavailableReason: unavailableReason(raw.effectiveAvailability),
-})
+const toDriver = (raw: RawDriver): Driver => {
+  const base = {
+    id: raw.id,
+    name: raw.user.name,
+    vehicle: raw.vehicle,
+    vehicleCapacity: raw.vehicleCapacity ?? null,
+  }
+  // Un repartidor dado de baja nunca se ofrece, aunque no tenga rutas ni ausencias.
+  if (raw.isActive === false) return { ...base, isAvailable: false, unavailableReason: 'INACTIVE' }
+  return {
+    ...base,
+    isAvailable: raw.effectiveAvailability.isAvailable,
+    unavailableReason: unavailableReason(raw.effectiveAvailability),
+  }
+}
 
 /** Lo que usamos de `GET /drivers/:id/availability?date=` (backend #44). */
 interface DayAvailability {
@@ -37,6 +46,8 @@ interface DayAvailability {
 }
 
 const applyDayAvailability = (driver: Driver, day: DayAvailability): Driver => {
+  // La baja manda sobre la disponibilidad del día: reactivarlo es la única forma de volver a ofrecerlo.
+  if (driver.unavailableReason === 'INACTIVE') return driver
   if (day.absence) {
     return { ...driver, isAvailable: false, unavailableReason: 'ABSENT' }
   }
@@ -69,6 +80,7 @@ export const driversService = {
     if (day < todayInGuayaquil()) return drivers
     return Promise.all(
       drivers.map(async (driver) => {
+        if (driver.unavailableReason === 'INACTIVE') return driver
         try {
           const { data } = await apiClient.get<DayAvailability>(
             `/drivers/${encodeURIComponent(driver.id)}/availability`,
