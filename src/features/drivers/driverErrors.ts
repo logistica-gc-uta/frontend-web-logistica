@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { getErrorMessage } from '../../lib/http/apiError'
 import { shopErrorInfo } from '../shop/shopError'
+import type { BlockingRoute } from './types'
 
 /** Mensajes por código del backend (#43, #44); nunca por el texto en inglés. */
 const MESSAGES: Record<string, string> = {
@@ -12,6 +13,25 @@ const MESSAGES: Record<string, string> = {
   ABSENCE_ALREADY_CANCELLED: 'Esa ausencia ya estaba anulada.',
   ABSENCE_ALREADY_ELAPSED: 'Esa ausencia ya terminó: no se puede anular.',
   AVAILABILITY_DATE_IN_PAST: 'Solo se consulta la disponibilidad de hoy o de fechas futuras.',
+  DRIVER_HAS_OPEN_ROUTE:
+    'No se puede dar de baja: tiene una ruta asignada, en curso o sin regreso al depósito confirmado. Resuélvela primero.',
+  DRIVER_ALREADY_INACTIVE: 'Este repartidor ya estaba dado de baja (cambió en otra sesión).',
+  DRIVER_ALREADY_ACTIVE: 'Este repartidor ya estaba activo (cambió en otra sesión).',
+}
+
+/** Códigos que indican que el estado en pantalla está desactualizado y hay que releer la lista. */
+export const STALE_STATUS_CODES = new Set(['DRIVER_ALREADY_INACTIVE', 'DRIVER_ALREADY_ACTIVE'])
+
+/** Código estable del backend en un error de axios, si lo trae. */
+export function driverErrorCode(error: unknown): string | undefined {
+  return codeOf(error)
+}
+
+/** Rutas que impiden la baja (`DRIVER_HAS_OPEN_ROUTE`), o una lista vacía si el error es otro. */
+export function blockingRoutesOf(error: unknown): BlockingRoute[] {
+  if (codeOf(error) !== 'DRIVER_HAS_OPEN_ROUTE' || !axios.isAxiosError(error)) return []
+  const data = error.response?.data as { blockingRoutes?: unknown } | undefined
+  return Array.isArray(data?.blockingRoutes) ? (data.blockingRoutes as BlockingRoute[]) : []
 }
 
 /** Código de error del backend: algunos módulos lo ponen en la raíz y otros dentro de `error`. */
