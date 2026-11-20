@@ -553,7 +553,7 @@ describe('ADMIN-05 · configuración del Shop', () => {
     const form = within(await screen.findByRole('form', { name: 'Configuración del Shop' }))
     expect(form.getByLabelText('Tasa del IVA simulado (%)')).toHaveValue('15')
     expect(form.getByLabelText('Aplicar IVA simulado en los checkouts')).toBeChecked()
-    expect(form.getByLabelText(/Unidades máximas/)).toHaveValue('10')
+    expect(form.getByLabelText(/Unidades máximas de un mismo producto/)).toHaveValue('10')
     expect(form.getByLabelText('Desde (incluida)')).toHaveValue('07:00')
     expect(form.getByLabelText('Hasta (incluida)')).toHaveValue('17:00')
     expect(form.getByText('GRATIS — incluido en los precios (0 USD)')).toBeInTheDocument()
@@ -594,8 +594,8 @@ describe('ADMIN-05 · configuración del Shop', () => {
 
     await user.clear(form.getByLabelText('Tasa del IVA simulado (%)'))
     await user.type(form.getByLabelText('Tasa del IVA simulado (%)'), '150')
-    await user.clear(form.getByLabelText(/Unidades máximas/))
-    await user.type(form.getByLabelText(/Unidades máximas/), '0')
+    await user.clear(form.getByLabelText(/Unidades máximas de un mismo producto/))
+    await user.type(form.getByLabelText(/Unidades máximas de un mismo producto/), '0')
     fireEvent.change(form.getByLabelText('Desde (incluida)'), { target: { value: '18:00' } })
     await user.click(form.getByRole('button', { name: 'Guardar configuración' }))
 
@@ -618,8 +618,8 @@ describe('ADMIN-05 · configuración del Shop', () => {
     const { user } = renderAdmin('/configuracion-shop')
     const form = within(await screen.findByRole('form', { name: 'Configuración del Shop' }))
 
-    await user.clear(form.getByLabelText(/Unidades máximas/))
-    await user.type(form.getByLabelText(/Unidades máximas/), '8')
+    await user.clear(form.getByLabelText(/Unidades máximas de un mismo producto/))
+    await user.type(form.getByLabelText(/Unidades máximas de un mismo producto/), '8')
     await user.click(form.getByRole('button', { name: 'Guardar configuración' }))
 
     expect(
@@ -627,6 +627,6 @@ describe('ADMIN-05 · configuración del Shop', () => {
     ).toBeInTheDocument()
     await user.click(form.getByRole('button', { name: 'Recargar valores actuales' }))
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
-    expect(await screen.findByLabelText(/Unidades máximas/)).toHaveValue('9')
+    expect(await screen.findByLabelText(/Unidades máximas de un mismo producto/)).toHaveValue('9')
   })
 })

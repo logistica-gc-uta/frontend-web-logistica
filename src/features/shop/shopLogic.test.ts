@@ -237,6 +237,8 @@ describe('shopService', () => {
     expect(await shopService.settings()).toEqual({
       version: 3,
       maxUnitsPerSkuPerOrder: 4,
+      // Un backend sin #83 no envía el máximo por pedido: cuenta como sin límite.
+      maxUnitsPerOrder: null,
       shippingFreeIncluded: true,
       tax: { enabled: false, rateBps: 1200, ratePercent: 12 },
       deliverySchedule: { timeZone: 'America/Guayaquil', startTime: '08:00', endTime: '16:30' },

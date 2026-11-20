@@ -7,8 +7,8 @@ import { authStorage } from '../lib/auth/authStorage'
 import type { Session } from '../types/auth'
 
 interface RenderOptions {
-  /** Ruta inicial del router en memoria. */
-  route?: string
+  /** Ruta inicial del router en memoria (con `state` si llega desde otra pantalla). */
+  route?: string | { pathname: string; state?: unknown }
   /** Sesión a restaurar antes de renderizar (simula un usuario ya autenticado). */
   session?: Session
 }
