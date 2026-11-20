@@ -6,6 +6,7 @@ import {
   describeCorrectionError,
   describeReleaseError,
   isStaleCancelRouteError,
+  isStaleReleaseError,
 } from './confirmError'
 import { planningService } from './planningService'
 
@@ -38,8 +39,24 @@ export function useSavedRouteActions(onDone: () => void) {
         () => dispatchService.moveOrder({ routeId, orderId, targetRouteId, reason }),
         describeCorrectionError,
       ),
-    release: (routeId: string, reason: string) =>
-      run(routeId, () => dispatchService.releaseDraft(routeId, reason), describeReleaseError),
+    release: async (routeId: string, reason: string) => {
+      let stale = false
+      const applied = await run(
+        routeId,
+        async () => {
+          try {
+            return await dispatchService.releaseDraft(routeId, reason)
+          } catch (error) {
+            stale = isStaleReleaseError(error)
+            throw error
+          }
+        },
+        describeReleaseError,
+      )
+      // Si el borrador ya cambió en el servidor, se vuelve a leer la lista sin simular éxito.
+      if (!applied && stale) onDone()
+      return applied
+    },
     cancel: async (routeId: string, reason: string) => {
       let stale = false
       const applied = await run(

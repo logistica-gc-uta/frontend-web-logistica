@@ -22,6 +22,13 @@ const isReassignable = (route: SavedRouteDetail): boolean =>
 const isCancellable = (route: SavedRouteDetail): boolean =>
   route.status === 'ASSIGNED' && route.startedAt === null
 
+/**
+ * Un borrador sin chofer y sin iniciar se puede liberar (`RELEASE_DRAFT`), sea de hoy o de otra
+ * fecha (#70). Las rutas asignadas usan «Cancelar ruta» y las iniciadas no ofrecen ninguna de las dos.
+ */
+const isReleasable = (route: SavedRouteDetail): boolean =>
+  route.status === 'DRAFT' && !route.driverId && !route.startedAt
+
 const REASON_MAX_LENGTH = 500
 
 /** Capacidad máxima de una ruta (la misma que usa el planificador). */
@@ -62,7 +69,7 @@ interface SavedRouteItemProps extends Omit<SavedRoutesProps, 'day' | 'routes' | 
   action: KeyedActionState | undefined
 }
 
-/** Liberar un borrador vencido: pide el motivo y confirma antes de devolver sus pedidos. */
+/** Liberar un borrador sin chofer: pide el motivo y confirma antes de devolver sus pedidos. */
 function ReleaseDraft({
   name,
   action,
@@ -89,12 +96,17 @@ function ReleaseDraft({
   }
 
   const confirm = async () => {
-    if (reason.trim() === '') {
+    const trimmed = reason.trim()
+    if (trimmed === '') {
       setError('Escribe el motivo')
       return
     }
+    if (trimmed.length > REASON_MAX_LENGTH) {
+      setError(`El motivo no puede superar ${REASON_MAX_LENGTH} caracteres`)
+      return
+    }
     setError(null)
-    if (await onRelease(reason.trim())) onOpenChange(false)
+    if (await onRelease(trimmed)) onOpenChange(false)
   }
 
   return (
@@ -105,10 +117,15 @@ function ReleaseDraft({
       </p>
       <TextField
         label={`Motivo para liberar ${name}`}
+        placeholder="Ej.: el cliente cambió la hora de entrega"
         value={reason}
-        maxLength={500}
+        maxLength={REASON_MAX_LENGTH}
+        disabled={isRunning}
         error={error ?? undefined}
-        onChange={(event) => setReason(event.target.value)}
+        onChange={(event) => {
+          setReason(event.target.value)
+          setError(null)
+        }}
       />
       <Button isLoading={isRunning} loadingText="Liberando..." onClick={() => void confirm()}>
         Confirmar liberación
@@ -229,8 +246,10 @@ function SavedRouteItem({
   const canEdit = isEditable(route)
   const canReassign = isReassignable(route)
   const canCancel = isCancellable(route) && Boolean(onCancel)
-  const showAssignPicker = route.status === 'DRAFT' && isToday && !route.startedAt
-  const showReleaseDraft = route.status === 'DRAFT' && !isToday && Boolean(onRelease)
+  const showReleaseDraft = isReleasable(route) && Boolean(onRelease)
+  // Mientras se confirma la liberación no se ofrece asignar chofer a la misma ruta.
+  const showAssignPicker =
+    route.status === 'DRAFT' && isToday && !route.startedAt && !(showReleaseDraft && isReleasing)
   const pickerRendersError =
     (showAssignPicker && drivers.some((driver) => driver.isAvailable)) ||
     (canReassign && drivers.some((driver) => driver.id !== route.driverId && driver.isAvailable))

@@ -64,12 +64,31 @@ export const describeAssignError = (error: unknown): string => {
   })
 }
 
-export const describeReleaseError = (error: unknown): string =>
-  describeActionError(error, {
+const RELEASE_DRAFT_ERRORS: Record<string, string> = {
+  DRAFT_NOT_RELEASABLE:
+    'Este borrador ya no se puede liberar: se le asignó un chofer o cambió de estado. Revisa la lista actualizada.',
+  DRAFT_ALREADY_RELEASED:
+    'Este borrador ya estaba liberado: sus pedidos ya están disponibles para planificar. Revisa la lista actualizada.',
+}
+
+export const describeReleaseError = (error: unknown): string => {
+  const info = shopErrorInfo(error)
+  if (info.code && RELEASE_DRAFT_ERRORS[info.code]) return RELEASE_DRAFT_ERRORS[info.code]
+  if (info.status === HttpStatusCode.NotFound) {
+    return 'No se encontró el borrador: revisa la lista actualizada.'
+  }
+  return describeActionError(error, {
     fallback: 'No se pudo liberar el borrador',
     forbidden: 'No tienes permisos para liberar rutas.',
     conflictHint: 'El borrador ya cambió (por ejemplo, se le asignó un chofer): revisa la lista.',
   })
+}
+
+/** 409 o 404 al liberar indica que la lista en pantalla está desactualizada. */
+export const isStaleReleaseError = (error: unknown): boolean => {
+  const { status } = shopErrorInfo(error)
+  return status === HttpStatusCode.Conflict || status === HttpStatusCode.NotFound
+}
 
 const CANCEL_ROUTE_ERRORS: Record<string, string> = {
   ROUTE_ALREADY_CANCELLED: 'Esta ruta ya estaba cancelada: revisa la lista actualizada.',
