@@ -133,12 +133,13 @@ describe('regla del día (#49)', () => {
     expect(assigned.queryByRole('button', { name: 'Liberar borrador' })).not.toBeInTheDocument()
   })
 
-  it('hoy el borrador se asigna como siempre y no ofrece liberarlo', () => {
+  it('hoy el borrador sin chofer se puede asignar o liberar (#70)', () => {
     renderSaved(true)
     const draft = within(screen.getByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
 
     expect(draft.getByRole('button', { name: 'Asignar chofer' })).toBeInTheDocument()
-    expect(draft.queryByRole('button', { name: 'Liberar borrador' })).not.toBeInTheDocument()
+    expect(draft.getByRole('button', { name: 'Liberar borrador' })).toBeInTheDocument()
+    expect(draft.queryByText(/no es de hoy/)).not.toBeInTheDocument()
   })
 
   it('con cancelar habilitado, DRAFT conserva Liberar borrador y nunca ofrece Cancelar ruta; ASSIGNED con startedAt: null ofrece Cancelar ruta y nunca Liberar borrador; legado sin startedAt no ofrece cancelar', () => {

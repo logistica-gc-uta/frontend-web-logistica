@@ -74,6 +74,14 @@ export function PlanningPage() {
     await preview.run(query)
   }
 
+  // Liberar un borrador devuelve sus pedidos a planificación: si hay una propuesta a la vista, se
+  // recalcula con la misma consulta para que esos pedidos vuelvan a aparecer como disponibles.
+  const releaseDraft = async (routeId: string, reason: string) => {
+    const released = await routeActions.release(routeId, reason)
+    if (released && lastQuery) void handlePreview(lastQuery)
+    return released
+  }
+
   return (
     <main className="page planning-page">
       <header className="planning-page__head">
@@ -224,7 +232,7 @@ export function PlanningPage() {
                 onReorder={routeActions.reorder}
                 onMove={routeActions.move}
                 isToday={isToday}
-                onRelease={routeActions.release}
+                onRelease={releaseDraft}
                 onCancel={routeActions.cancel}
               />
             </>
