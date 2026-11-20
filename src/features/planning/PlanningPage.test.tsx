@@ -445,6 +445,67 @@ describe('PlanningPage · rutas guardadas', () => {
     expect(savedItem(FIRST).getByText('Borrador (DRAFT)')).toBeInTheDocument()
   })
 
+  it('libera un borrador de hoy sin chofer: relee las rutas guardadas y recalcula los pedidos disponibles (#70)', async () => {
+    const getProposals = mockApi()
+    vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    const listRoutes = vi
+      .spyOn(planningService, 'listRoutes')
+      .mockResolvedValueOnce([savedRouteDetail('route-1')])
+      .mockResolvedValueOnce([savedRouteDetail('route-1')])
+      .mockResolvedValue([savedRouteDetail('route-1', { orders: [] })])
+    const releaseDraft = vi
+      .spyOn(dispatchService, 'releaseDraft')
+      .mockResolvedValue(auditRecord({ action: 'RELEASE_DRAFT', outcome: 'APPLIED' }))
+    const { user } = renderPlanningPage()
+    await preview(user)
+    expect(getProposals).toHaveBeenCalledTimes(1)
+    await openSaved(user)
+
+    await user.click(await savedItem(FIRST).findByRole('button', { name: 'Liberar borrador' }))
+    await user.type(
+      savedItem(FIRST).getByLabelText('Motivo para liberar Ruta guardada 1 · FIC-02'),
+      'El cliente cambió la hora',
+    )
+    await user.click(savedItem(FIRST).getByRole('button', { name: 'Confirmar liberación' }))
+
+    await waitFor(() => expect(getProposals).toHaveBeenCalledTimes(2))
+    expect(releaseDraft).toHaveBeenCalledTimes(1)
+    expect(releaseDraft).toHaveBeenCalledWith('route-1', 'El cliente cambió la hora')
+    expect(getProposals).toHaveBeenLastCalledWith(getProposals.mock.calls[0][0])
+    expect(listRoutes).toHaveBeenCalledTimes(3)
+    // Sigue siendo un borrador (no se cancela la ruta) pero ya sin paradas.
+    expect(await savedItem(FIRST).findByText('Borrador (DRAFT)')).toBeInTheDocument()
+    expect(savedItem(FIRST).queryByText('Parada 1 de route-1')).not.toBeInTheDocument()
+  })
+
+  it('si la API rechaza liberar el borrador lo explica, no recalcula y no lo da por liberado (#70)', async () => {
+    const getProposals = mockApi()
+    vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
+    vi.spyOn(planningService, 'listRoutes').mockResolvedValue([savedRouteDetail('route-1')])
+    vi.spyOn(dispatchService, 'releaseDraft').mockRejectedValue(
+      createHttpError(409, {
+        data: { statusCode: 409, code: 'DRAFT_NOT_RELEASABLE', message: 'x', error: 'Conflict' },
+      }),
+    )
+    const { user } = renderPlanningPage()
+    await preview(user)
+    await openSaved(user)
+
+    await user.click(await savedItem(FIRST).findByRole('button', { name: 'Liberar borrador' }))
+    await user.type(
+      savedItem(FIRST).getByLabelText('Motivo para liberar Ruta guardada 1 · FIC-02'),
+      'El cliente cambió la hora',
+    )
+    await user.click(savedItem(FIRST).getByRole('button', { name: 'Confirmar liberación' }))
+
+    expect(await savedItem(FIRST).findByRole('alert')).toHaveTextContent(
+      'Este borrador ya no se puede liberar',
+    )
+    expect(savedItem(FIRST).getByRole('button', { name: 'Confirmar liberación' })).toBeInTheDocument()
+    expect(savedItem(FIRST).getByText('Parada 1 de route-1')).toBeInTheDocument()
+    expect(getProposals).toHaveBeenCalledTimes(1)
+  })
+
   it('al abrir el panel se vuelve a leer: una ruta que el chofer ya terminó deja de ser editable', async () => {
     mockApi()
     vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])
