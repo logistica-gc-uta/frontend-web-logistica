@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { describeOrderUnitsExceeded } from '../orderUnitsLimit'
 import { shopErrorInfo } from '../shopError'
 
 /**
@@ -38,6 +39,12 @@ const PROBLEMS: Record<string, Omit<CheckoutProblem, 'code'>> = {
   QUANTITY_LIMIT_EXCEEDED: {
     action: 'cart',
     message: 'Superas el máximo de unidades por regalo. Ajusta el carrito.',
+  },
+  // Backend #83: el pedido completo supera el máximo de unidades (distinto del límite por regalo).
+  ORDER_UNITS_LIMIT_EXCEEDED: {
+    action: 'cart',
+    message:
+      'El pedido supera el máximo de unidades por pedido (sumando todos los productos). Ajusta el carrito.',
   },
   STOCK_UNAVAILABLE: { action: 'cart', message: 'Algún regalo ya no tiene stock suficiente.' },
   PRODUCT_UNPUBLISHED: { action: 'cart', message: 'Algún regalo ya no está disponible.' },
@@ -94,13 +101,41 @@ const PROBLEMS: Record<string, Omit<CheckoutProblem, 'code'>> = {
   },
 }
 
+/**
+ * Mensaje con las cifras del rechazo `ORDER_UNITS_LIMIT_EXCEEDED` (backend #83:
+ * `details.requestedUnits` y `details.maximumAllowed`), o `null` si el error es otro o no las trae.
+ */
+export function orderUnitsLimitMessage(
+  code: string | undefined,
+  details: Record<string, unknown>,
+): string | null {
+  if (code !== 'ORDER_UNITS_LIMIT_EXCEEDED') return null
+  const requested = details.requestedUnits
+  const maximum = details.maximumAllowed
+  if (typeof requested !== 'number' || typeof maximum !== 'number') return null
+  return describeOrderUnitsExceeded(requested, maximum)
+}
+
 /** Problema por código (por ejemplo, el `errorCode` de un intento de pago rechazado). */
 export const problemForCode = (code: string | null | undefined): CheckoutProblem | null =>
   code && PROBLEMS[code] ? { code, ...PROBLEMS[code] } : null
 
+/**
+ * Estado con el que se vuelve al carrito: por stock se usa el aviso de siempre; por cualquier
+ * otro motivo (límite por regalo o por pedido, regalo despublicado) se muestra su mensaje.
+ */
+export const cartReturnState = (
+  problem: CheckoutProblem,
+): { stockChanged?: boolean; problem?: string } =>
+  problem.code === 'STOCK_UNAVAILABLE' || !problem.code
+    ? { stockChanged: true }
+    : { problem: problem.message }
+
 /** Traduce un error de cotización o de pago a la acción y el mensaje que corresponden. */
 export function describeCheckoutError(error: unknown, { isPayment = false } = {}): CheckoutProblem {
-  const { status, code } = shopErrorInfo(error)
+  const { status, code, details } = shopErrorInfo(error)
+  const unitsLimit = orderUnitsLimitMessage(code, details)
+  if (unitsLimit) return { action: 'cart', code, message: unitsLimit }
   const known = problemForCode(code)
   if (known) return known
 

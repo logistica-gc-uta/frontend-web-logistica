@@ -6,15 +6,25 @@ import { Button } from '../../../components/ui/Button'
 import { useFetch } from '../../../hooks/useFetch'
 import { ProductImage } from '../components/ProductImage'
 import { formatCents } from '../money'
+import {
+  describeOrderUnitsExceeded,
+  describeOrderUnitsMaximum,
+  type OrderUnitsCheck,
+} from '../orderUnitsLimit'
 import { ProductNotFoundError, shopService } from '../shopService'
 import type { ShopProduct } from '../types'
 import { useCart } from './cartContext'
 import { buildCartView, describeProblem, type CartEstimate, type CartLine } from './cartView'
 import './cart-presentation.css'
 
-/** Viene del checkout o del pago cuando el servidor rechazó por stock (`STOCK_UNAVAILABLE`). */
+/**
+ * Viene del checkout o del pago cuando el servidor rechazó el carrito: por stock
+ * (`STOCK_UNAVAILABLE`) o con otro motivo de carrito, que llega ya explicado en `problem`.
+ */
 export interface CartLocationState {
   stockChanged?: boolean
+  /** Motivo del rechazo (por ejemplo, el máximo de unidades por pedido, #83). */
+  problem?: string
 }
 
 /** Datos vigentes de cada regalo del carrito; uno inexistente o despublicado queda en `null`. */
@@ -135,7 +145,15 @@ function CartHeading() {
   )
 }
 
-function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canCheckout: boolean }) {
+function CartSummary({
+  estimate,
+  orderUnits,
+  canCheckout,
+}: {
+  estimate: CartEstimate
+  orderUnits: OrderUnitsCheck
+  canCheckout: boolean
+}) {
   return (
     <aside className="cart-summary" aria-labelledby="cart-summary-title">
       <h2 id="cart-summary-title">Resumen estimado</h2>
@@ -144,6 +162,12 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
           <dt>Productos</dt>
           <dd>{estimate.units}</dd>
         </div>
+        {orderUnits.maximum !== null && (
+          <div>
+            <dt>Máximo por pedido</dt>
+            <dd>{orderUnits.maximum}</dd>
+          </div>
+        )}
         <div>
           <dt>Subtotal</dt>
           <dd>{formatCents(estimate.subtotalCents)}</dd>
@@ -162,6 +186,9 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
         </div>
       </dl>
       <p className="text-muted">El total se confirma antes de pagar.</p>
+      {orderUnits.maximum !== null && !orderUnits.exceeded && (
+        <p className="text-muted">{describeOrderUnitsMaximum(orderUnits.maximum)}</p>
+      )}
       {canCheckout ? (
         <Link to={paths.shopCheckout} className="btn btn--primary cart-summary__cta">
           Continuar a la entrega <span aria-hidden="true">→</span>
@@ -178,7 +205,9 @@ function CartSummary({ estimate, canCheckout }: { estimate: CartEstimate; canChe
 /** Carrito: revalida precio, stock y límite con la API cada vez que se abre. */
 export function CartPage() {
   const { items } = useCart()
-  const stockChanged = (useLocation().state as CartLocationState | null)?.stockChanged
+  const locationState = useLocation().state as CartLocationState | null
+  const stockChanged = locationState?.stockChanged
+  const returnedProblem = locationState?.problem
   const idsKey = items.map((item) => item.productId).join(',')
   const loadCartProducts = useCallback(
     () => loadProducts(idsKey ? idsKey.split(',') : []),
@@ -217,11 +246,15 @@ export function CartPage() {
   return (
     <div className="shop-page cart cart-presentation">
       <CartHeading />
-      {stockChanged && (
-        <Alert>
-          Algunos regalos ya no tienen stock suficiente. Revisa las líneas marcadas antes de
-          continuar; no se hizo ningún cobro.
-        </Alert>
+      {returnedProblem ? (
+        <Alert>{returnedProblem} No se hizo ningún cobro y tu carrito se conserva.</Alert>
+      ) : (
+        stockChanged && (
+          <Alert>
+            Algunos regalos ya no tienen stock suficiente. Revisa las líneas marcadas antes de
+            continuar; no se hizo ningún cobro.
+          </Alert>
+        )
       )}
       {error && (
         <Alert>
@@ -253,6 +286,14 @@ export function CartPage() {
                 Corrige o elimina las líneas marcadas para continuar al checkout.
               </p>
             )}
+            {view.orderUnits.exceeded && view.orderUnits.maximum !== null && (
+              <p className="cart__blocked" role="alert">
+                {describeOrderUnitsExceeded(
+                  view.orderUnits.requestedUnits,
+                  view.orderUnits.maximum,
+                )}
+              </p>
+            )}
             <ul className="cart-lines">
               {view.lines.map((line) => (
                 <CartLineItem key={line.productId} line={line} />
@@ -262,7 +303,11 @@ export function CartPage() {
               ← Seguir eligiendo regalos
             </Link>
           </section>
-          <CartSummary estimate={view.estimate} canCheckout={view.canCheckout && !error} />
+          <CartSummary
+            estimate={view.estimate}
+            orderUnits={view.orderUnits}
+            canCheckout={view.canCheckout && !error}
+          />
         </div>
       )}
     </div>

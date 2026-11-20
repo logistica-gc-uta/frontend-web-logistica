@@ -14,7 +14,12 @@ import { formatCents } from '../money'
 import { shopErrorInfo } from '../shopError'
 import { DEMO_CARDS, EMPTY_CARD, toCardInput, validateCard, type CardForm } from './cardValidation'
 import type { CheckoutLocationState } from './CheckoutPage'
-import { describeCheckoutError, problemForCode, type CheckoutProblem } from './checkoutErrors'
+import {
+  cartReturnState,
+  describeCheckoutError,
+  problemForCode,
+  type CheckoutProblem,
+} from './checkoutErrors'
 import { checkoutService } from './checkoutService'
 import { checkoutStorage, sameItems, type CheckoutDraft } from './checkoutStorage'
 import type { ConfirmationLocationState } from '../orders/OrderPages'
@@ -70,7 +75,7 @@ function PaymentStep({ draft }: { draft: CheckoutDraft }) {
       setPhase({ kind: 'idle' })
       submitting.current = false
       if (found.action === 'cart') {
-        navigate(paths.shopCart, { state: { stockChanged: true } satisfies CartLocationState })
+        navigate(paths.shopCart, { state: cartReturnState(found) satisfies CartLocationState })
       } else if (found.action === 'requote' || found.action === 'fix') {
         navigate(paths.shopCheckout, { state: { requote: found } satisfies CheckoutLocationState })
       } else {
