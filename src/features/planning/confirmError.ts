@@ -54,6 +54,10 @@ export const describeAssignError = (error: unknown): string => {
   if (shopErrorInfo(error).code === 'DRIVER_ABSENT') {
     return 'Ese chofer está ausente el día de la ruta: elige otro.'
   }
+  // Backend #82: lo dieron de baja mientras la pantalla estaba abierta.
+  if (shopErrorInfo(error).code === 'DRIVER_INACTIVE') {
+    return 'Ese chofer está dado de baja y no puede recibir rutas: elige otro o reactívalo en Repartidores.'
+  }
   if (isNotToday(error)) return ROUTE_DATE_NOT_TODAY_MESSAGE
   const capacity = capacityExceededMessage(error, 'Elige otro chofer.')
   if (capacity) return capacity

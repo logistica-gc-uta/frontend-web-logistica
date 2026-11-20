@@ -52,6 +52,27 @@ export const driversAdminService = {
     return data
   },
 
+  /**
+   * Baja operativa (backend #82): deja de poder iniciar sesión y de recibir rutas. No borra su
+   * historial ni toca ausencias. Se rechaza con `DRIVER_HAS_OPEN_ROUTE` si tiene una ruta abierta.
+   */
+  async deactivate(id: string, reason?: string): Promise<DriverProfile> {
+    const { data } = await apiClient.post<DriverProfile>(
+      `${driverPath(id)}/deactivate`,
+      reason ? { reason } : {},
+    )
+    return data
+  },
+
+  /** Reactivación: solo devuelve el acceso; ausencias y reservas siguen como estaban. */
+  async activate(id: string, reason?: string): Promise<DriverProfile> {
+    const { data } = await apiClient.post<DriverProfile>(
+      `${driverPath(id)}/activate`,
+      reason ? { reason } : {},
+    )
+    return data
+  },
+
   /** Disponibilidad de un día (hoy o futuro), incluida la ausencia de ese día. */
   async availabilityOn(id: string, date: string): Promise<DriverDayAvailability> {
     const { data } = await apiClient.get<DriverDayAvailability>(`${driverPath(id)}/availability`, {

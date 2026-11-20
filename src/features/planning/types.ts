@@ -198,8 +198,11 @@ export interface Driver {
   unavailableReason: DriverUnavailableReason | null
 }
 
-/** `ABSENT`: tiene una ausencia registrada para el día de la ruta (backend #44). */
-export type DriverUnavailableReason = 'ROUTE_HOLD' | 'MARKED_UNAVAILABLE' | 'ABSENT'
+/**
+ * `ABSENT`: tiene una ausencia registrada para el día de la ruta (backend #44).
+ * `INACTIVE`: está dado de baja (backend #82); no se puede elegir hasta reactivarlo.
+ */
+export type DriverUnavailableReason = 'ROUTE_HOLD' | 'MARKED_UNAVAILABLE' | 'ABSENT' | 'INACTIVE'
 
 /** Ruta persistida tal como la devuelven `POST /routes` y `POST /routes/{id}/assign`. */
 export interface SavedRoute {

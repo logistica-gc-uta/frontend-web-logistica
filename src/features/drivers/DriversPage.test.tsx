@@ -93,7 +93,9 @@ describe('ADMIN · repartidores (#36)', () => {
       'aria-current',
       'page',
     )
-    expect(screen.queryByRole('button', { name: /Eliminar|Dar de baja/ })).not.toBeInTheDocument()
+    // Nunca se borra una cuenta: la baja (#64) es reversible y conserva el historial.
+    expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument()
+    expect(list.getByRole('button', { name: 'Dar de baja a Ana Ruta' })).toBeInTheDocument()
   })
 
   it('una ausencia de mañana no lo marca ocupado hoy: la disponibilidad depende del día', async () => {
