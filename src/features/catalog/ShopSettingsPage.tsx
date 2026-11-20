@@ -131,6 +131,19 @@ function SettingsEditor({
             error={fieldErrors.maxUnits}
           />
           <p className="text-muted">Se aplica a cada producto, no al total del carrito.</p>
+          <TextField
+            label="Unidades máximas por pedido (sumando todos los productos)"
+            inputMode="numeric"
+            placeholder="Sin límite"
+            value={values.maxOrderUnits}
+            onChange={(event) => form.setFields({ maxOrderUnits: event.target.value })}
+            error={fieldErrors.maxOrderUnits}
+          />
+          <p className="text-muted">
+            Tope del pedido completo, de 1 a 1000. Déjalo vacío para no limitarlo. Se aplica en la
+            tienda y en las ventas del panel, junto con el máximo por producto; no cambia pedidos ya
+            registrados.
+          </p>
         </fieldset>
 
         <fieldset className="items-editor">

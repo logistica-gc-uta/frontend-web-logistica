@@ -1,6 +1,7 @@
 import { Button } from '../../components/ui/Button'
 import type { Product } from '../products/types'
-import { EMPTY_ORDER_ITEM, itemIssues } from './orderValidation'
+import { describeOrderUnitsExceeded, describeOrderUnitsMaximum } from '../shop/orderUnitsLimit'
+import { EMPTY_ORDER_ITEM, itemIssues, orderUnitsOf } from './orderValidation'
 import { ProductCombobox } from './ProductCombobox'
 import type { OrderItemFormValue } from './types'
 
@@ -9,10 +10,20 @@ interface OrderItemsEditorProps {
   products: Product[]
   onChange: (items: OrderItemFormValue[]) => void
   error?: string
+  /** Máximo de unidades del pedido completo (backend #83); `null` o ausente = sin límite. */
+  maxUnitsPerOrder?: number | null
 }
 
 /** Líneas de producto y cantidad del pedido, con alta y baja de líneas y avisos junto a cada campo. */
-export function OrderItemsEditor({ items, products, onChange, error }: OrderItemsEditorProps) {
+export function OrderItemsEditor({
+  items,
+  products,
+  onChange,
+  error,
+  maxUnitsPerOrder = null,
+}: OrderItemsEditorProps) {
+  // Aviso en vivo del máximo por pedido: se ve antes de intentar registrar la venta.
+  const orderUnits = orderUnitsOf(items, maxUnitsPerOrder)
   const updateItem = (index: number, patch: Partial<OrderItemFormValue>) =>
     onChange(items.map((item, position) => (position === index ? { ...item, ...patch } : item)))
 
@@ -107,6 +118,20 @@ export function OrderItemsEditor({ items, products, onChange, error }: OrderItem
       <Button variant="secondary" onClick={() => onChange([...items, EMPTY_ORDER_ITEM])}>
         Agregar producto
       </Button>
+
+      {orderUnits.maximum !== null &&
+        (orderUnits.exceeded ? (
+          !error && (
+            <p className="field__error" role="alert">
+              {describeOrderUnitsExceeded(orderUnits.requestedUnits, orderUnits.maximum)}
+            </p>
+          )
+        ) : (
+          <p className="text-muted">
+            {describeOrderUnitsMaximum(orderUnits.maximum)} Esta venta suma{' '}
+            {orderUnits.requestedUnits}.
+          </p>
+        ))}
 
       {/* El resumen solo aparece cuando ninguna línea muestra ya su propio aviso (p. ej. «agrega un producto»). */}
       {error && !issues.some((issue) => issue.product || issue.quantity) && (

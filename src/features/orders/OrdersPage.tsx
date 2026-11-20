@@ -107,6 +107,7 @@ export function OrdersPage() {
                 <OrderForm
                   products={products}
                   schedule={settings.deliverySchedule}
+                  maxUnitsPerOrder={settings.maxUnitsPerOrder}
                   coverage={coverage}
                   onCreated={handleCreated}
                 />
