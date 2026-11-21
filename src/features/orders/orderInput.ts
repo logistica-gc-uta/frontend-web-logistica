@@ -62,3 +62,17 @@ export function buildTimeSlots(schedule: DeliverySchedule, stepMinutes = 30): st
   }
   return slots
 }
+
+/** Horario habitual (7:00 a 17:00, hora de Ecuador) mientras no se conoce el de la tienda. */
+export const DEFAULT_DELIVERY_SCHEDULE: DeliverySchedule = {
+  timeZone: 'America/Guayaquil',
+  startTime: '07:00',
+  endTime: '17:00',
+}
+
+/**
+ * Opciones del selector de hora del panel (`SelectMenu`): cada 30 minutos dentro del horario de
+ * entrega y escritas con a. m./p. m. Es el único patrón para elegir una hora de entrega o una franja.
+ */
+export const timeSlotOptions = (schedule: DeliverySchedule) =>
+  buildTimeSlots(schedule).map((slot) => ({ value: slot, label: formatTimeLabel(slot) }))

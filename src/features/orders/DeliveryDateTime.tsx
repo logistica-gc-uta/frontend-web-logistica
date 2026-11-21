@@ -2,7 +2,7 @@ import { useId } from 'react'
 import { todayInGuayaquil } from '../../lib/time/guayaquil'
 import type { DeliverySchedule } from '../shop/types'
 import { SelectMenu } from './SelectMenu'
-import { buildTimeSlots, formatTimeLabel, joinScheduledAt, splitScheduledAt } from './orderInput'
+import { formatTimeLabel, joinScheduledAt, splitScheduledAt, timeSlotOptions } from './orderInput'
 
 interface DeliveryDateTimeProps {
   /** Valor `AAAA-MM-DDTHH:mm`, vacío mientras no se elija nada. */
@@ -20,7 +20,6 @@ export function DeliveryDateTime({ value, schedule, onChange, error }: DeliveryD
   const id = useId()
   const errorId = `${id}-error`
   const { date, time } = splitScheduledAt(value)
-  const slots = buildTimeSlots(schedule)
   const describedBy = error ? errorId : undefined
 
   return (
@@ -53,7 +52,7 @@ export function DeliveryDateTime({ value, schedule, onChange, error }: DeliveryD
         label="Hora de entrega"
         value={time}
         placeholder="Elige la hora"
-        options={slots.map((slot) => ({ value: slot, label: formatTimeLabel(slot) }))}
+        options={timeSlotOptions(schedule)}
         onChange={(chosen) => onChange(joinScheduledAt(date, chosen))}
         error={error}
         errorId={errorId}
