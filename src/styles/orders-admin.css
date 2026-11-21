@@ -351,8 +351,8 @@
   white-space: nowrap;
 }
 
-.drawer__panel .pagination {
-  margin-top: 16px;
+.drawer__panel .step-nav {
+  margin-bottom: 12px;
 }
 
 /* Panel de pedidos: filtros compactos y la tabla dentro de un marco con esquinas mínimas. */
@@ -396,17 +396,6 @@
 
 .drawer__panel .table td {
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
-}
-
-.drawer__panel .pagination .btn {
-  min-height: 34px;
-  margin: 0;
-  padding: 0 14px;
-  font-size: 0.8125rem;
-}
-
-.drawer__panel .pagination {
-  font-size: 0.875rem;
 }
 
 /* «Limpiar filtros» como texto subrayado, igual que «Quitar filtros» de la tienda. */
