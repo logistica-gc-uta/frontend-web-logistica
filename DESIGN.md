@@ -143,6 +143,48 @@ Alturas táctiles: controles de 44 px (botón de menú, cerrar sesión en rail, 
 
 ---
 
+### Patrones compartidos del panel (#68)
+
+Un patrón por necesidad. Antes de crear una variante nueva, usar el componente de esta tabla.
+
+#### Avisos
+
+| Necesidad | Patrón | Rol accesible |
+| --- | --- | --- |
+| Falló una acción o una carga | `<Alert>`: icono y texto rojo, sin caja, donde ocurrió | `alert` |
+| Una acción salió bien | `<Alert variant="success">`: notificación arriba a la derecha que se va sola | `status` |
+| Contexto que se queda en la pantalla (vista previa, ruta cancelada, enlace a algo que ya no existe…) | `<Notice>` con `tone` `info` / `success` / `warning` / `danger`; puede llevar enlaces o un botón | `note` por defecto; `status` si cambia sola; `alert` solo si bloquea (motor vial caído) |
+| Problema de un campo | `.field__error` junto al campo, enlazado con `aria-describedby` | — |
+| Pista de un campo | Texto `text-muted` bajo el campo | — |
+
+- `warning` se usa para lo que pide atención pero no es un error, por ejemplo un enlace a una ruta cancelada o a un caso ya resuelto. Esto ya no va en un `<Alert>` rojo.
+- Varios avisos seguidos del mismo grupo pueden ir con `role={null}` para no repetir el anuncio.
+- La clase de contexto se pasa en `className` (por ejemplo `urgency-info`); el aviso conserva el aspecto propio de esa pantalla.
+
+#### Selección de hora
+
+- **Hora de entrega o franja en el panel:** `SelectMenu` con `timeSlotOptions(horario)`. Muestra horas cada 30 minutos dentro del horario de la tienda (`GET /shop/settings`), escritas con a. m. / p. m.; mientras no carga, usa `DEFAULT_DELIVERY_SCHEDULE` (7:00–17:00). Lo usan Pedidos (venta), Entregas fallidas (franja acordada) y Urgencias (reprogramar).
+- **Excepciones a propósito:**
+  - *Configuración Shop* usa `type="time"`, porque ahí se define el horario mismo.
+  - *Checkout* de la tienda mantiene `type="time"` con `min`/`max`: es un flujo de compra y no entra en esta migración.
+
+#### Paginación
+
+| Dónde | Patrón |
+| --- | --- |
+| Listas y tablas del panel (Pedidos, Productos, Repartidores) y tarjetas de una en una o de dos en dos (Entregas fallidas, Emergencias, Seguimiento) | `<StepNav>`: «Pedidos 1–4 de 25» y dos flechas de 34 px; no aparece si todo cabe en una pantalla. Va encima de la lista. |
+| Tienda (catálogo, Mis pedidos) | `<Pagination>`: «Anterior» / «Siguiente» con «Página 2 de 7 · 25 registros». |
+| Buscar dentro de un selector (clientes en una venta) | Botón «Ver más …» que agrega resultados. |
+
+- Las flechas de `StepNav` tienen nombre accesible («Anterior» / «Siguiente»), se desactivan en los extremos y el contador se anuncia con `aria-live="polite"`.
+- Los estilos de `.notice` y `.step-nav` viven en `src/index.css` porque son compartidos. Una pantalla solo ajusta la posición (por ejemplo `.catalog-card .step-nav`).
+
+#### Cambios de formato
+
+- Al migrar una pantalla se tocan solo las líneas del patrón. Si un archivo ya venía sin formatear en `main`, no se pasa Prettier al archivo entero: el formato puro va en un cambio aparte.
+
+---
+
 ## 7. Accesibilidad
 
 - `aria-expanded` / `aria-controls` en el botón de contraer y en cada grupo del menú.

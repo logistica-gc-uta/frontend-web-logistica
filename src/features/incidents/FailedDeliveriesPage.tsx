@@ -4,6 +4,7 @@ import { orderReceiptPath } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
+import { Notice } from '../../components/ui/Notice'
 import { StepNav } from '../../components/ui/StepNav'
 import { useFetch } from '../../hooks/useFetch'
 import { useKeyedActions } from '../../hooks/useKeyedActions'
@@ -231,14 +232,14 @@ export function FailedDeliveriesPage() {
               // El caso enlazado ya no está pendiente (se resolvió o nunca existió): salida clara.
               const missingLink =
                 linkedOrderId !== null && !visibleOrderIds.has(linkedOrderId) ? (
-                  <Alert>
+                  <Notice tone="warning">
                     Ese pedido ya no tiene una entrega fallida pendiente de gestión: pudo
                     reprogramarse, retirarse en tienda o resolverse en otra sesión.{' '}
                     <Link to={orderReceiptPath(linkedOrderId)}>Ver el pedido</Link>{' '}
                     <Button variant="secondary" onClick={clearLink}>
                       Ver los pendientes
                     </Button>
-                  </Alert>
+                  </Notice>
                 ) : null
               if (incidents.length === 0) {
                 return (

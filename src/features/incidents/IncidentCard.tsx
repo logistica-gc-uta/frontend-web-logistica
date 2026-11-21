@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import type { DeliverySchedule } from '../shop/types'
 import { SelectMenu } from '../orders/SelectMenu'
-import { buildTimeSlots, formatTimeLabel } from '../orders/orderInput'
+import { DEFAULT_DELIVERY_SCHEDULE, timeSlotOptions } from '../orders/orderInput'
 import type { KeyedActionState } from '../../hooks/useKeyedActions'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { localDateTimeToIso, todayInGuayaquil } from '../../lib/time/guayaquil'
@@ -33,13 +33,6 @@ export type { RegisteredAgreement } from './incidentActions'
 
 /** El backend audita el motivo y admite hasta 500 caracteres. */
 const REASON_MAX_LENGTH = 500
-
-/** Si todavía no se conoce el horario de la tienda, se usa el habitual (7:00 a 17:00). */
-const DEFAULT_SCHEDULE: DeliverySchedule = {
-  timeZone: 'America/Guayaquil',
-  startTime: '07:00',
-  endTime: '17:00',
-}
 
 export interface IncidentCardProps {
   incident: IncidentView
@@ -233,7 +226,7 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
  */
 export function IncidentCard({
   incident,
-  schedule = DEFAULT_SCHEDULE,
+  schedule = DEFAULT_DELIVERY_SCHEDULE,
   agreement: sessionAgreement,
   state,
   isRefreshing = false,
@@ -245,10 +238,7 @@ export function IncidentCard({
   onPickupConfirm,
 }: IncidentCardProps) {
   // Horas ofrecidas para la franja: cada 30 minutos dentro del horario de entrega de la tienda.
-  const windowOptions = useMemo(
-    () => buildTimeSlots(schedule).map((slot) => ({ value: slot, label: formatTimeLabel(slot) })),
-    [schedule],
-  )
+  const windowOptions = useMemo(() => timeSlotOptions(schedule), [schedule])
   const [agreed, setAgreed] = useState<boolean | null>(null)
   // Dos caminos excluyentes: contactar al destinatario (y reprogramar) o acordar el retiro en tienda.
   const [chosenPath, setChosenPath] = useState<'contact' | 'pickup'>('contact')

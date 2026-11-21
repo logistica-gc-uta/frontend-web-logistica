@@ -8,7 +8,10 @@ import { formatDateTime } from '../../lib/format/formatDateTime'
 import { formatKm } from '../../lib/format/formatDistance'
 import { describePlanningReason } from '../../lib/planning/planningReasons'
 import { localDateTimeToIso } from '../../lib/time/guayaquil'
+import { DEFAULT_DELIVERY_SCHEDULE, timeSlotOptions } from '../orders/orderInput'
+import { SelectMenu } from '../orders/SelectMenu'
 import type { Order } from '../orders/types'
+import type { DeliverySchedule } from '../shop/types'
 import { DRIVER_UNAVAILABLE_LABELS } from '../planning/routeLabels'
 import type { Driver } from '../planning/types'
 import { URGENCY_KIND_LABELS } from './dispatchLabels'
@@ -26,6 +29,8 @@ export interface UrgencyCardProps {
   /** Nombre de la ruta en la que se insertaría (propuesta `INSERT`). */
   targetRouteName: string | undefined
   drivers: Driver[]
+  /** Horario de entrega de la tienda: la nueva franja se elige dentro de él. */
+  schedule?: DeliverySchedule
   state: KeyedActionState | undefined
   /** Cada decisión devuelve `true` si el backend la registró. */
   onConfirm: (proposal: UrgencyProposal, reason: string, driverId?: string) => Promise<boolean>
@@ -73,6 +78,7 @@ export function UrgencyCard({
   order,
   targetRouteName,
   drivers,
+  schedule = DEFAULT_DELIVERY_SCHEDULE,
   state,
   onConfirm,
   onReject,
@@ -264,19 +270,23 @@ export function UrgencyCard({
             value={day}
             onChange={(event) => setDay(event.target.value)}
           />
-          <TextField
+          <SelectMenu
+            id={`from-${proposal.orderId}`}
             label="Desde (hora de Guayaquil)"
-            type="time"
             value={from}
-            onChange={(event) => setFrom(event.target.value)}
+            placeholder="Elige la hora"
+            options={timeSlotOptions(schedule)}
+            onChange={setFrom}
           />
-          <TextField
+          <SelectMenu
+            id={`to-${proposal.orderId}`}
             label="Hasta (hora de Guayaquil)"
-            type="time"
             value={to}
+            placeholder="Elige la hora"
+            options={timeSlotOptions(schedule)}
             error={scheduleError}
-            onChange={(event) => {
-              setTo(event.target.value)
+            onChange={(chosen) => {
+              setTo(chosen)
               setScheduleError(undefined)
             }}
           />

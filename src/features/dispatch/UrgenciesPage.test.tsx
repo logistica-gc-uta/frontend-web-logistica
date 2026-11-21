@@ -10,6 +10,8 @@ import { renderWithProviders } from '../../test/renderWithProviders'
 import { ordersService } from '../orders/ordersService'
 import { driversService } from '../planning/driversService'
 import { planningService } from '../planning/planningService'
+import { shopService } from '../shop/shopService'
+import { shopSettings } from '../../test/shopFixtures'
 import { dispatchService } from './dispatchService'
 import type { UrgencyInbox } from './types'
 import { createFakeSocket } from '../../test/fakeSocket'
@@ -60,6 +62,7 @@ const findCard = async () =>
 // La disponibilidad por día (#36) se prueba aparte: aquí alcanza con el listado simulado.
 beforeEach(() => {
   vi.spyOn(driversService, 'listForDay').mockImplementation(() => driversService.list())
+  vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
 })
 
 /** Rutas de hoy y decisiones registradas viven en paneles laterales de la cabecera. */

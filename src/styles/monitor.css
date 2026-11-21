@@ -532,7 +532,7 @@
   width: 100%;
 }
 
-.monitor-pager .incident-nav {
+.monitor-pager .step-nav {
   justify-content: center;
   gap: 8px 20px;
 }

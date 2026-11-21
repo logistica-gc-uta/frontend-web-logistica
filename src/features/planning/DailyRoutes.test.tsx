@@ -218,7 +218,7 @@ describe('planificación del día y horarios (#48, #49)', () => {
     await screen.findByLabelText('Día a planificar')
     await user.click(screen.getByRole('button', { name: 'Previsualizar rutas' }))
 
-    const notice = (await screen.findByText('Horarios agrupados.')).closest('p')!
+    const notice = (await screen.findByText('Horarios agrupados.')).closest('.notice')!
     expect(notice).toHaveTextContent('hasta 45 minutos de diferencia')
     expect(notice).toHaveTextContent('máximo 4 paradas')
     expect(notice).toHaveTextContent('no es una promesa de llegada')

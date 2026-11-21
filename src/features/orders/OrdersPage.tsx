@@ -4,7 +4,7 @@ import { orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Drawer } from '../../components/ui/Drawer'
-import { Pagination } from '../../components/ui/Pagination'
+import { StepNav } from '../../components/ui/StepNav'
 import { useFetch } from '../../hooks/useFetch'
 import { productsService } from '../products/productsService'
 import { shopService } from '../shop/shopService'
@@ -146,15 +146,16 @@ export function OrdersPage() {
           >
             {(result) => (
               <>
+                <StepNav
+                  noun="Pedidos"
+                  singular="Pedido"
+                  label="Páginas de pedidos"
+                  position={result.page - 1}
+                  total={result.total}
+                  pageSize={result.pageSize}
+                  onChange={(position) => setPage(position + 1)}
+                />
                 <OrdersTable orders={result.items} />
-                {result.total > 0 && (
-                  <Pagination
-                    page={result.page}
-                    pageSize={result.pageSize}
-                    total={result.total}
-                    onPageChange={setPage}
-                  />
-                )}
               </>
             )}
           </AsyncContent>
