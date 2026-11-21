@@ -7,8 +7,7 @@ import { formatDuration, formatKm, formatPercent } from '../../lib/format/format
 import type { DistanceMethod, RouteProposal } from './types'
 import type { ConfirmationState } from './useRouteConfirmations'
 
-/** Límite operativo fijo de paradas por ruta (independiente de las unidades de carga). */
-const MAX_STOPS_PER_ROUTE = 4
+const stopsLabel = (count: number) => (count === 1 ? '1 parada' : `${count} paradas`)
 
 interface ProposalCardProps {
   proposal: RouteProposal
@@ -65,15 +64,26 @@ export function ProposalCard({
           {label}
           {areaSuffix(proposal.zoneCode)}
         </h3>
-        <span className="badge">
-          {proposal.stops.length}/{MAX_STOPS_PER_ROUTE} paradas
-        </span>
+        <span className="badge">{stopsLabel(proposal.stops.length)}</span>
         {proposal.loadUnits !== undefined ? (
           <span className="badge">
             {proposal.loadUnits}/{capacity} unidades
           </span>
         ) : null}
+        {proposal.hasOverdueStops ? (
+          <span className="badge badge--warning">Hora pactada vencida</span>
+        ) : null}
+        {proposal.exceedsAvailableFleet ? (
+          <span className="badge badge--warning">2.ª ola / sin chofer libre</span>
+        ) : null}
       </header>
+
+      {proposal.hasOverdueStops && (
+        <p className="text-muted">
+          Incluye entregas de hoy cuya hora pactada ya pasó. Considera reprogramar con el cliente
+          antes de confirmar esta salida.
+        </p>
+      )}
 
       <dl className="proposal__metrics">
         <div>

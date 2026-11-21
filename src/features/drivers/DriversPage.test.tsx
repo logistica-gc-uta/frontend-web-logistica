@@ -85,7 +85,7 @@ describe('ADMIN · repartidores (#36)', () => {
 
     const list = within(await findList())
     expect(await list.findByText('Ausente · Cita médica')).toBeInTheDocument()
-    expect(list.getByText('Ocupado con una ruta')).toBeInTheDocument()
+    expect(list.getByText('Retenido por ruta sin cerrar')).toBeInTheDocument()
     expect(list.getByText('ana@delivery.com')).toBeInTheDocument()
     expect(list.getAllByText('Camioneta blanca').length).toBeGreaterThan(0)
     const nav = screen.getByRole('navigation', { name: 'Principal' })

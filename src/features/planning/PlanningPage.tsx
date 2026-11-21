@@ -204,6 +204,10 @@ export function PlanningPage() {
         date={preview.data?.date}
         drivers={drivers.data ?? undefined}
         selectedDriverId={lastQuery?.driverId}
+        onPickupAgreed={() => {
+          closeExcluded()
+          if (lastQuery) void handlePreview(lastQuery)
+        }}
       />
 
       <Drawer

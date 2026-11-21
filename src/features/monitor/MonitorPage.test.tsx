@@ -71,10 +71,10 @@ describe('MonitorRouteCard', () => {
     expect(dots.querySelectorAll('.monitor-dot--successful')).toHaveLength(3)
     expect(dots.querySelectorAll('.monitor-dot--failed')).toHaveLength(1)
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Parada 1EntregadoPedido',
-      'Parada 2EntregadoPedido',
-      'Parada 3Visita fallida: destinatario ausentePedido',
-      'Parada 4EntregadoPedido',
+      '1Parada 1PedidoEntregado',
+      '2Parada 2PedidoEntregado',
+      '3Parada 3PedidoVisita fallida: destinatario ausente',
+      '4Parada 4PedidoEntregado',
     ])
     expect(screen.getByText('Ocupado con esta ruta')).toBeInTheDocument()
   })

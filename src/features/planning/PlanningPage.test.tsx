@@ -170,9 +170,9 @@ describe('PlanningPage · previsualizar', () => {
 
     await preview(user)
 
-    expect(card('Ruta 1').getByText('3/4 paradas')).toBeInTheDocument()
+    expect(card('Ruta 1').getByText('3 paradas')).toBeInTheDocument()
     expect(card('Ruta 1').getByText('Dirección de order-a', { exact: false })).toBeInTheDocument()
-    expect(card('Ruta 2').getByText('2/4 paradas')).toBeInTheDocument()
+    expect(card('Ruta 2').getByText('2 paradas')).toBeInTheDocument()
     expect(card('Ruta 2').getByText('Ahorro estimado').nextSibling).toHaveTextContent(
       '1,20 km (50 %)',
     )

@@ -1,5 +1,11 @@
+import { useState } from 'react'
+import { Alert } from '../../components/ui/Alert'
+import { Button } from '../../components/ui/Button'
 import { Drawer } from '../../components/ui/Drawer'
+import { TextField } from '../../components/ui/TextField'
 import { describePlanningReason } from '../../lib/planning/planningReasons'
+import { describeDispatchError } from '../dispatch/dispatchError'
+import { dispatchService } from '../dispatch/dispatchService'
 import { effectiveVehicleCapacity } from '../drivers/driverValidation'
 import type { Driver, ExcludedOrder } from './types'
 
@@ -46,6 +52,8 @@ interface ExcludedOrdersProps {
   date?: string
   drivers?: Driver[]
   selectedDriverId?: string
+  /** Se llama tras acordar retiro en tienda para actualizar la propuesta. */
+  onPickupAgreed?: () => void
 }
 
 /**
@@ -60,8 +68,35 @@ export function ExcludedOrders({
   date,
   drivers = EMPTY_DRIVERS,
   selectedDriverId,
+  onPickupAgreed,
 }: ExcludedOrdersProps) {
+  const [pickupOrderId, setPickupOrderId] = useState<string | null>(null)
+  const [pickupReason, setPickupReason] = useState('')
+  const [pickupError, setPickupError] = useState<string | null>(null)
+  const [isSavingPickup, setIsSavingPickup] = useState(false)
+
   if (excluded.length === 0) return null
+
+  const submitPickup = async (orderId: string) => {
+    if (isSavingPickup) return
+    const trimmed = pickupReason.trim()
+    if (!trimmed) {
+      setPickupError('Escribe un motivo breve del acuerdo con el cliente')
+      return
+    }
+    setPickupError(null)
+    setIsSavingPickup(true)
+    try {
+      await dispatchService.agreePickup({ orderId, reason: trimmed })
+      setPickupOrderId(null)
+      setPickupReason('')
+      onPickupAgreed?.()
+    } catch (error) {
+      setPickupError(describeDispatchError(error))
+    } finally {
+      setIsSavingPickup(false)
+    }
+  }
 
   return (
     <Drawer
@@ -93,16 +128,18 @@ export function ExcludedOrders({
             )
 
           return (
-            <li key={orderId}>
-              <code>{shortId(orderId)}</code>{' '}
-              <span>
-                {reasons
-                  .map((reason) => formatReason(reason, requiredUnits, capacity))
-                  .join('. ')}
-              </span>
+            <li key={orderId} className="excluded-item">
+              <div className="excluded-item__head">
+                <code>{shortId(orderId)}</code>
+                <span className="excluded-item__reason">
+                  {reasons
+                    .map((reason) => formatReason(reason, requiredUnits, capacity))
+                    .join('. ')}
+                </span>
+              </div>
               {isCapacityExcluded && requiredUnits !== undefined ? (
                 alternatives.length > 0 ? (
-                  <p className="text-muted">
+                  <p className="excluded-item__hint text-muted">
                     <strong>
                       Choferes candidatos{date ? ` para el ${date}` : ''}:
                     </strong>{' '}
@@ -117,7 +154,7 @@ export function ExcludedOrders({
                     previsualizar para recalcular horarios reales (no se asigna automáticamente).
                   </p>
                 ) : (
-                  <p className="text-muted">
+                  <p className="excluded-item__hint text-muted">
                     Permanece pendiente: ningún chofer disponible{date ? ` para el ${date}` : ''}{' '}
                     alcanza {unitsLabel(requiredUnits)}
                     {hasUnavailableFit
@@ -125,6 +162,57 @@ export function ExcludedOrders({
                       : ''}
                     . El pedido no se divide.
                   </p>
+                )
+              ) : null}
+              {isCapacityExcluded && onPickupAgreed ? (
+                pickupOrderId === orderId ? (
+                  <div className="excluded-item__pickup-form">
+                    <TextField
+                      label="Acuerdo de retiro en tienda"
+                      placeholder="Ej.: Cliente acordó retirar el pedido en el local"
+                      value={pickupReason}
+                      maxLength={500}
+                      error={pickupError ?? undefined}
+                      onChange={(event) => {
+                        setPickupReason(event.target.value)
+                        setPickupError(null)
+                      }}
+                    />
+                    {pickupError && <Alert>{pickupError}</Alert>}
+                    <div className="excluded-item__pickup-actions">
+                      <Button
+                        isLoading={isSavingPickup}
+                        loadingText="Guardando..."
+                        onClick={() => void submitPickup(orderId)}
+                      >
+                        Confirmar retiro en tienda
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={isSavingPickup}
+                        onClick={() => {
+                          setPickupOrderId(null)
+                          setPickupReason('')
+                          setPickupError(null)
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="excluded-item__pickup-actions">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setPickupOrderId(orderId)
+                        setPickupReason('')
+                        setPickupError(null)
+                      }}
+                    >
+                      Acordar retiro en tienda
+                    </Button>
+                  </div>
                 )
               ) : null}
             </li>
