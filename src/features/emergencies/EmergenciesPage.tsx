@@ -1,6 +1,6 @@
-import { useCallback, useId, useState } from 'react'
-import { Link } from 'react-router'
-import { orderReceiptPath, paths } from '../../app/paths'
+import { useCallback, useEffect, useId, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import { monitorRoutePath, orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { StepNav } from '../../components/ui/StepNav'
@@ -173,6 +173,9 @@ function OrderBlock({ entry, run, busy }: { entry: EmergencyOrder } & ActionsPro
     <section className="emergency__order" aria-label={`Pedido ${title}`}>
       <div className="emergency__order-head">
         <h4>{title}</h4>
+        <Link to={orderReceiptPath(entry.orderId)} aria-label={`Ver pedido ${title}`}>
+          Ver pedido
+        </Link>
         {entry.units.some((unit) => unit.status === 'PENDING') && (
           <span className={`badge ${UNIT_STATUS.PENDING.tone}`}>{UNIT_STATUS.PENDING.text}</span>
         )}
@@ -242,6 +245,7 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
         <span className="emergency__declared">
           <strong>Declarada</strong> el {formatDateTime(emergency.declaredAt)}
         </span>
+        <Link to={monitorRoutePath(emergency.routeId)}>Ver la ruta en Seguimiento</Link>
       </p>
 
       <dl className="emergency__counts" aria-label={`Unidades de ${name}`}>
@@ -402,7 +406,36 @@ export function EmergenciesPage() {
   })
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState(0)
+  // La emergencia a la vista se recuerda por su ruta (id estable): sigue siendo la misma aunque el
+  // tablero se recargue o cambie de orden (#67).
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedRouteId = searchParams.get('ruta')
+  const clearLink = useCallback(
+    () =>
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete('ruta')
+          return next
+        },
+        { replace: true },
+      ),
+    [setSearchParams],
+  )
+
+  // Un enlace `?ruta=` (desde Seguimiento o Entregas fallidas) selecciona su emergencia; una vez
+  // encontrada pasa a ser la selección normal.
+  const views = board.data?.views
+  useEffect(() => {
+    if (!linkedRouteId || !views) return
+    const index = views.findIndex(({ emergency }) => emergency.routeId === linkedRouteId)
+    if (index < 0) return
+    setSelected(index)
+    setSelectedRouteId(linkedRouteId)
+    clearLink()
+  }, [linkedRouteId, views, clearLink])
 
   const run = async (perform: () => Promise<unknown>, done: string, fallback: string) => {
     setBusy(true)
@@ -443,20 +476,43 @@ export function EmergenciesPage() {
         )}
         <AsyncContent {...board} onRetry={board.reload} loadingText="Cargando emergencias...">
           {({ views }) => {
+            const missingLink =
+              linkedRouteId !== null &&
+              !views.some(({ emergency }) => emergency.routeId === linkedRouteId) ? (
+                <Alert>
+                  Esa ruta no tiene una emergencia registrada o la ruta ya no existe.{' '}
+                  <Link to={monitorRoutePath(linkedRouteId)}>Ver la ruta en Seguimiento</Link>{' '}
+                  <Button variant="secondary" onClick={clearLink}>
+                    Ver todas las emergencias
+                  </Button>
+                </Alert>
+              ) : null
             if (views.length === 0) {
-              return <p className="empty-state">No hay emergencias registradas.</p>
+              return (
+                <>
+                  {missingLink}
+                  <p className="empty-state">No hay emergencias registradas.</p>
+                </>
+              )
             }
             // Una emergencia por pantalla, con «Emergencia 2 de 5» y las flechas.
-            const position = Math.min(selected, views.length - 1)
+            const byId = selectedRouteId
+              ? views.findIndex(({ emergency }) => emergency.routeId === selectedRouteId)
+              : -1
+            const position = byId >= 0 ? byId : Math.min(selected, views.length - 1)
             const view = views[position]
             return (
               <>
+                {missingLink}
                 <StepNav
                   noun="Emergencia"
                   label="Emergencias"
                   position={position}
                   total={views.length}
-                  onChange={setSelected}
+                  onChange={(next) => {
+                    setSelected(next)
+                    setSelectedRouteId(views[next]?.emergency.routeId ?? null)
+                  }}
                 />
                 <EmergencyCard key={view.emergency.id} view={view} run={run} busy={busy} />
               </>

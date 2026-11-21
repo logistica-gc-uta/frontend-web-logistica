@@ -4,7 +4,7 @@ import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 import { App } from '../../app/App'
-import { paths } from '../../app/paths'
+import { emergencyRoutePath, paths } from '../../app/paths'
 import { auditRecord, failedDelivery } from '../../test/dispatchFixtures'
 import { adminSession, adminUser, guestOrder } from '../../test/fixtures'
 import { createHttpError } from '../../test/http'
@@ -824,7 +824,8 @@ describe('FailedDeliveriesPage', () => {
     expect(cardOf.getByText('En custodia por emergencia', { selector: '.badge' })).toBeInTheDocument()
     expect(cardOf.getByText(/2 de 3 unidades pendientes de recuperación/i)).toBeInTheDocument()
     const link = cardOf.getByRole('link', { name: 'Ir a Emergencias' })
-    expect(link).toHaveAttribute('href', paths.emergencies)
+    // #67: el enlace lleva a la emergencia de esa ruta, no solo a la lista.
+    expect(link).toHaveAttribute('href', emergencyRoutePath('r1'))
     expect(cardOf.queryByRole('button', { name: 'Registrar contacto' })).not.toBeInTheDocument()
     expect(
       cardOf.queryByRole('button', { name: 'Confirmar disponibilidad en tienda' }),

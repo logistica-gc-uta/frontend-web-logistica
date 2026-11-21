@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { orderReceiptPath, paths } from '../../app/paths'
+import { emergencyRoutePath, monitorRoutePath, orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
@@ -88,7 +88,10 @@ function EmergencyCustodySection({
             : `${emergency.pendingUnitsCount} de ${emergency.totalUnitsCount} unidades pendientes de recuperación.`}
         </p>
       )}
-      <Link className="btn btn--primary" to={paths.emergencies}>
+      <Link
+        className="btn btn--primary"
+        to={emergency ? emergencyRoutePath(emergency.routeId) : paths.emergencies}
+      >
         Ir a Emergencias
       </Link>
     </section>
@@ -376,6 +379,13 @@ export function IncidentCard({
           <p className="incident__when">
             {formatDateTime(latestAttempt?.recordedAt)}
             {originalRoute?.driverName ? ` · Chofer ${originalRoute.driverName}` : ''}
+          </p>
+          {/* Enlaces por id estable (#67): cada intervención sigue en su propia pantalla. */}
+          <p className="incident__links">
+            <Link to={orderReceiptPath(incident.orderId)}>Ver pedido</Link>
+            {originalRoute && (
+              <Link to={monitorRoutePath(originalRoute.id)}>Ver ruta en Seguimiento</Link>
+            )}
           </p>
         </div>
         <ol className="incident__steps" aria-label="Avance de la gestión">
