@@ -9,7 +9,14 @@ import { ADMIN_STATE } from './e2e/support/env'
  */
 Object.assign(process.env, loadEnv('integration', process.cwd(), ['VITE_', 'IT_']))
 
-const BASE_URL = 'http://localhost:5173'
+/**
+ * Entorno aislado (#69): con `E2E_AISLADO=1` el panel se levanta en su propio puerto (5181) contra el
+ * backend descartable de `VITE_API_URL` y nunca reutiliza un servidor ya abierto (el de desarrollo
+ * apunta a la base local). Ver docs/evidencias/69-e2e-aislado.md.
+ */
+const ISOLATED = process.env.E2E_AISLADO === '1'
+const PORT = ISOLATED ? 5181 : 5173
+const BASE_URL = `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -40,9 +47,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: ISOLATED ? `pnpm dev --port ${PORT} --strictPort` : 'pnpm dev',
     url: BASE_URL,
-    reuseExistingServer: true,
+    reuseExistingServer: !ISOLATED,
     timeout: 60_000,
   },
 })

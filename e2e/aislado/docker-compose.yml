@@ -1,0 +1,25 @@
+# E2E aislado (#69): PostgreSQL DESCARTABLE solo para las pruebas en navegador.
+# - Proyecto propio (`regalia-e2e`), contenedor y puerto propios: no toca la base de desarrollo
+#   (`logistica_postgres`, puerto 5432) ni ningún servicio desplegado.
+# - Datos en tmpfs (memoria): al bajar el contenedor no queda nada en disco.
+# - Credenciales locales de prueba, solo en loopback. Nunca se usan fuera de esta máquina.
+# Arranque, versiones y limpieza: docs/evidencias/69-e2e-aislado.md
+name: regalia-e2e
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: regalia_e2e_postgres
+    environment:
+      POSTGRES_USER: e2e_user
+      POSTGRES_PASSWORD: e2e_local_only
+      POSTGRES_DB: regalia_e2e
+    ports:
+      - '127.0.0.1:55432:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U e2e_user -d regalia_e2e']
+      interval: 2s
+      timeout: 3s
+      retries: 30
