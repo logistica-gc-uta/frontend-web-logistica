@@ -92,6 +92,8 @@ const openList = (user: User) =>
 const findTable = () => screen.findByRole('table', { name: 'Pedidos registrados' })
 const findForm = async () => within(await screen.findByRole('form', { name: 'Nueva venta' }))
 const getForm = () => within(screen.getByRole('form', { name: 'Nueva venta' }))
+/** Paginación del panel (`StepNav`): «Pedidos 1–4 de 25» y las flechas. */
+const pages = () => screen.getByRole('navigation', { name: 'Páginas de pedidos' })
 const getFilters = () => within(screen.getByRole('form', { name: 'Filtros de pedidos' }))
 
 const fillValidForm = async (user: User) => {
@@ -178,12 +180,12 @@ describe('OrdersPage · listado', () => {
     const { user } = renderOrdersPage()
     await openList(user)
     await findTable()
-    expect(screen.getByText('Página 1 de 7 · 25 registros')).toBeInTheDocument()
+    expect(pages()).toHaveTextContent('Pedidos 1–4 de 25')
     expect(ordersList).toHaveBeenLastCalledWith({ page: 1, pageSize: 4 })
 
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
-    expect(await screen.findByText('Página 2 de 7 · 25 registros')).toBeInTheDocument()
+    await waitFor(() => expect(pages()).toHaveTextContent('Pedidos 5–8 de 25'))
     expect(ordersList).toHaveBeenLastCalledWith({ page: 2, pageSize: 4 })
   })
 
@@ -193,7 +195,7 @@ describe('OrdersPage · listado', () => {
     await openList(user)
     await findTable()
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
-    await screen.findByText('Página 2 de 7 · 25 registros')
+    await waitFor(() => expect(pages()).toHaveTextContent('Pedidos 5–8 de 25'))
 
     expect(getFilters().queryByLabelText('Zona')).not.toBeInTheDocument()
 
