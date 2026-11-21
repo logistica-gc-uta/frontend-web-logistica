@@ -1,4 +1,5 @@
 import { dispatchService } from '../dispatch/dispatchService'
+import { shopErrorInfo } from '../shop/shopError'
 import { monitorService } from '../monitor/monitorService'
 import type { MonitorRoute } from '../monitor/types'
 import { ordersService } from '../orders/ordersService'
@@ -24,6 +25,14 @@ export interface EmergencyView {
   orders: EmergencyOrder[]
 }
 
+/** Códigos estables del backend #85 para una emergencia que ya no está disponible. */
+const GONE_CODES = new Set(['ROUTE_NOT_FOUND', 'ROUTE_EMERGENCY_NOT_FOUND'])
+
+export const isGoneEmergency = (error: unknown): boolean => {
+  const { status, code } = shopErrorInfo(error)
+  return status === 404 && (code === undefined || GONE_CODES.has(code))
+}
+
 /**
  * Emergencias con su detalle por unidad, la ruta (para mostrar lo ya entregado, que nunca se borra)
  * y los pedidos afectados. Todo sale del servidor: nada se deduce en la web.
@@ -33,9 +42,18 @@ export async function loadEmergencies(): Promise<EmergencyView[]> {
     dispatchService.emergencies(),
     monitorService.listRoutes(),
   ])
-  const details = await Promise.all(
-    list.map((item) => dispatchService.routeEmergency(item.routeId)),
-  )
+  // Entre listar y leer el detalle, una ruta pudo desaparecer o quedarse sin emergencia (404 con
+  // `ROUTE_NOT_FOUND` / `ROUTE_EMERGENCY_NOT_FOUND`, backend #85): se omite sin romper el tablero.
+  const details = (
+    await Promise.all(
+      list.map((item) =>
+        dispatchService.routeEmergency(item.routeId).catch((error: unknown) => {
+          if (isGoneEmergency(error)) return null
+          throw error
+        }),
+      ),
+    )
+  ).filter((detail): detail is RouteEmergencyDetail => detail !== null)
   const orderIds = [...new Set(details.flatMap((detail) => detail.units.map((u) => u.orderId)))]
   const orders = new Map(
     await Promise.all(

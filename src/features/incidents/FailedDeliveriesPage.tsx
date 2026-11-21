@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import { orderReceiptPath } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
+import { Button } from '../../components/ui/Button'
 import { StepNav } from '../../components/ui/StepNav'
 import { useFetch } from '../../hooks/useFetch'
 import { useKeyedActions } from '../../hooks/useKeyedActions'
@@ -36,6 +39,35 @@ export function FailedDeliveriesPage() {
 
   const actions = useKeyedActions(requestReload)
   const [selected, setSelected] = useState(0)
+  // El caso a la vista se recuerda por su pedido (id estable), no solo por su posición: así sigue
+  // siendo el mismo aunque la bandeja se recargue o cambie de orden (#67).
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedOrderId = searchParams.get('pedido')
+  const clearLink = useCallback(
+    () =>
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete('pedido')
+          return next
+        },
+        { replace: true },
+      ),
+    [setSearchParams],
+  )
+
+  // Un enlace `?pedido=` (desde Seguimiento o un pedido) selecciona ese caso. Una vez encontrado,
+  // pasa a ser la selección normal: si luego se resuelve, el lugar pasa al siguiente sin avisos.
+  const incidentsData = board.data?.incidents
+  useEffect(() => {
+    if (!linkedOrderId || !incidentsData) return
+    const index = incidentsData.findIndex((item) => item.orderId === linkedOrderId)
+    if (index < 0) return
+    setSelected(index)
+    setSelectedOrderId(linkedOrderId)
+    clearLink()
+  }, [linkedOrderId, incidentsData, clearLink])
   // Horario de entrega de la tienda: la franja acordada se elige dentro de él.
   const settings = useFetch(shopService.settings, 'No se pudo consultar el horario de entrega')
   // Las entregas fallidas llegan en vivo: cada aviso del servidor vuelve a consultar la bandeja.
@@ -196,9 +228,22 @@ export function FailedDeliveriesPage() {
                     ? [[orderId, state.error] as const]
                     : [],
               )
+              // El caso enlazado ya no está pendiente (se resolvió o nunca existió): salida clara.
+              const missingLink =
+                linkedOrderId !== null && !visibleOrderIds.has(linkedOrderId) ? (
+                  <Alert>
+                    Ese pedido ya no tiene una entrega fallida pendiente de gestión: pudo
+                    reprogramarse, retirarse en tienda o resolverse en otra sesión.{' '}
+                    <Link to={orderReceiptPath(linkedOrderId)}>Ver el pedido</Link>{' '}
+                    <Button variant="secondary" onClick={clearLink}>
+                      Ver los pendientes
+                    </Button>
+                  </Alert>
+                ) : null
               if (incidents.length === 0) {
                 return (
                   <>
+                    {missingLink}
                     {missingIncidentErrors.map(([orderId, error]) => (
                       <Alert key={orderId}>{error}</Alert>
                     ))}
@@ -207,10 +252,14 @@ export function FailedDeliveriesPage() {
                 )
               }
               // Se atiende una falla a la vez; al resolverse una, el mismo lugar pasa a la siguiente.
-              const position = Math.min(selected, incidents.length - 1)
+              const byId = selectedOrderId
+                ? incidents.findIndex((item) => item.orderId === selectedOrderId)
+                : -1
+              const position = byId >= 0 ? byId : Math.min(selected, incidents.length - 1)
               const incident = incidents[position]
               return (
                 <div className="incident-list">
+                  {missingLink}
                   {missingIncidentErrors.map(([orderId, error]) => (
                     <Alert key={orderId}>{error}</Alert>
                   ))}
@@ -219,7 +268,10 @@ export function FailedDeliveriesPage() {
                     label="Entregas fallidas"
                     position={position}
                     total={incidents.length}
-                    onChange={setSelected}
+                    onChange={(next) => {
+                      setSelected(next)
+                      setSelectedOrderId(incidents[next]?.orderId ?? null)
+                    }}
                   />
                   <IncidentCard
                     key={incident.orderId}
