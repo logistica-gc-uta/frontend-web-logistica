@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { STORE_AREA_LABEL } from '../../lib/planning/routeArea'
 import { RoutesMap, type MapRoute } from '../../components/map/RoutesMap'
 import { Button } from '../../components/ui/Button'
+import { Notice } from '../../components/ui/Notice'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { DistanceNotice } from './DistanceNotice'
 import { PlanningSummary } from './PlanningSummary'
@@ -79,25 +80,25 @@ export function PlanningResult({ data, driverId, selectedDriver, onSaved }: Plan
           </p>
         </div>
         {!data.canConfirm && (
-          <p className="notice notice--preview" role="note">
+          <Notice tone="danger">
             <strong>Solo vista previa: no es el día de entrega.</strong> Las rutas se confirman el
             mismo día de la entrega (hora de Ecuador).
-          </p>
+          </Notice>
         )}
         <PlanningSummary summary={data.summary} method={data.distanceMethod} />
         <div className="planning-notes">
           {selectedDriver ? (
-            <p className="notice">
+            <Notice role={null}>
               <strong>Capacidad aplicada:</strong> {selectedDriver.name} ({selectedDriver.vehicle},{' '}
               {unitsLabel(data.capacity)}). Al confirmar se guarda como borrador sin asignar
               automáticamente.
-            </p>
+            </Notice>
           ) : null}
-          <p className="notice">
+          <Notice role={null}>
             <strong>Horarios agrupados.</strong> Cada ruta reúne entregas con hasta{' '}
             {data.timeWindowMarginMinutes} minutos de diferencia, máximo 4 paradas y hasta{' '}
             {unitsLabel(data.capacity)} de carga, en orden de hora; no es una promesa de llegada.
-          </p>
+          </Notice>
           <DistanceNotice method={data.distanceMethod} />
         </div>
       </section>

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { paths } from '../../app/paths'
-import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
+import { Notice } from '../../components/ui/Notice'
 import { StepNav } from '../../components/ui/StepNav'
 import { useFetch } from '../../hooks/useFetch'
 import { useRealtimeUpdates } from '../../hooks/useRealtimeUpdates'
@@ -135,7 +135,7 @@ export function MonitorPage() {
             return (
               <>
                 {missingTarget && (
-                  <Alert>
+                  <Notice tone="warning">
                     {cancelledTarget
                       ? `Esa ruta se canceló antes de salir${cancelledTarget.cancelReason ? ` (motivo: ${cancelledTarget.cancelReason})` : ''}: ya no se sigue y sus pedidos volvieron a Planificación.`
                       : 'La ruta enlazada ya no está en el seguimiento de hoy: puede ser de otro día, seguir en borrador o haberse eliminado.'}{' '}
@@ -143,21 +143,21 @@ export function MonitorPage() {
                     <Button variant="secondary" onClick={clearTarget}>
                       Ver todas las rutas
                     </Button>
-                  </Alert>
+                  </Notice>
                 )}
                 {cancelled.length > 0 && (
-                  <p className="text-muted">
+                  <Notice>
                     {cancelled.length === 1
                       ? 'Hoy se canceló 1 ruta antes de salir: sus pedidos volvieron a Planificación.'
                       : `Hoy se cancelaron ${cancelled.length} rutas antes de salir: sus pedidos volvieron a Planificación.`}
-                  </p>
+                  </Notice>
                 )}
                 {drafts > 0 && (
-                  <p className="text-muted">
+                  <Notice>
                     {drafts === 1
                       ? 'Hay 1 ruta de hoy en borrador, sin chofer: se gestiona en Planificación.'
                       : `Hay ${drafts} rutas de hoy en borrador, sin chofer: se gestionan en Planificación.`}
-                  </p>
+                  </Notice>
                 )}
                 {routes.length === 0 ? (
                   <section className="card">

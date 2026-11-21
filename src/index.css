@@ -300,6 +300,32 @@ a:hover {
   color: var(--color-success);
 }
 
+/* Avisos que se quedan en la pantalla (<Notice>): contexto, atención o bloqueo. */
+.notice {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+}
+
+.notice--success {
+  border-left-color: var(--color-success);
+}
+
+.notice--warning {
+  border-left-color: var(--color-signal);
+}
+
+.notice--danger {
+  border-left-color: var(--color-danger);
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}
+
 /*
  * Login del panel: a la izquierda el mapa de una ruta en curso sobre pizarra, a la derecha el
  * formulario. En pantallas angostas el mapa queda como franja superior.
@@ -1150,6 +1176,58 @@ a:hover {
   justify-content: space-between;
   gap: 12px;
   margin-top: 16px;
+}
+
+/* <StepNav>: paginación del panel. «Pedidos 1–4 de 25» a la izquierda y dos flechas a la derecha. */
+.step-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.step-nav strong {
+  color: var(--color-heading);
+}
+
+.step-nav__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.step-nav__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.step-nav__icon:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.step-nav__icon:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.step-nav__icon:disabled {
+  color: var(--color-border);
+  cursor: not-allowed;
 }
 
 /* Formulario de pedido */

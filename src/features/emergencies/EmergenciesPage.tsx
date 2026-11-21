@@ -6,6 +6,7 @@ import { AsyncContent } from '../../components/ui/AsyncContent'
 import { StepNav } from '../../components/ui/StepNav'
 import { Button } from '../../components/ui/Button'
 import { Drawer } from '../../components/ui/Drawer'
+import { Notice } from '../../components/ui/Notice'
 import { TextField } from '../../components/ui/TextField'
 import { useFetch } from '../../hooks/useFetch'
 import { useRealtimeUpdates } from '../../hooks/useRealtimeUpdates'
@@ -371,10 +372,10 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
         </div>
       )}
       {emergency.closedAt && counts.pendingUnits + counts.lostPendingUnits > 0 && (
-        <p className="notice" role="note">
+        <Notice tone="warning">
           <strong>Cerrada con pendientes:</strong> quedan{' '}
           {counts.pendingUnits + counts.lostPendingUnits} unidades sin recuperar o sin reemplazo.
-        </p>
+        </Notice>
       )}
     </article>
   )
@@ -479,13 +480,13 @@ export function EmergenciesPage() {
             const missingLink =
               linkedRouteId !== null &&
               !views.some(({ emergency }) => emergency.routeId === linkedRouteId) ? (
-                <Alert>
+                <Notice tone="warning">
                   Esa ruta no tiene una emergencia registrada o la ruta ya no existe.{' '}
                   <Link to={monitorRoutePath(linkedRouteId)}>Ver la ruta en Seguimiento</Link>{' '}
                   <Button variant="secondary" onClick={clearLink}>
                     Ver todas las emergencias
                   </Button>
-                </Alert>
+                </Notice>
               ) : null
             if (views.length === 0) {
               return (
