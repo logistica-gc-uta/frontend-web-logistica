@@ -50,5 +50,17 @@ export const shopReceiptPath = (orderId: string): string => withId(paths.shopRec
 /** Edición de un producto del catálogo (panel ADMIN). */
 export const productEditPath = (productId: string): string => withId(paths.productEdit, productId)
 
+/** Seguimiento con una ruta seleccionada por su id estable (#67). */
+export const monitorRoutePath = (routeId: string): string =>
+  `${paths.monitor}?ruta=${encodeURIComponent(routeId)}`
+
+/** Entregas fallidas con el caso de un pedido seleccionado (#67). */
+export const failedDeliveryPath = (orderId: string): string =>
+  `${paths.failedDeliveries}?pedido=${encodeURIComponent(orderId)}`
+
+/** Emergencias con la de una ruta seleccionada (#67). */
+export const emergencyRoutePath = (routeId: string): string =>
+  `${paths.emergencies}?ruta=${encodeURIComponent(routeId)}`
+
 /** Comprobante imprimible y contacto de un pedido (panel ADMIN). */
 export const orderReceiptPath = (orderId: string): string => withId(paths.orderReceipt, orderId)

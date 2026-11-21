@@ -41,6 +41,9 @@ export interface MonitorRoute {
   completedAt: string | null
   /** Regreso al depósito confirmado por el chofer. */
   returnedAt: string | null
+  /** Cancelada antes de salir: cuándo y por qué (opcionales en registros anteriores). */
+  cancelledAt?: string | null
+  cancelReason?: string | null
   stops: MonitorStop[]
 }
 
