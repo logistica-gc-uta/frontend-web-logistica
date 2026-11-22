@@ -165,10 +165,6 @@ export function UrgencyCard({
               <dd>{order.recipientName ?? order.user?.name ?? '—'}</dd>
             </div>
             <div>
-              <dt>Zona</dt>
-              <dd>{order.zone?.code ?? '—'}</dd>
-            </div>
-            <div>
               <dt>Entrega</dt>
               <dd>{formatDateTime(order.scheduledDeliveryDate)}</dd>
             </div>

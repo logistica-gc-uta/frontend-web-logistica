@@ -48,7 +48,7 @@ describe('UrgencyCard', () => {
     expect(card().getByText('Insertar en una ruta')).toBeInTheDocument()
     expect(card().getByText('Pendiente (PENDING)')).toBeInTheDocument()
     expect(card().getByText('María Pérez')).toBeInTheDocument()
-    expect(card().getByText('FIC-02')).toBeInTheDocument()
+    expect(card().queryByText('Zona')).toBeNull()
     expect(card().getByText('Ruta guardada 1 · FIC-02')).toBeInTheDocument()
     expect(
       card().getByText(/quedaría con 2 paradas \(2,40 km estimados en línea recta\)/),

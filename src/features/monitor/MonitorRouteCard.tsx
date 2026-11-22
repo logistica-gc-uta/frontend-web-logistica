@@ -2,7 +2,12 @@ import '../../styles/emergencies.css'
 import { forwardRef, useState } from 'react'
 import { Link } from 'react-router'
 import { emergencyRoutePath, failedDeliveryPath, orderReceiptPath, paths } from '../../app/paths'
+import { Alert } from '../../components/ui/Alert'
+import { Button } from '../../components/ui/Button'
+import { TextField } from '../../components/ui/TextField'
 import { formatDateTime } from '../../lib/format/formatDateTime'
+import { describeDispatchError } from '../dispatch/dispatchError'
+import { dispatchService } from '../dispatch/dispatchService'
 import { DeclareEmergency } from '../emergencies/DeclareEmergency'
 import type { Driver } from '../planning/types'
 import type { MonitorLinks } from './monitorBoard'
@@ -11,6 +16,13 @@ import { driverState, routeProgress } from './routeProgress'
 import type { MonitorRoute, MonitorStop } from './types'
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  COMPLETED: 'badge badge--success',
+  IN_PROGRESS: 'badge badge--accent',
+  INTERRUPTED: 'badge badge--danger',
+  ASSIGNED: 'badge badge--sand',
+}
 
 function stopResult(stop: MonitorStop): string {
   if (stop.outcome === 'SUCCESSFUL') return 'Entregado'
@@ -25,41 +37,79 @@ interface MonitorRouteCardProps {
   /** Nombre visible de la ruta (único en el día). */
   name: string
   driver: Driver | undefined
-  /** Vuelve a consultar el tablero tras declarar una emergencia (#51). */
+  /** Vuelve a consultar el tablero tras declarar una emergencia o cancelar una ruta. */
   onChanged?: () => void
   /** Enlaces a Entregas fallidas y Emergencias por id estable (#67); `null` si no se pudieron consultar. */
   links?: MonitorLinks | null
   /** La ruta llegó seleccionada desde otra pantalla (`?ruta=`). */
   highlighted?: boolean
+  /** Fecha (aaaa-mm-dd) si la ruta quedó abierta desde un día anterior. */
+  overdueDate?: string
 }
 
 /**
- * Seguimiento de una ruta: estado de la ruta, entregas exitosas, visitas resueltas e incidencias,
- * y estado del chofer, por separado. Todo sale de lo que guardó el backend.
+ * Seguimiento de una ruta: estado de la ruta, progreso por parada, incidencias y metadatos
+ * operativos. Todo proviene del estado confirmado por el backend.
  */
 export const MonitorRouteCard = forwardRef<HTMLElement, MonitorRouteCardProps>(
   function MonitorRouteCard(
-    { route, name, driver, onChanged, links = null, highlighted = false },
+    { route, name, driver, onChanged, links = null, highlighted = false, overdueDate },
     ref,
   ) {
     const progress = routeProgress(route)
     const state = driverState(route, driver)
     const [declaring, setDeclaring] = useState(false)
+    const [cancelling, setCancelling] = useState(false)
+    const [cancelReason, setCancelReason] = useState('')
+    const [cancelError, setCancelError] = useState<string | null>(null)
+    const [isCancelling, setIsCancelling] = useState(false)
+
     const canDeclare = route.status === 'IN_PROGRESS' && Boolean(onChanged)
+    const canCancelOverdue =
+      Boolean(overdueDate) && route.status === 'ASSIGNED' && Boolean(onChanged)
     const emergencyId = links?.emergencyByRoute.get(route.id)
+    const deliveredPercent =
+      progress.total > 0 ? Math.round((progress.delivered / progress.total) * 100) : 0
+    const failedCount = route.stops.filter((stop) => stop.outcome === 'FAILED').length
+
+    const handleCancelRoute = async () => {
+      if (isCancelling || !onChanged) return
+      const trimmed = cancelReason.trim()
+      if (!trimmed) {
+        setCancelError('Escribe el motivo para cancelar la ruta')
+        return
+      }
+      setCancelError(null)
+      setIsCancelling(true)
+      try {
+        await dispatchService.cancelRoute(route.id, trimmed)
+        setCancelling(false)
+        setCancelReason('')
+        onChanged()
+      } catch (error) {
+        setCancelError(describeDispatchError(error))
+      } finally {
+        setIsCancelling(false)
+      }
+    }
 
     return (
       <article
         ref={ref}
         tabIndex={highlighted ? -1 : undefined}
-        className={`card monitor-route${highlighted ? ' monitor-route--highlighted' : ''}`}
+        className={`card monitor-route${highlighted ? ' monitor-route--highlighted' : ''}${overdueDate ? ' monitor-route--overdue' : ''}`}
         aria-label={name}
         aria-current={highlighted ? 'true' : undefined}
       >
         <header className="monitor-route__header">
-          <h3>{name}</h3>
+          <div className="monitor-route__title">
+            <h3>{name}</h3>
+            {overdueDate && (
+              <span className="badge badge--danger">Sin cerrar desde {overdueDate}</span>
+            )}
+          </div>
           <div className="monitor-route__tags">
-            <span className={`badge${route.status === 'COMPLETED' ? ' badge--success' : ''}`}>
+            <span className={STATUS_BADGE_CLASS[route.status] ?? 'badge'}>
               {routeStatusShort(route.status)}
             </span>
             {canDeclare && (
@@ -84,10 +134,64 @@ export const MonitorRouteCard = forwardRef<HTMLElement, MonitorRouteCardProps>(
                 >
                   <path d="M12 3 2 20h20L12 3ZM12 10v4M12 17.5v.01" />
                 </svg>
+                <span>Emergencia</span>
+              </button>
+            )}
+            {canCancelOverdue && (
+              <button
+                type="button"
+                className="monitor-route__cancel-btn"
+                aria-expanded={cancelling}
+                onClick={() => {
+                  setCancelling((current) => !current)
+                  setCancelError(null)
+                }}
+              >
+                Cancelar ruta
               </button>
             )}
           </div>
         </header>
+
+        {cancelling && canCancelOverdue && (
+          <div className="monitor-route__cancel-box">
+            <p className="text-muted">
+              Esta ruta nunca se inició. Al cancelarla se libera al repartidor y los pedidos vuelven
+              a <strong>Pendiente</strong> para reprogramarlos.
+            </p>
+            <TextField
+              label="Motivo de cancelación"
+              placeholder="Ej.: Ruta asignada ayer que no salió a reparto"
+              value={cancelReason}
+              maxLength={500}
+              error={cancelError ?? undefined}
+              onChange={(event) => {
+                setCancelReason(event.target.value)
+                setCancelError(null)
+              }}
+            />
+            {cancelError && <Alert>{cancelError}</Alert>}
+            <div className="monitor-route__cancel-actions">
+              <Button
+                isLoading={isCancelling}
+                loadingText="Cancelando..."
+                onClick={() => void handleCancelRoute()}
+              >
+                Confirmar cancelación
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={isCancelling}
+                onClick={() => {
+                  setCancelling(false)
+                  setCancelError(null)
+                }}
+              >
+                Volver
+              </Button>
+            </div>
+          </div>
+        )}
 
         {route.status === 'INTERRUPTED' && (
           <p className="monitor-route__alert" role="note">
@@ -113,6 +217,12 @@ export const MonitorRouteCard = forwardRef<HTMLElement, MonitorRouteCardProps>(
             </span>
           </p>
         )}
+        {overdueDate && route.status === 'COMPLETED' && !route.returnedAt && (
+          <p className="monitor-route__alert" role="note">
+            <strong>Falta confirmar el regreso al depósito.</strong>
+            <span>El repartidor sigue retenido hasta registrar su retorno.</span>
+          </p>
+        )}
         {route.status !== 'INTERRUPTED' && emergencyId && (
           <p className="monitor-route__links">
             <Link to={emergencyRoutePath(route.id)}>Ver la emergencia de esta ruta</Link>
@@ -120,7 +230,26 @@ export const MonitorRouteCard = forwardRef<HTMLElement, MonitorRouteCardProps>(
         )}
 
         <div className="monitor-route__progress">
-          {/* Un punto por parada: se completa (verde) al entregarse; una visita fallida se marca en rojo. */}
+          <div className="monitor-route__counts">
+            <p>
+              <strong>
+                {progress.delivered} de {progress.total} entregados
+              </strong>
+              {failedCount > 0 && (
+                <span className="monitor-route__failed-count">
+                  {' '}
+                  · {failedCount === 1 ? '1 fallido' : `${failedCount} fallidos`}
+                </span>
+              )}
+            </p>
+            <span className="monitor-route__pct">{deliveredPercent}%</span>
+          </div>
+          <div className="monitor-progress-bar" aria-hidden="true">
+            <span
+              className="monitor-progress-bar__fill"
+              style={{ width: `${deliveredPercent}%` }}
+            />
+          </div>
           <div
             className="monitor-dots"
             role="progressbar"
@@ -138,39 +267,37 @@ export const MonitorRouteCard = forwardRef<HTMLElement, MonitorRouteCardProps>(
               </span>
             ))}
           </div>
-          <div className="monitor-route__counts">
-            <p>
-              <strong>
-                {progress.delivered} de {progress.total} entregados
-              </strong>
-            </p>
-          </div>
         </div>
 
         <ol className="monitor-route__stops">
-          {route.stops.map((stop) => (
+          {route.stops.map((stop, index) => (
             <li
               key={stop.id}
               className={`monitor-stop monitor-stop--${(stop.outcome ?? 'unknown').toLowerCase()}`}
             >
-              <span>{stop.deliveryAddress}</span>
-              <span className="monitor-stop__result">{capitalize(stopResult(stop))}</span>
-              <span className="monitor-stop__links">
-                <Link
-                  to={orderReceiptPath(stop.orderId)}
-                  aria-label={`Ver pedido de ${stop.deliveryAddress}`}
-                >
-                  Pedido
-                </Link>
-                {links?.failedOrderIds.has(stop.orderId) && (
-                  <Link
-                    to={failedDeliveryPath(stop.orderId)}
-                    aria-label={`Gestionar la entrega fallida de ${stop.deliveryAddress}`}
-                  >
-                    Entrega fallida
-                  </Link>
-                )}
+              <span className="monitor-stop__index" aria-hidden="true">
+                {index + 1}
               </span>
+              <div className="monitor-stop__body">
+                <span className="monitor-stop__address">{stop.deliveryAddress}</span>
+                <span className="monitor-stop__links">
+                  <Link
+                    to={orderReceiptPath(stop.orderId)}
+                    aria-label={`Ver pedido de ${stop.deliveryAddress}`}
+                  >
+                    Pedido
+                  </Link>
+                  {links?.failedOrderIds.has(stop.orderId) && (
+                    <Link
+                      to={failedDeliveryPath(stop.orderId)}
+                      aria-label={`Gestionar la entrega fallida de ${stop.deliveryAddress}`}
+                    >
+                      Entrega fallida
+                    </Link>
+                  )}
+                </span>
+              </div>
+              <span className="monitor-stop__result">{capitalize(stopResult(stop))}</span>
             </li>
           ))}
         </ol>

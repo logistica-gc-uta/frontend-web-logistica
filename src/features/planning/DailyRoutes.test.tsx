@@ -220,7 +220,7 @@ describe('planificación del día y horarios (#48, #49)', () => {
 
     const notice = (await screen.findByText('Horarios agrupados.')).closest('.notice')!
     expect(notice).toHaveTextContent('hasta 45 minutos de diferencia')
-    expect(notice).toHaveTextContent('máximo 4 paradas')
+    expect(notice).toHaveTextContent('según la capacidad del vehículo')
     expect(notice).toHaveTextContent('no es una promesa de llegada')
   })
 

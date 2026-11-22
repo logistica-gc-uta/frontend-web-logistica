@@ -122,18 +122,54 @@ export function MonitorPage() {
 
       <div className="page-stack">
         <AsyncContent {...board} onRetry={board.reload} loadingText="Cargando rutas de hoy...">
-          {({ routes, cancelled, drafts, drivers, links }) => {
+          {({ overdueOpen, routes, cancelled, drafts, drivers, links }) => {
             // La página sale del id de la ruta (no de una posición guardada): sigue siendo la
             // correcta aunque las rutas se recarguen o cambien de orden.
-            const targetPage = targetRouteId
-              ? pageOfRoute(routes, targetRouteId, ROUTES_PER_PAGE)
-              : null
-            const missingTarget = targetRouteId !== null && targetPage === null
+            const targetInOverdue =
+              targetRouteId !== null && overdueOpen.some(({ route }) => route.id === targetRouteId)
+            const targetPage =
+              targetRouteId && !targetInOverdue
+                ? pageOfRoute(routes, targetRouteId, ROUTES_PER_PAGE)
+                : null
+            const missingTarget =
+              targetRouteId !== null && !targetInOverdue && targetPage === null
             const cancelledTarget = missingTarget
               ? cancelled.find((route) => route.id === targetRouteId)
               : undefined
             return (
               <>
+                {overdueOpen.length > 0 && (
+                  <section
+                    className="monitor-overdue"
+                    aria-labelledby="monitor-overdue-title"
+                  >
+                    <header className="monitor-overdue__head">
+                      <div>
+                        <h2 id="monitor-overdue-title">
+                          Rutas abiertas de días anteriores ({overdueOpen.length})
+                        </h2>
+                        <p className="text-muted">
+                          Siguen reteniendo repartidores o pedidos. Cancela las no iniciadas o
+                          declara emergencia en las iniciadas para confirmar custodia y liberarlas.
+                        </p>
+                      </div>
+                    </header>
+                    <div className="monitor-routes">
+                      {overdueOpen.map(({ route, name, routeDay }) => (
+                        <MonitorRouteCard
+                          key={route.id}
+                          route={route}
+                          name={name}
+                          overdueDate={routeDay}
+                          driver={route.driverId ? drivers[route.driverId] : undefined}
+                          links={links}
+                          highlighted={route.id === targetRouteId}
+                          onChanged={board.reload}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
                 {missingTarget && (
                   <Notice tone="warning">
                     {cancelledTarget

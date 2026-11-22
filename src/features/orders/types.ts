@@ -46,6 +46,12 @@ export interface CreatedOrder {
   createdAt: string
 }
 
+export interface OrderPickupSummary {
+  state: 'PENDING_PICKUP' | 'PICKED_UP'
+  agreedAt: string
+  pickedUpAt: string | null
+}
+
 /** Pedido tal como lo devuelve `GET /orders` (proyección de ADMIN). */
 export interface Order extends CreatedOrder {
   user?: { id: string; name: string }
@@ -53,6 +59,10 @@ export interface Order extends CreatedOrder {
   zone: { id: string; name: string; code: string } | null
   deliveryLocation: GeoPoint | null
   planningEligibility: PlanningEligibility
+  /** Retiro en tienda acordado o confirmado (`null` si sigue en flujo de entrega). */
+  pickup?: OrderPickupSummary | null
+  /** `true` si el pedido espera gestión en Emergencias o Entregas fallidas. */
+  requiresAdministrativeReview?: boolean
 }
 
 /** Respuesta paginada de `GET /orders`. */

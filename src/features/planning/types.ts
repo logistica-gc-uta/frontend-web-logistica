@@ -53,11 +53,15 @@ export interface RouteProposal {
   zoneCode: string | null
   /** Punto donde la ruta empieza y termina: la tienda, o el depósito de la zona si no hay tienda. */
   depot: GeoPoint
-  /** Pedidos en orden de visita (1 a 4). */
+  /** Pedidos en orden de visita. */
   orderIds: string[]
   stops: RouteProposalStop[]
   /** Suma de unidades de producto de los pedidos incluidos en la ruta propuesta. */
   loadUnits?: number
+  /** `true` si la ruta excede los repartidores disponibles en su franja horaria (2.ª ola o reprogramación). */
+  exceedsAvailableFleet?: boolean
+  /** `true` si al planificar hoy la ruta incluye entregas cuya hora pactada ya pasó. */
+  hasOverdueStops?: boolean
   /** Recorrido depósito → paradas → depósito, en km: por calles con motor vial o en línea recta. */
   totalDistanceKm: number
   /** La misma visita en línea recta, para contrastar. Solo con motor vial. */
@@ -98,11 +102,26 @@ export interface PlanningSummary {
   savingsPercent: number
 }
 
+export interface OverlappingWindowDeficit {
+  windowStart: string
+  windowEnd: string
+  routesRequired: number
+  availableDrivers: number
+  deficit: number
+}
+
+export interface FleetPlanningSummary {
+  availableDrivers: number
+  capacities: number[]
+  maxCapacity: number
+  overlappingWindows: OverlappingWindowDeficit[]
+}
+
 /** Respuesta de `GET /route-proposals`. */
 export interface RouteProposalsResponse {
   date: string
   timeZone: string
-  /** Capacidad en unidades de producto aplicada en la propuesta (4 por defecto). */
+  /** Capacidad máxima en unidades de producto aplicada en la propuesta (4 por defecto). */
   capacity: number
   /** `OSRM_ROAD_NETWORK` con motor vial; `HAVERSINE_STRAIGHT_LINE` sin él. */
   distanceMethod: DistanceMethod
@@ -114,6 +133,8 @@ export interface RouteProposalsResponse {
   canConfirm: boolean
   /** Diferencia máxima, en minutos, entre las horas pedidas de una misma ruta (backend #48). */
   timeWindowMarginMinutes: number
+  /** Resumen de flota disponible y déficits en franjas superpuestas. */
+  fleet?: FleetPlanningSummary
   proposals: RouteProposal[]
   excluded: ExcludedOrder[]
   summary: PlanningSummary

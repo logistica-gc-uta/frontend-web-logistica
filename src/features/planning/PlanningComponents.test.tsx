@@ -83,9 +83,11 @@ describe('ExcludedOrders', () => {
 
     expect(screen.getByRole('heading', { name: 'Pedidos excluidos (2)' })).toBeInTheDocument()
     const items = screen.getAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('abcdef12 Ya está reservado en una ruta confirmada')
+    expect(items[0]).toHaveTextContent('abcdef12')
+    expect(items[0]).toHaveTextContent('Ya está reservado en una ruta confirmada')
+    expect(items[1]).toHaveTextContent('99999999')
     expect(items[1]).toHaveTextContent(
-      '99999999 El pedido no tiene zona. Falta confirmar la ubicación de entrega',
+      'El pedido no tiene zona. Falta confirmar la ubicación de entrega',
     )
   })
 
@@ -189,7 +191,7 @@ describe('ProposalCard', () => {
 
     const card = within(screen.getByRole('article', { name: 'Ruta 1' }))
     expect(card.getByRole('heading', { name: 'Ruta 1 · FIC-02' })).toBeInTheDocument()
-    expect(card.getByText('3/4 paradas')).toBeInTheDocument()
+    expect(card.getByText('3 paradas')).toBeInTheDocument()
     expect(card.getByText('Distancia en línea recta').nextSibling).toHaveTextContent('2,50 km')
     expect(card.getByText('Sin optimizar').nextSibling).toHaveTextContent('6,00 km')
     expect(card.getByText('Ahorro estimado').nextSibling).toHaveTextContent('3,50 km (58,3 %)')
@@ -217,7 +219,7 @@ describe('ProposalCard', () => {
     )
 
     const card = within(screen.getByRole('article', { name: 'Ruta 1' }))
-    expect(card.getByText('2/4 paradas')).toBeInTheDocument()
+    expect(card.getByText('2 paradas')).toBeInTheDocument()
     expect(card.getByText('6/6 unidades')).toBeInTheDocument()
   })
 

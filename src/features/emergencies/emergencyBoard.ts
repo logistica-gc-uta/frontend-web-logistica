@@ -80,7 +80,9 @@ export async function loadEmergencies(): Promise<EmergencyView[]> {
             ),
             resolved: units.every((unit) => unit.resolved),
             awaitingReview:
-              order?.planningEligibility.reasons.includes('ADMINISTRATIVE_REVIEW_REQUIRED') ?? true,
+              order?.requiresAdministrativeReview ??
+              order?.planningEligibility.reasons.includes('ADMINISTRATIVE_REVIEW_REQUIRED') ??
+              true,
           }
         }),
       }
