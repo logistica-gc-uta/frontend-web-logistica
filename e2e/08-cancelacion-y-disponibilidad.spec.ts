@@ -9,6 +9,7 @@ import {
   isolatedEnvironmentProblem,
   openFullDaySchedule,
   routeById,
+  setDeliverySchedule,
 } from './support/aislado'
 import { driverActions, getOrder, routesWithOrder, seedDriver } from './support/data'
 import { evidence } from './support/evidence'
@@ -26,6 +27,7 @@ const FOLDER = '69-e2e-aislado'
 const problem = isolatedEnvironmentProblem()
 
 let admin: Api
+let originalSchedule: { startTime: string; endTime: string } | null = null
 let driver: Awaited<ReturnType<typeof driverActions>>
 let driverId: string
 let productId: string
@@ -46,7 +48,7 @@ test.beforeAll(async () => {
   if (!seed.isAvailable)
     throw new Error('El chofer del seed no está disponible: reinicia la base aislada')
   driverId = seed.id
-  await openFullDaySchedule(admin)
+  originalSchedule = await openFullDaySchedule(admin)
   productId = await createPricedProduct(admin)
 })
 
@@ -55,6 +57,11 @@ test.afterAll(async () => {
   if (startedRouteId) {
     await driver.complete(startedRouteId).catch(() => undefined)
     await driver.returnToDepot(startedRouteId).catch(() => undefined)
+  }
+  if (originalSchedule) {
+    await setDeliverySchedule(admin, originalSchedule.startTime, originalSchedule.endTime).catch(
+      () => undefined,
+    )
   }
   await driver?.dispose()
   await admin?.dispose()

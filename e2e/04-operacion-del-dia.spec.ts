@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
+import { openFullDaySchedule, setDeliverySchedule } from './support/aislado'
 import { ApiError, apiAs, type Api } from './support/api'
+import { findInStepNav, pickSelectMenu } from './support/controls'
 import {
   createOrder,
   createProduct,
@@ -13,7 +15,13 @@ import {
   type Zone,
 } from './support/data'
 import { evidence } from './support/evidence'
-import { at, guayaquilTimeIn, todayInGuayaquil } from './support/time'
+import {
+  at,
+  formatTime12h,
+  guayaquilSlotIn,
+  guayaquilTimeIn,
+  todayInGuayaquil,
+} from './support/time'
 
 /**
  * Operación del día con el chofer del seed, contra la API real. El chofer actúa con la API y los
@@ -21,16 +29,20 @@ import { at, guayaquilTimeIn, todayInGuayaquil } from './support/time'
  * se comprueba en el panel web:
  * R1 en curso (no se modifica) → urgencia sin cupo → seguimiento de entregas, visita fallida y
  * regreso del chofer → gestión de la entrega fallida → R2 entregada sin perder la visita de R1.
- * Necesita unas 3 horas libres en el día de Guayaquil; si no, se omite.
+ * Necesita unas 3 horas libres dentro del horario operativo de Guayaquil; si no, se omite.
  */
 const TODAY = todayInGuayaquil()
-const FIRST_VISIT = guayaquilTimeIn(30)
-const AGREED_FROM = guayaquilTimeIn(120)
-const AGREED_TO = guayaquilTimeIn(180)
+const FIRST_VISIT = guayaquilTimeIn(20)
+const AGREED_FROM = guayaquilSlotIn(60)
+const AGREED_TO = guayaquilSlotIn(90)
 const HAS_TIME_TODAY =
-  guayaquilTimeIn(0) < FIRST_VISIT && FIRST_VISIT < AGREED_FROM && AGREED_FROM < AGREED_TO
+  guayaquilTimeIn(0) < FIRST_VISIT &&
+  FIRST_VISIT < AGREED_FROM &&
+  AGREED_FROM < AGREED_TO &&
+  AGREED_TO <= '23:30'
 
 let admin: Api
+let originalSchedule: { startTime: string; endTime: string } | null = null
 let driver: Awaited<ReturnType<typeof driverActions>>
 let zone: Zone
 let productId: string
@@ -50,6 +62,7 @@ test.beforeAll(async () => {
   if (!seed.isAvailable) {
     throw new Error('El chofer del seed no está disponible: confirma su regreso o recrea la base.')
   }
+  originalSchedule = await openFullDaySchedule(admin)
   driverId = seed.id
   driver = await driverActions()
   zone = await createZone(admin, 'Operación')
@@ -68,10 +81,23 @@ test.beforeAll(async () => {
 })
 
 test.afterAll(async () => {
-  // Pase lo que pase, el chofer cierra lo que quedó abierto para no quedar retenido.
+  // Pase lo que pase, el chofer resuelve y cierra lo que quedó abierto para no quedar retenido.
   for (const routeId of openRoutes) {
+    const routes = await admin?.get<RawRoute[]>('/routes').catch(() => [])
+    const current = routes?.find((route) => route.id === routeId)
+    const stops = [...(current?.stops ?? [])].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+    for (const stop of stops) {
+      if (!stop.outcome || stop.outcome === 'PENDING') {
+        await driver?.deliver(stop.orderId).catch(() => undefined)
+      }
+    }
     await driver?.complete(routeId).catch(() => undefined)
     await driver?.returnToDepot(routeId).catch(() => undefined)
+  }
+  if (originalSchedule) {
+    await setDeliverySchedule(admin, originalSchedule.startTime, originalSchedule.endTime).catch(
+      () => undefined,
+    )
   }
   await driver?.dispose()
   await admin?.dispose()
@@ -95,10 +121,14 @@ test('una ruta en curso no se modifica y una urgencia sin cupo queda pendiente c
   // R1 ya se inició: no puede recibirlo.
   await expect(card.locator('.badge')).not.toHaveText('Insertar en una ruta')
 
-  const started = page.getByRole('listitem', { name: new RegExp(`· ${zone.code}$`) })
+  await page.getByRole('button', { name: 'Ver rutas de hoy' }).click()
+  const routesDrawer = page.getByRole('dialog', { name: 'Rutas de hoy' })
+  const started = routesDrawer.getByRole('listitem', { name: new RegExp(`· ${zone.code}$`) })
   await expect(started).toContainText('En curso')
   await expect(started.getByRole('button')).toHaveCount(0)
-  await evidence(card.or(started), '06-urgencia-sin-cupo-y-ruta-en-curso')
+  await evidence(started, '06-urgencia-sin-cupo-y-ruta-en-curso')
+  await routesDrawer.getByRole('button', { name: 'Cerrar' }).click()
+  await expect(routesDrawer).toBeHidden()
 
   // La API también rechaza corregir una ruta en curso, y sus paradas no cambian.
   const reorder = admin.post('/dispatch/interventions', {
@@ -118,9 +148,10 @@ test('una ruta en curso no se modifica y una urgencia sin cupo queda pendiente c
       .getByLabel(`Motivo de la decisión para ${urgent.address}`)
       .fill('E2E: se despacha mañana')
     await reject.click()
-    await expect(page.getByRole('region', { name: 'Decisiones registradas hoy' })).toContainText(
-      'E2E: se despacha mañana',
-    )
+    await page.getByRole('button', { name: 'Ver decisiones registradas' }).click()
+    await expect(
+      page.getByRole('dialog', { name: 'Decisiones registradas hoy' }),
+    ).toContainText('E2E: se despacha mañana')
   } else {
     test.info().annotations.push({ type: 'Urgencia', description: 'Bloqueada: sin chofer libre' })
   }
@@ -130,22 +161,21 @@ test('una ruta en curso no se modifica y una urgencia sin cupo queda pendiente c
 test('el seguimiento separa entregas, visitas fallidas y la disponibilidad del chofer', async ({
   page,
 }) => {
-  await page.goto('/seguimiento')
+  await page.goto(`/seguimiento?ruta=${r1.id}`)
   const card = page.getByRole('article', { name: new RegExp(`· ${zone.code}$`) })
-  await expect(card).toContainText('0 de 2 entregados (0 %)')
   await expect(page.getByRole('status').filter({ hasText: 'En vivo' })).toBeVisible()
+  await expect(card).toContainText('0 de 2 entregados')
 
   // Cada avance del chofer llega sin recargar la página.
   await driver.deliver(delivered.id)
-  await expect(card).toContainText('1 de 2 entregados (50 %)')
+  await expect(card).toContainText('1 de 2 entregados')
 
   await driver.fail(r1.id, (await stopOf(admin, r1.id, failed.id))!.id)
-  await expect(card).toContainText('Visitas resueltas: 2 de 2 · 1 fallida')
   await expect(card).toContainText('Visita fallida: destinatario ausente')
-  await expect(card).toContainText('1 de 2 entregados (50 %)')
+  await expect(card).toContainText('1 de 2 entregados')
 
   await driver.complete(r1.id)
-  await expect(card).toContainText('Completada (COMPLETED)')
+  await expect(card).toContainText('Completada')
   await expect(card).toContainText('Retornando al depósito: todavía no está disponible')
   await evidence(card, '07-chofer-retornando')
   expect((await seedDriver(admin)).isAvailable).toBe(false)
@@ -166,35 +196,50 @@ test('la entrega fallida se gestiona aparte y solo se reprograma con un acuerdo'
     expect(['DELIVERED', 'CANCELLED']).not.toContain((await getOrder(admin, failed.id)).status)
   })
 
-  const card = page.getByRole('article', { name: `Entrega fallida ${failed.address}` })
+  const card = page
+    .getByRole('article', { name: /^Entrega fallida / })
+    .filter({ has: page.locator(`a[href*="${failed.id}"]`) })
   const rescheduleButton = card.getByRole('button', { name: 'Reprogramar con este acuerdo' })
 
   await test.step('la bandeja muestra el intento con su motivo y la ruta original', async () => {
-    await page.goto('/entregas-fallidas')
-    await expect(card).toContainText('Pendiente de gestión')
-    await expect(card).toContainText('no está cancelado ni entregado')
+    await page.goto(`/admin/entregas-fallidas?pedido=${failed.id}`)
+    await expect(page.getByRole('heading', { name: 'Pendientes de gestión' })).toBeVisible()
+    await expect(card).toContainText(
+      /Esperando disponibilidad en tienda|Entrega pendiente de gestión/,
+    )
     await expect(card).toContainText('Destinatario ausente', { ignoreCase: true })
+    await card.getByText('Ver historial del pedido').click()
     await expect(card).toContainText(zone.code)
     await expect(rescheduleButton).toBeDisabled()
   })
 
   await test.step('un contacto sin acuerdo no habilita la reprogramación', async () => {
     await card.getByLabel('No se logró acordar').check()
-    await card.getByLabel(`Motivo de la gestión de ${failed.address}`).fill('E2E: no contestó')
     await card.getByRole('button', { name: 'Registrar contacto' }).click()
 
-    await expect(card.getByRole('region', { name: /^Gestiones registradas/ })).toContainText(
-      'E2E: no contestó',
+    await expect(card.getByRole('list', { name: /^Historial de / })).toContainText(
+      'No se logró acordar con el destinatario',
     )
     await expect(rescheduleButton).toBeDisabled()
   })
 
   await test.step('con día y franja acordados se reprograma y el pedido vuelve a PENDING', async () => {
+    const reasonInput = card.getByLabel('Motivo o verificación en tienda')
+    await expect(async () => {
+      if (!(await reasonInput.isVisible())) {
+        await card.getByRole('button', { name: 'Confirmar disponibilidad en tienda' }).click()
+      }
+      await expect(reasonInput).toBeVisible({ timeout: 2_000 })
+    }).toPass({ timeout: 10_000 })
+    await reasonInput.fill('E2E 04: producto sano en tienda')
+    await card.getByRole('button', { name: 'Sí, confirmar disponibilidad' }).click()
+    await expect(card.getByText('Disponibilidad en tienda confirmada', { exact: true })).toBeVisible()
+
     await card.getByLabel('Se acordó una nueva entrega').check()
-    await card.getByLabel(`Motivo de la gestión de ${failed.address}`).fill('E2E: acordó la tarde')
+    await card.getByLabel('Qué se habló con el destinatario').fill('E2E: acordó la tarde')
     await card.getByLabel('Día acordado').fill(TODAY)
-    await card.getByLabel('Desde (hora de Guayaquil)').fill(AGREED_FROM)
-    await card.getByLabel('Hasta (hora de Guayaquil)').fill(AGREED_TO)
+    await pickSelectMenu(card, page, 'Desde', formatTime12h(AGREED_FROM))
+    await pickSelectMenu(card, page, 'Hasta', formatTime12h(AGREED_TO))
     await card.getByRole('button', { name: 'Registrar contacto' }).click()
 
     await expect(card).toContainText('Acuerdo registrado')
@@ -218,17 +263,21 @@ test('la entrega fallida se gestiona aparte y solo se reprograma con un acuerdo'
     await driver.returnToDepot(r2.id)
     openRoutes.delete(r2.id)
 
-    await page.goto('/seguimiento')
-    const visits = page
+    await page.goto(`/seguimiento?ruta=${r1.id}`)
+    await expect(page.getByRole('status').filter({ hasText: 'En vivo' })).toBeVisible()
+    const r1Visit = page
       .getByRole('article', { name: new RegExp(`· ${zone.code}$`) })
       .locator('li', { hasText: failed.address })
-    await expect(visits).toHaveCount(2)
-    await expect(visits.filter({ hasText: 'Visita fallida: destinatario ausente' })).toHaveCount(1)
-    await expect(visits.filter({ hasText: 'Entregado' })).toHaveCount(1)
-    await evidence(
-      page.getByRole('article', { name: new RegExp(`· ${zone.code}$`) }),
-      '09-historial-r1-fallida-r2-entregada',
-    )
+      .filter({ hasText: 'Visita fallida: destinatario ausente' })
+    await expect(r1Visit).toHaveCount(1)
+    await evidence(r1Visit.locator('..'), '09-historial-r1-fallida-r2-entregada')
+
+    await page.goto(`/seguimiento?ruta=${r2.id}`)
+    const r2Visit = page
+      .getByRole('article', { name: new RegExp(`· ${zone.code}$`) })
+      .locator('li', { hasText: failed.address })
+      .filter({ hasText: 'Entregado' })
+    await expect(r2Visit).toHaveCount(1)
 
     expect((await stopOf(admin, r1.id, failed.id))?.outcome).toBe('FAILED')
     expect((await stopOf(admin, r2.id, failed.id))?.outcome).toBe('SUCCESSFUL')
