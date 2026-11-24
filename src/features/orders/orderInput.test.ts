@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { products } from '../../test/fixtures'
 import {
   buildTimeSlots,
+  DEFAULT_DELIVERY_SCHEDULE,
+  timeSlotOptions,
   formatPhone,
   formatTimeLabel,
   joinScheduledAt,
@@ -52,6 +54,13 @@ describe('orderInput', () => {
       endTime: '09:00',
     })
     expect(slots).toEqual(['07:00', '07:30', '08:00', '08:30', '09:00'])
+  })
+
+  it('arma las opciones del selector de hora del panel con a. m./p. m. (#68)', () => {
+    const options = timeSlotOptions(DEFAULT_DELIVERY_SCHEDULE)
+    expect(options[0]).toEqual({ value: '07:00', label: '7:00 a. m.' })
+    expect(options.at(-1)).toEqual({ value: '17:00', label: '5:00 p. m.' })
+    expect(options).toHaveLength(21)
   })
 })
 

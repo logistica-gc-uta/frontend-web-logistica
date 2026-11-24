@@ -15,6 +15,9 @@ interface RawRoute {
   startedAt: string | null
   completedAt: string | null
   returnedAt: string | null
+  /** Cancelación antes de salir (backend #63/#85); ausentes en un backend anterior. */
+  cancelledAt?: string | null
+  cancelReason?: string | null
   orders: { id: string; deliveryAddress: string }[]
   stops: {
     id: string
@@ -57,6 +60,8 @@ const toMonitorRoute = (raw: RawRoute): MonitorRoute => {
     startedAt: raw.startedAt,
     completedAt: raw.completedAt,
     returnedAt: raw.returnedAt,
+    cancelledAt: raw.cancelledAt ?? null,
+    cancelReason: raw.cancelReason?.trim() || null,
     stops: raw.stops
       .map((stop) => ({
         id: stop.id,

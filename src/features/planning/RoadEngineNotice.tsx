@@ -1,4 +1,5 @@
 import { Button } from '../../components/ui/Button'
+import { Notice } from '../../components/ui/Notice'
 import { useFetch } from '../../hooks/useFetch'
 import { planningService } from './planningService'
 
@@ -13,24 +14,24 @@ export function RoadEngineNotice() {
 
   if (engine.engine === 'HAVERSINE') {
     return (
-      <p className="notice road-engine" role="status">
+      <Notice role="status" className="road-engine">
         <strong>Motor vial desactivado.</strong> Las distancias se calculan en línea recta y el mapa
         no muestra recorridos por calles.
-      </p>
+      </Notice>
     )
   }
 
   if (engine.available) {
     return (
-      <p className="notice road-engine road-engine--ok" role="status">
+      <Notice tone="success" role="status" className="road-engine road-engine--ok">
         <strong>Motor vial activo.</strong> Las rutas se miden por calles con distancias y
         duraciones estimadas (sin tráfico en vivo).
-      </p>
+      </Notice>
     )
   }
 
   return (
-    <div className="notice road-engine road-engine--down" role="alert">
+    <Notice tone="danger" role="alert" className="road-engine road-engine--down">
       <p>
         <strong>El motor vial no responde.</strong> Mientras tanto no se pueden calcular propuestas:
         no se usa la línea recta como reemplazo. Los pedidos siguen pendientes y las rutas guardadas
@@ -40,6 +41,6 @@ export function RoadEngineNotice() {
       <Button variant="secondary" onClick={status.reload}>
         Volver a comprobar
       </Button>
-    </div>
+    </Notice>
   )
 }

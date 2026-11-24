@@ -78,6 +78,8 @@ export interface AdminShopSettings {
   version: number
   tax: { enabled: boolean; rateBps: number }
   maxUnitsPerSkuPerOrder: number
+  /** Máximo de unidades del pedido completo (backend #83, 1–1000); `null` = sin límite. */
+  maxUnitsPerOrder: number | null
   deliverySchedule: { timeZone: string; startTime: string; endTime: string }
   shippingFreeIncluded: boolean
   /** Minutos máximos entre horas pedidas de una misma ruta propuesta (backend #48, 5–180). */
@@ -88,7 +90,8 @@ export interface AdminShopSettings {
 
 export interface ShopSettingsChanges {
   tax?: { enabled: boolean; rateBps: number }
-  limits?: { maxUnitsPerSkuPerOrder: number }
+  /** El backend exige al menos uno de los dos; `maxUnitsPerOrder: null` quita el límite. */
+  limits?: { maxUnitsPerSkuPerOrder?: number; maxUnitsPerOrder?: number | null }
   deliverySchedule?: { startTime: string; endTime: string }
   routePlanning?: { timeWindowMarginMinutes: number }
 }

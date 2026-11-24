@@ -1,5 +1,14 @@
 import { dispatchService } from '../dispatch/dispatchService'
-import type { DispatchAudit, FailedAttempt, OrderPickup } from '../dispatch/types'
+import type {
+  DispatchAudit,
+  FailedAttempt,
+  IncidentAllowedActions,
+  IncidentEmergencyContext,
+  IncidentOwnership,
+  IncidentReadiness,
+  IncidentStatus,
+  OrderPickup,
+} from '../dispatch/types'
 import { monitorService } from '../monitor/monitorService'
 import type { MonitorRoute, MonitorStop } from '../monitor/types'
 import { ordersService } from '../orders/ordersService'
@@ -26,6 +35,22 @@ export interface IncidentView {
   management: DispatchAudit[]
   /** Retiro en tienda acordado (backend #50), o `null` si todavía espera gestión. */
   pickup: OrderPickup | null
+  /** Estado operativo proyectado por el servidor (ausente en backends anteriores). */
+  status?: IncidentStatus
+  /** Propietario operativo proyectado por el servidor. */
+  ownership?: IncidentOwnership
+  /** Último intento fallido canónico reportado por el servidor (puede ser `null` explícito). */
+  latestFailedAttemptId?: string | null
+  /** Confirmación de disponibilidad en tienda para `latestFailedAttemptId`, o `null`. */
+  readiness?: IncidentReadiness | null
+  /** Emergencia activa propietaria cuando `ownership === 'EMERGENCY_CUSTODY'`. */
+  emergencyId?: string | null
+  /** Contexto mínimo de emergencia cuando `ownership === 'EMERGENCY_CUSTODY'`. */
+  emergency?: IncidentEmergencyContext | null
+  /** Último acuerdo de contacto vigente no consumido para `latestFailedAttemptId`, o `null`. */
+  activeAgreementId?: string | null
+  /** Acciones permitidas/denegadas por el servidor. */
+  allowedActions?: IncidentAllowedActions
 }
 
 export interface IncidentsBoard {
@@ -36,6 +61,7 @@ export interface IncidentsBoard {
 
 const MANAGEMENT_ACTIONS = new Set([
   'CONTACT',
+  'CONFIRM_INCIDENT_READY',
   'RESCHEDULE',
   'PICKUP_AGREE',
   'PICKUP_DECLINE',
@@ -57,7 +83,12 @@ export async function loadIncidentsBoard(): Promise<IncidentsBoard> {
   )
 
   const incidents = inbox.failedDeliveries.map((failed, index): IncidentView => {
-    const latestAttempt = failed.attempts[0]
+    const latestAttempt =
+      failed.latestFailedAttemptId !== undefined
+        ? failed.latestFailedAttemptId === null
+          ? undefined
+          : failed.attempts.find((attempt) => attempt.id === failed.latestFailedAttemptId)
+        : failed.attempts[0]
     const visits = routes.flatMap((route) =>
       route.stops
         .filter((stop) => stop.orderId === failed.orderId)
@@ -75,6 +106,18 @@ export async function loadIncidentsBoard(): Promise<IncidentsBoard> {
         )
         .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
       pickup: failed.pickup,
+      ...(failed.status !== undefined ? { status: failed.status } : {}),
+      ...(failed.ownership !== undefined ? { ownership: failed.ownership } : {}),
+      ...(failed.latestFailedAttemptId !== undefined
+        ? { latestFailedAttemptId: failed.latestFailedAttemptId }
+        : {}),
+      ...(failed.readiness !== undefined ? { readiness: failed.readiness } : {}),
+      ...(failed.emergencyId !== undefined ? { emergencyId: failed.emergencyId } : {}),
+      ...(failed.emergency !== undefined ? { emergency: failed.emergency } : {}),
+      ...(failed.activeAgreementId !== undefined
+        ? { activeAgreementId: failed.activeAgreementId }
+        : {}),
+      ...(failed.allowedActions !== undefined ? { allowedActions: failed.allowedActions } : {}),
     }
   })
 

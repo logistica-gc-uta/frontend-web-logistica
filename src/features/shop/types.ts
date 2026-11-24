@@ -72,6 +72,11 @@ export interface DeliverySchedule {
 export interface ShopSettings {
   version: number
   maxUnitsPerSkuPerOrder: number
+  /**
+   * Máximo de unidades del pedido completo (suma de todas las líneas, backend #83). `null` = sin
+   * límite. Es independiente del máximo por SKU: el pedido debe cumplir los dos.
+   */
+  maxUnitsPerOrder: number | null
   shippingFreeIncluded: boolean
   tax: SimulatedTax
   deliverySchedule: DeliverySchedule

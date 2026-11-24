@@ -12,12 +12,19 @@ const renderSaved = (
     drivers = [availableDriver, busyDriver],
     actions = {},
     applied = true,
-  }: { drivers?: Driver[]; actions?: Record<string, KeyedActionState>; applied?: boolean } = {},
+    withCancel = false,
+  }: {
+    drivers?: Driver[]
+    actions?: Record<string, KeyedActionState>
+    applied?: boolean
+    withCancel?: boolean
+  } = {},
 ) => {
   const onAssign = vi.fn()
   const onReassign = vi.fn()
   const onReorder = vi.fn().mockResolvedValue(applied)
   const onMove = vi.fn().mockResolvedValue(applied)
+  const onCancel = vi.fn().mockResolvedValue(applied)
   render(
     <SavedRoutes
       day="2030-02-14"
@@ -28,9 +35,10 @@ const renderSaved = (
       onReassign={onReassign}
       onReorder={onReorder}
       onMove={onMove}
+      onCancel={withCancel ? onCancel : undefined}
     />,
   )
-  return { onAssign, onReassign, onReorder, onMove }
+  return { onAssign, onReassign, onReorder, onMove, onCancel }
 }
 
 const routeItem = (name: string) => within(screen.getByRole('listitem', { name }))
@@ -362,5 +370,248 @@ describe('SavedRoutes · corregir paradas', () => {
 
     expect(panel.getByRole('button', { name: 'Guardando...' })).toBeDisabled()
     expect(panel.getByRole('button', { name: 'Bajar Parada 1 de a' })).toBeDisabled()
+  })
+})
+
+describe('SavedRoutes · cancelar ruta asignada', () => {
+  const assignedRoute = (overrides: Partial<SavedRouteDetail> = {}) =>
+    savedRouteDetail('a', {
+      status: 'ASSIGNED',
+      driverId: 'driver-1',
+      driverName: 'Carlos Chofer',
+      startedAt: null,
+      ...overrides,
+    })
+
+  it('ofrece Cancelar ruta solo para ASSIGNED sin iniciar, exige motivo y explica sus efectos sin actuar sola', async () => {
+    const user = userEvent.setup()
+    const { onCancel } = renderSaved([assignedRoute()], { withCancel: true })
+    const item = routeItem(FIRST)
+
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    expect(onCancel).not.toHaveBeenCalled()
+
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    expect(dialog.getByText(/no se cancelan/i)).toBeInTheDocument()
+    expect(dialog.getByText(/Planificación/i)).toBeInTheDocument()
+    expect(dialog.getByText(/chofer quedará libre/i)).toBeInTheDocument()
+
+    await user.type(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`), '   ')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+    expect(dialog.getByText('Escribe el motivo')).toBeInTheDocument()
+    expect(onCancel).not.toHaveBeenCalled()
+
+    await user.clear(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`))
+    await user.type(
+      dialog.getByLabelText(`Motivo para cancelar ${FIRST}`),
+      '  Vehículo averiado antes de salir  ',
+    )
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    expect(onCancel).toHaveBeenCalledWith('a', 'Vehículo averiado antes de salir')
+    expect(item.queryByRole('group', { name: `Cancelar ${FIRST}` })).not.toBeInTheDocument()
+  })
+
+  it('si cancelar falla mantiene abierta la confirmación, el motivo escrito y el error', async () => {
+    const user = userEvent.setup()
+    renderSaved([assignedRoute()], {
+      withCancel: true,
+      applied: false,
+      actions: { a: { status: 'failed', error: 'La ruta ya se inició y no se puede cancelar.' } },
+    })
+    const item = routeItem(FIRST)
+
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    const input = dialog.getByLabelText(`Motivo para cancelar ${FIRST}`)
+    await user.type(input, 'Cambio operativo')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    expect(item.getByRole('group', { name: `Cancelar ${FIRST}` })).toBeInTheDocument()
+    expect(input).toHaveValue('Cambio operativo')
+    expect(dialog.getByRole('alert')).toHaveTextContent('La ruta ya se inició y no se puede cancelar.')
+  })
+
+  it('Volver cierra sin cancelar y mientras guarda bloquea los controles', async () => {
+    const user = userEvent.setup()
+    const { onCancel } = renderSaved([assignedRoute()], { withCancel: true })
+    const item = routeItem(FIRST)
+
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    await user.click(item.getByRole('button', { name: 'Volver' }))
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(item.queryByRole('group', { name: `Cancelar ${FIRST}` })).not.toBeInTheDocument()
+  })
+
+  it('mientras cancela deshabilita el motivo y los botones', async () => {
+    const user = userEvent.setup()
+    renderSaved([assignedRoute()], { withCancel: true, actions: { a: { status: 'saving' } } })
+    const item = routeItem(FIRST)
+
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    expect(dialog.getByRole('button', { name: 'Cancelando...' })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: 'Volver' })).toBeDisabled()
+    expect(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`)).toBeDisabled()
+  })
+
+  it('exige startedAt: null explícito para cancelar; ausente, vacío o iniciado son inelegibles sin romper edición ni reasignación en registros previos', () => {
+    renderSaved(
+      [
+        assignedRoute({ id: 'eligible-null', driverId: 'driver-3', startedAt: null }),
+        assignedRoute({ id: 'missing-started-at', driverId: 'driver-3', startedAt: undefined }),
+        assignedRoute({ id: 'empty-started-at', driverId: 'driver-3', startedAt: '' }),
+        assignedRoute({
+          id: 'started-assigned',
+          driverId: 'driver-3',
+          startedAt: '2030-02-14T15:10:00Z',
+        }),
+        savedRouteDetail('draft', { status: 'DRAFT' }),
+        savedRouteDetail('in-progress', { status: 'IN_PROGRESS', driverName: 'Carlos Chofer' }),
+        savedRouteDetail('interrupted', { status: 'INTERRUPTED', driverName: 'Carlos Chofer' }),
+        savedRouteDetail('completed', { status: 'COMPLETED', driverName: 'Carlos Chofer' }),
+        savedRouteDetail('cancelled', { status: 'CANCELLED', driverName: 'Carlos Chofer' }),
+      ],
+      { withCancel: true },
+    )
+
+    const eligible = routeItem('Ruta guardada 1 · FIC-02')
+    expect(eligible.getByRole('button', { name: 'Cancelar ruta' })).toBeInTheDocument()
+
+    const legacyAbsent = routeItem('Ruta guardada 2 · FIC-02')
+    expect(legacyAbsent.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    expect(legacyAbsent.getByRole('button', { name: 'Corregir paradas' })).toBeInTheDocument()
+    expect(legacyAbsent.getByRole('button', { name: 'Cambiar chofer' })).toBeInTheDocument()
+
+    const emptyStarted = routeItem('Ruta guardada 3 · FIC-02')
+    expect(emptyStarted.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+
+    const startedAssigned = routeItem('Ruta guardada 4 · FIC-02')
+    expect(startedAssigned.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    expect(
+      startedAssigned.queryByRole('button', { name: 'Corregir paradas' }),
+    ).not.toBeInTheDocument()
+    expect(startedAssigned.queryByRole('combobox')).not.toBeInTheDocument()
+
+    for (let index = 5; index <= 9; index++) {
+      const item = routeItem(`Ruta guardada ${index} · FIC-02`)
+      expect(item.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    }
+  })
+
+  it('si una ruta se vuelve inelegible tras fallar la cancelación quita los controles y muestra el error en su tarjeta', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn().mockResolvedValue(false)
+    const { rerender } = render(
+      <SavedRoutes
+        day="2030-02-14"
+        routes={[assignedRoute()]}
+        drivers={[availableDriver, busyDriver]}
+        actions={{}}
+        onAssign={vi.fn()}
+        onReassign={vi.fn()}
+        onReorder={vi.fn().mockResolvedValue(true)}
+        onMove={vi.fn().mockResolvedValue(true)}
+        onCancel={onCancel}
+      />,
+    )
+
+    const item = routeItem(FIRST)
+    await user.click(item.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(item.getByRole('group', { name: `Cancelar ${FIRST}` }))
+    await user.type(dialog.getByLabelText(`Motivo para cancelar ${FIRST}`), 'Cambio operativo')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    rerender(
+      <SavedRoutes
+        day="2030-02-14"
+        routes={[
+          assignedRoute({
+            status: 'IN_PROGRESS',
+            startedAt: '2030-02-14T15:10:00Z',
+          }),
+        ]}
+        drivers={[availableDriver, busyDriver]}
+        actions={{
+          a: {
+            status: 'failed',
+            error: 'La ruta ya se inició y no se puede cancelar: revisa la lista actualizada.',
+          },
+        }}
+        onAssign={vi.fn()}
+        onReassign={vi.fn()}
+        onReorder={vi.fn().mockResolvedValue(true)}
+        onMove={vi.fn().mockResolvedValue(true)}
+        onCancel={onCancel}
+      />,
+    )
+
+    const updated = routeItem(FIRST)
+    expect(updated.getByText('En curso (IN_PROGRESS)')).toBeInTheDocument()
+    expect(updated.queryByRole('group', { name: `Cancelar ${FIRST}` })).not.toBeInTheDocument()
+    expect(updated.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    expect(updated.queryByRole('button', { name: 'Confirmar cancelación' })).not.toBeInTheDocument()
+    expect(updated.getByRole('alert')).toHaveTextContent(
+      'La ruta ya se inició y no se puede cancelar: revisa la lista actualizada.',
+    )
+  })
+
+  it('si una ruta desaparece tras un 404 muestra el motivo del fallo en la superficie', () => {
+    renderSaved([], {
+      withCancel: true,
+      actions: {
+        a: {
+          status: 'failed',
+          error: 'No se encontró la ruta: revisa la lista actualizada.',
+        },
+      },
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No se encontró la ruta: revisa la lista actualizada.',
+    )
+    expect(screen.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+  })
+
+  it('una ruta CANCELLED queda visible en el historial sin acciones, fuera de destinos y muestra evidencia solo si llega de la API', async () => {
+    const user = userEvent.setup()
+    renderSaved(
+      [
+        savedRouteDetail('draft-1', { status: 'DRAFT' }),
+        savedRouteDetail('cancelled-plain', {
+          status: 'CANCELLED',
+          driverName: 'Carlos Chofer',
+        }),
+        savedRouteDetail('cancelled-evidence', {
+          status: 'CANCELLED',
+          driverName: 'Carlos Chofer',
+          cancelledAt: '2030-02-14T14:30:00Z',
+          cancellationReason: 'Camión sin batería',
+          cancelledById: 'admin-1',
+        }),
+      ],
+      { withCancel: true },
+    )
+
+    const plain = routeItem('Ruta guardada 2 · FIC-02')
+    expect(plain.getByText('Cancelada (CANCELLED)')).toBeInTheDocument()
+    expect(plain.getByText(/Cancelada antes de iniciar/)).toBeInTheDocument()
+    expect(plain.queryByRole('button')).not.toBeInTheDocument()
+    expect(plain.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(plain.queryByText(/Motivo de cancelación/i)).not.toBeInTheDocument()
+
+    const withEvidence = routeItem('Ruta guardada 3 · FIC-02')
+    expect(withEvidence.getByText(/Cancelada el/)).toBeInTheDocument()
+    expect(withEvidence.getByText(/Cancelada por: admin-1/)).toBeInTheDocument()
+    expect(withEvidence.getByText(/Motivo de cancelación: Camión sin batería/)).toBeInTheDocument()
+
+    // Una ruta CANCELLED no se ofrece como destino para mover pedidos.
+    await user.click(routeItem(FIRST).getByRole('button', { name: 'Corregir paradas' }))
+    const correction = within(screen.getByRole('group', { name: `Corregir ${FIRST}` }))
+    expect(
+      correction.getByText(
+        'No hay otra ruta del mismo día y zona, sin iniciar y con lugar, que pueda recibir un pedido.',
+      ),
+    ).toBeInTheDocument()
   })
 })

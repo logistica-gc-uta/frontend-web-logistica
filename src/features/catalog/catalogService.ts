@@ -50,7 +50,8 @@ interface RawSettings {
   version: number
   shipping: { status: string }
   tax: { enabled: boolean; rateBps: number }
-  limits: { maxUnitsPerSkuPerOrder: number }
+  /** `maxUnitsPerOrder` llega desde el backend #83; uno anterior no lo envía (= sin límite). */
+  limits: { maxUnitsPerSkuPerOrder: number; maxUnitsPerOrder?: number | null }
   deliverySchedule: { timeZone: string; startTime: string; endTime: string }
   /** Backend #48; un backend anterior no lo envía y se usa su valor por defecto. */
   routePlanning?: { timeWindowMarginMinutes: number }
@@ -65,6 +66,7 @@ const toSettings = (raw: RawSettings): AdminShopSettings => ({
   version: raw.version,
   tax: { enabled: raw.tax.enabled, rateBps: raw.tax.rateBps },
   maxUnitsPerSkuPerOrder: raw.limits.maxUnitsPerSkuPerOrder,
+  maxUnitsPerOrder: raw.limits.maxUnitsPerOrder ?? null,
   deliverySchedule: {
     timeZone: raw.deliverySchedule.timeZone,
     startTime: raw.deliverySchedule.startTime,

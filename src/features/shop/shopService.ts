@@ -76,7 +76,8 @@ interface RawSettings {
   version: number
   shipping: { status: string }
   tax: { enabled: boolean; rateBps: number; ratePercent: number }
-  limits: { maxUnitsPerSkuPerOrder: number }
+  /** `maxUnitsPerOrder` llega desde el backend #83; uno anterior no lo envía (= sin límite). */
+  limits: { maxUnitsPerSkuPerOrder: number; maxUnitsPerOrder?: number | null }
   deliverySchedule: { timeZone: string; startTime: string; endTime: string }
 }
 
@@ -115,6 +116,7 @@ export const shopService = {
     return {
       version: data.version,
       maxUnitsPerSkuPerOrder: data.limits.maxUnitsPerSkuPerOrder,
+      maxUnitsPerOrder: data.limits.maxUnitsPerOrder ?? null,
       shippingFreeIncluded: data.shipping.status === 'FREE_INCLUDED',
       tax: {
         enabled: data.tax.enabled,

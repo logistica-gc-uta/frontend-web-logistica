@@ -9,6 +9,7 @@ import { useFetch } from '../../hooks/useFetch'
 import { todayInGuayaquil } from '../../lib/time/guayaquil'
 import { AbsencesPanel } from './AbsencesPanel'
 import { DriverProfileForm } from './DriverProfileForm'
+import { DriverStatusPanel, isDriverActive } from './DriverStatusPanel'
 import { driversAdminService } from './driversAdminService'
 import {
   availabilityLabel,
@@ -104,7 +105,10 @@ export function DriversPage() {
   const [created, setCreated] = useState<CreatedDriver | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [page, setPage] = useState(0)
-  const [selected, setSelected] = useState<{ id: string; mode: 'edit' | 'absences' } | null>(null)
+  const [selected, setSelected] = useState<{
+    id: string
+    mode: 'edit' | 'absences' | 'status'
+  } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   const selectedDriver = data.data?.drivers.find((driver) => driver.id === selected?.id)
@@ -124,8 +128,36 @@ export function DriversPage() {
       render: (driver) => formatVehicleCapacity(driver.vehicleCapacity),
     },
     {
+      header: 'Estado',
+      render: (driver) =>
+        isDriverActive(driver) ? (
+          <span className="badge badge--success" aria-label={`Estado de ${driver.user.name}`}>
+            Activo
+          </span>
+        ) : (
+          <span
+            className="badge badge--danger"
+            aria-label={`Estado de ${driver.user.name}`}
+            title={driver.statusReason ?? undefined}
+          >
+            Dado de baja
+          </span>
+        ),
+    },
+    {
       header: 'Disponibilidad',
       render: (driver) => {
+        // Dado de baja nunca se puede asignar, tenga o no ausencias o rutas ese día.
+        if (!isDriverActive(driver)) {
+          return (
+            <span
+              className="badge badge--danger"
+              aria-label={`Disponibilidad de ${driver.user.name}`}
+            >
+              No asignable (dado de baja)
+            </span>
+          )
+        }
         const dayStatus = data.data?.availability[driver.id]
         const label = dayStatus ? availabilityLabel(dayStatus) : null
         return (
@@ -172,6 +204,32 @@ export function DriversPage() {
               <path d="M16 2v4M8 2v4M3 10h18M10 14l4 4M14 14l-4 4" />
             </svg>
           </button>
+          <button
+            type="button"
+            className="drivers-table__icon"
+            aria-label={
+              isDriverActive(driver)
+                ? `Dar de baja a ${driver.user.name}`
+                : `Reactivar a ${driver.user.name}`
+            }
+            title={isDriverActive(driver) ? 'Dar de baja' : 'Reactivar'}
+            onClick={() => {
+              setNotice(null)
+              setSelected({ id: driver.id, mode: 'status' })
+            }}
+          >
+            {isDriverActive(driver) ? (
+              <svg {...ICON}>
+                <path d="M12 3v8" />
+                <path d="M6.3 6.8a8 8 0 1 0 11.4 0" />
+              </svg>
+            ) : (
+              <svg {...ICON}>
+                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                <path d="M3 4v5h5" />
+              </svg>
+            )}
+          </button>
         </div>
       ),
     },
@@ -182,7 +240,7 @@ export function DriversPage() {
       <header className="planning-page__head">
         <div>
           <h1>Repartidores</h1>
-          <p className="text-muted">Altas, datos y ausencias de los repartidores.</p>
+          <p className="text-muted">Altas, datos, ausencias y bajas de los repartidores.</p>
         </div>
       </header>
 
@@ -310,6 +368,18 @@ export function DriversPage() {
                   setNotice('Datos corregidos. Sus rutas, reservas y disponibilidad no cambiaron.')
                   data.reload()
                 }}
+              />
+            ) : selected.mode === 'status' ? (
+              <DriverStatusPanel
+                key={selectedDriver.id}
+                driver={selectedDriver}
+                onChanged={(message) => {
+                  setSelected(null)
+                  setNotice(message)
+                  data.reload()
+                }}
+                onStale={data.reload}
+                onClose={closeSelected}
               />
             ) : (
               <AbsencesPanel

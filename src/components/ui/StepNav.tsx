@@ -46,14 +46,14 @@ export function StepNav({
   const to = Math.min(total, (position + 1) * pageSize)
 
   return (
-    <nav aria-label={label} className="incident-nav">
+    <nav aria-label={label} className="step-nav">
       <span aria-live="polite">
         <strong>{from === to ? `${singular} ${from}` : `${noun} ${from}–${to}`}</strong> de {total}
       </span>
-      <div className="incident-nav__buttons">
+      <div className="step-nav__buttons">
         <button
           type="button"
-          className="incident-nav__icon"
+          className="step-nav__icon"
           aria-label="Anterior"
           title={`${noun} anterior`}
           disabled={position === 0}
@@ -65,7 +65,7 @@ export function StepNav({
         </button>
         <button
           type="button"
-          className="incident-nav__icon"
+          className="step-nav__icon"
           aria-label="Siguiente"
           title={`${noun} siguiente`}
           disabled={position === pages - 1}

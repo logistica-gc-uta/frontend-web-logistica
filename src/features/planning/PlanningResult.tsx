@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { STORE_AREA_LABEL } from '../../lib/planning/routeArea'
 import { RoutesMap, type MapRoute } from '../../components/map/RoutesMap'
 import { Button } from '../../components/ui/Button'
+import { Notice } from '../../components/ui/Notice'
 import { formatDateTime } from '../../lib/format/formatDateTime'
 import { DistanceNotice } from './DistanceNotice'
 import { PlanningSummary } from './PlanningSummary'
@@ -11,6 +12,14 @@ import type { Driver, RouteProposalsResponse } from './types'
 import { useRouteConfirmations } from './useRouteConfirmations'
 
 const unitsLabel = (count: number) => (count === 1 ? '1 unidad' : `${count} unidades`)
+const driversLabel = (count: number) => (count === 1 ? '1 repartidor' : `${count} repartidores`)
+const routesLabel = (count: number) => (count === 1 ? '1 ruta' : `${count} rutas`)
+
+const formatWindowRange = (start: string, end: string): string => {
+  const from = formatDateTime(start)
+  const to = formatDateTime(end)
+  return from === to ? from : `${from} – ${to}`
+}
 
 interface PlanningResultProps {
   data: RouteProposalsResponse
@@ -79,25 +88,55 @@ export function PlanningResult({ data, driverId, selectedDriver, onSaved }: Plan
           </p>
         </div>
         {!data.canConfirm && (
-          <p className="notice notice--preview" role="note">
+          <Notice tone="danger">
             <strong>Solo vista previa: no es el día de entrega.</strong> Las rutas se confirman el
             mismo día de la entrega (hora de Ecuador).
-          </p>
+          </Notice>
         )}
         <PlanningSummary summary={data.summary} method={data.distanceMethod} />
         <div className="planning-notes">
           {selectedDriver ? (
-            <p className="notice">
+            <Notice role={null}>
               <strong>Capacidad aplicada:</strong> {selectedDriver.name} ({selectedDriver.vehicle},{' '}
               {unitsLabel(data.capacity)}). Al confirmar se guarda como borrador sin asignar
               automáticamente.
-            </p>
+            </Notice>
+          ) : data.fleet ? (
+            data.fleet.availableDrivers === 0 ? (
+              <Notice tone="danger">
+                <strong>Sin repartidores disponibles para esta fecha.</strong> Se usa capacidad base
+                de {unitsLabel(data.capacity)} solo como referencia; necesitarás repartidores libres
+                para despachar estas rutas.
+              </Notice>
+            ) : (
+              <Notice role={null}>
+                <strong>Flota disponible:</strong> {driversLabel(data.fleet.availableDrivers)} (
+                capacidades: {data.fleet.capacities.map(unitsLabel).join(', ')}). Las rutas se
+                agrupan según la capacidad real de los vehículos disponibles.
+              </Notice>
+            )
           ) : null}
-          <p className="notice">
+          {data.fleet && data.fleet.overlappingWindows.length > 0 && (
+            <Notice tone="danger">
+              <strong>Faltan repartidores en franjas superpuestas:</strong>{' '}
+              {data.fleet.overlappingWindows.map((window, index) => (
+                <span key={`${window.windowStart}-${window.windowEnd}`}>
+                  {index > 0 ? '; ' : ''}
+                  {formatWindowRange(window.windowStart, window.windowEnd)}:{' '}
+                  {routesLabel(window.routesRequired)} para{' '}
+                  {driversLabel(window.availableDrivers)} disponibles (sobran{' '}
+                  {routesLabel(window.deficit)} para segunda ola o reprogramación)
+                </span>
+              ))}
+              .
+            </Notice>
+          )}
+          <Notice role={null}>
             <strong>Horarios agrupados.</strong> Cada ruta reúne entregas con hasta{' '}
-            {data.timeWindowMarginMinutes} minutos de diferencia, máximo 4 paradas y hasta{' '}
-            {unitsLabel(data.capacity)} de carga, en orden de hora; no es una promesa de llegada.
-          </p>
+            {data.timeWindowMarginMinutes} minutos de diferencia y hasta{' '}
+            {unitsLabel(data.capacity)} de carga según la capacidad del vehículo, en orden de hora;
+            no es una promesa de llegada.
+          </Notice>
           <DistanceNotice method={data.distanceMethod} />
         </div>
       </section>

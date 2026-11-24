@@ -4,6 +4,7 @@ import { localDateTimeToIso } from '../../lib/time/guayaquil'
 import { isBlank, isPositiveInteger, toNumber } from '../../lib/validation/validators'
 import type { Product } from '../products/types'
 import { validateDeliverySchedule } from '../shop/checkout/deliverySchedule'
+import { checkOrderUnits, describeOrderUnitsExceeded } from '../shop/orderUnitsLimit'
 import type { DeliverySchedule } from '../shop/types'
 import { isEcuadorianMobile, toInternationalPhone } from './orderInput'
 import type { CreateAdminPurchaseInput, OrderFormValues, OrderItemFormValue } from './types'
@@ -125,8 +126,21 @@ function validatePhone(value: string, empty: string): string | undefined {
 }
 
 /**
+ * Unidades de la venta frente al máximo por pedido (backend #83): suma las cantidades válidas de
+ * todas las líneas, aunque sean productos distintos o el mismo producto repetido.
+ */
+export const orderUnitsOf = (items: OrderItemFormValue[], maximum: number | null) =>
+  checkOrderUnits(
+    items
+      .filter(({ productId, quantity }) => !isBlank(productId) && isPositiveInteger(quantity))
+      .map(({ quantity }) => toNumber(quantity)),
+    maximum,
+  )
+
+/**
  * Valida la venta con las mismas reglas que `CreateAdminOrderDto` y el horario vigente de la
  * tienda. La cobertura del punto la decide el servidor (`coverageError` llega ya resuelto).
+ * `maxUnitsPerOrder` (#83) se comprueba antes de enviar; el servidor vuelve a validarlo.
  */
 export function validateOrder(
   values: OrderFormValues,
@@ -134,6 +148,7 @@ export function validateOrder(
   schedule: DeliverySchedule,
   coverageError?: string,
   now: Date = new Date(),
+  maxUnitsPerOrder: number | null = null,
 ): FieldErrors<OrderFormValues> {
   const errors: FieldErrors<OrderFormValues> = {}
 
@@ -176,6 +191,12 @@ export function validateOrder(
 
   const itemsError = validateItems(values.items, products)
   if (itemsError) errors.items = itemsError
+  else {
+    const units = orderUnitsOf(values.items, maxUnitsPerOrder)
+    if (units.exceeded && units.maximum !== null) {
+      errors.items = describeOrderUnitsExceeded(units.requestedUnits, units.maximum)
+    }
+  }
 
   if (values.location === null) errors.location = 'Coloca el marcador en el mapa'
   else if (coverageError) errors.location = coverageError

@@ -10,6 +10,8 @@ import { renderWithProviders } from '../../test/renderWithProviders'
 import { ordersService } from '../orders/ordersService'
 import { driversService } from '../planning/driversService'
 import { planningService } from '../planning/planningService'
+import { shopService } from '../shop/shopService'
+import { shopSettings } from '../../test/shopFixtures'
 import { dispatchService } from './dispatchService'
 import type { UrgencyInbox } from './types'
 import { createFakeSocket } from '../../test/fakeSocket'
@@ -60,6 +62,7 @@ const findCard = async () =>
 // La disponibilidad por día (#36) se prueba aparte: aquí alcanza con el listado simulado.
 beforeEach(() => {
   vi.spyOn(driversService, 'listForDay').mockImplementation(() => driversService.list())
+  vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
 })
 
 /** Rutas de hoy y decisiones registradas viven en paneles laterales de la cabecera. */
@@ -238,5 +241,163 @@ describe('UrgenciesPage', () => {
     expect(route.getByText('En curso (IN_PROGRESS)')).toBeInTheDocument()
     expect(route.queryByRole('button')).not.toBeInTheDocument()
     expect(route.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('cancela una ruta de hoy ASSIGNED con motivo, recarga todo y muestra la acción en decisiones', async () => {
+    const { inboxSpy, audit } = mockApi()
+    vi.spyOn(planningService, 'listRoutes').mockResolvedValue([
+      savedRouteDetail('route-1', {
+        status: 'ASSIGNED',
+        driverId: 'driver-9',
+        driverName: 'Chofer Actual',
+        startedAt: null,
+      }),
+    ])
+    audit.mockResolvedValue([
+      auditRecord({
+        action: 'CANCEL_ROUTE',
+        orderId: null,
+        routeId: 'route-1',
+        actorId: adminUser.id,
+        reason: 'Sin combustible',
+        recordedAt: new Date().toISOString(),
+      }),
+    ])
+    const cancelRoute = vi
+      .spyOn(dispatchService, 'cancelRoute')
+      .mockResolvedValue(auditRecord({ action: 'CANCEL_ROUTE', routeId: 'route-1' }))
+    const { user } = renderPage()
+    await openRoutes(user)
+
+    const route = within(await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
+    await user.click(route.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(route.getByRole('group', { name: 'Cancelar Ruta guardada 1 · FIC-02' }))
+    await user.type(
+      dialog.getByLabelText('Motivo para cancelar Ruta guardada 1 · FIC-02'),
+      'Sin combustible',
+    )
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(cancelRoute).toHaveBeenCalledWith('route-1', 'Sin combustible'))
+    await waitFor(() => expect(inboxSpy).toHaveBeenCalledTimes(2))
+    expect(audit).toHaveBeenCalledTimes(2)
+
+    await openAudit(user)
+    expect(await screen.findByText('Cancelar ruta')).toBeInTheDocument()
+    expect(screen.getByText(/Motivo: Sin combustible/)).toBeInTheDocument()
+  })
+
+  it('si cancelar una ruta de hoy falla con 409 ROUTE_DRIVER_CHANGED revalida la bandeja, conserva el motivo si sigue elegible y muestra el error', async () => {
+    const { inboxSpy, listRoutes, audit } = mockApi()
+    const listDrivers = vi.spyOn(driversService, 'list')
+    const assigned = savedRouteDetail('route-1', {
+      status: 'ASSIGNED',
+      driverId: 'driver-9',
+      driverName: 'Chofer Actual',
+      startedAt: null,
+    })
+    listRoutes
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([{ ...assigned, driverId: 'driver-1', driverName: 'Carlos Chofer' }])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(
+      createHttpError(409, {
+        data: { statusCode: 409, code: 'ROUTE_DRIVER_CHANGED', message: 'Driver changed' },
+      }),
+    )
+    const { user } = renderPage()
+    await openRoutes(user)
+
+    const route = within(await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
+    await user.click(route.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(route.getByRole('group', { name: 'Cancelar Ruta guardada 1 · FIC-02' }))
+    const input = dialog.getByLabelText('Motivo para cancelar Ruta guardada 1 · FIC-02')
+    await user.type(input, 'Falla mecánica')
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(inboxSpy).toHaveBeenCalledTimes(2))
+    expect(listDrivers).toHaveBeenCalledTimes(2)
+    expect(audit).toHaveBeenCalledTimes(2)
+    expect(await route.findByText('Chofer: Carlos Chofer')).toBeInTheDocument()
+    expect(await dialog.findByRole('alert')).toHaveTextContent(/chofer asignado.*cambió/i)
+    expect(input).toHaveValue('Falla mecánica')
+  })
+
+  it('si cancelar una ruta de hoy falla con 409 ROUTE_ALREADY_STARTED revalida todo, quita los controles al pasar a IN_PROGRESS y deja el error en la tarjeta', async () => {
+    const { inboxSpy, listRoutes, audit } = mockApi()
+    const listDrivers = vi.spyOn(driversService, 'list')
+    const assigned = savedRouteDetail('route-1', {
+      status: 'ASSIGNED',
+      driverId: 'driver-9',
+      driverName: 'Chofer Actual',
+      startedAt: null,
+    })
+    listRoutes
+      .mockResolvedValueOnce([assigned])
+      .mockResolvedValueOnce([
+        { ...assigned, status: 'IN_PROGRESS', startedAt: '2030-02-14T15:10:00Z' },
+      ])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(
+      createHttpError(409, {
+        data: { statusCode: 409, code: 'ROUTE_ALREADY_STARTED', message: 'Route already started' },
+      }),
+    )
+    const { user } = renderPage()
+    await openRoutes(user)
+
+    const route = within(await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
+    await user.click(route.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(route.getByRole('group', { name: 'Cancelar Ruta guardada 1 · FIC-02' }))
+    await user.type(
+      dialog.getByLabelText('Motivo para cancelar Ruta guardada 1 · FIC-02'),
+      'Falla mecánica',
+    )
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(inboxSpy).toHaveBeenCalledTimes(2))
+    expect(listDrivers).toHaveBeenCalledTimes(2)
+    expect(audit).toHaveBeenCalledTimes(2)
+    expect(await route.findByText('En curso (IN_PROGRESS)')).toBeInTheDocument()
+    expect(
+      route.queryByRole('group', { name: 'Cancelar Ruta guardada 1 · FIC-02' }),
+    ).not.toBeInTheDocument()
+    expect(route.queryByRole('button', { name: 'Cancelar ruta' })).not.toBeInTheDocument()
+    expect(route.getByRole('alert')).toHaveTextContent(/ya se inició/)
+  })
+
+  it('si cancelar una ruta de hoy falla con 404 revalida todo y muestra el error en la superficie del panel', async () => {
+    const { inboxSpy, listRoutes, audit } = mockApi()
+    const listDrivers = vi.spyOn(driversService, 'list')
+    const assigned = savedRouteDetail('route-1', {
+      status: 'ASSIGNED',
+      driverId: 'driver-9',
+      driverName: 'Chofer Actual',
+      startedAt: null,
+    })
+    listRoutes.mockResolvedValueOnce([assigned]).mockResolvedValueOnce([])
+    vi.spyOn(dispatchService, 'cancelRoute').mockRejectedValue(createHttpError(404))
+    const { user } = renderPage()
+    await openRoutes(user)
+
+    const route = within(await screen.findByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }))
+    await user.click(route.getByRole('button', { name: 'Cancelar ruta' }))
+    const dialog = within(route.getByRole('group', { name: 'Cancelar Ruta guardada 1 · FIC-02' }))
+    await user.type(
+      dialog.getByLabelText('Motivo para cancelar Ruta guardada 1 · FIC-02'),
+      'Falla mecánica',
+    )
+    await user.click(dialog.getByRole('button', { name: 'Confirmar cancelación' }))
+
+    await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(inboxSpy).toHaveBeenCalledTimes(2))
+    expect(listDrivers).toHaveBeenCalledTimes(2)
+    expect(audit).toHaveBeenCalledTimes(2)
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('listitem', { name: 'Ruta guardada 1 · FIC-02' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(/No se encontró la ruta/)
   })
 })

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { getErrorMessage } from '../../lib/http/apiError'
+import { orderUnitsLimitMessage } from '../shop/checkout/checkoutErrors'
 import { shopErrorInfo } from '../shop/shopError'
 
 /**
@@ -43,8 +44,19 @@ const BY_CODE: Record<string, PurchaseProblem> = {
 
 /** Traduce el error del registro a la acción que corresponde. Nunca se presenta como éxito. */
 export function describePurchaseError(error: unknown): PurchaseProblem {
-  const { status, code } = shopErrorInfo(error)
+  const { status, code, details } = shopErrorInfo(error)
   if (code && BY_CODE[code]) return BY_CODE[code]
+  // Backend #83: la venta supera el máximo de unidades por pedido (el límite pudo cambiar con el
+  // formulario abierto). No se registró nada: se corrige la cantidad sin perder lo escrito.
+  if (code === 'ORDER_UNITS_LIMIT_EXCEEDED') {
+    return {
+      action: 'fix',
+      message: `No se registró la venta. ${
+        orderUnitsLimitMessage(code, details) ??
+        'Supera el máximo de unidades por pedido (sumando todos los productos): reduce las cantidades.'
+      }`,
+    }
+  }
 
   // Sin respuesta o error del servidor: la venta pudo haberse registrado. Se verifica, no se repite.
   if (axios.isAxiosError(error) && !error.response) {

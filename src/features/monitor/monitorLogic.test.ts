@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../../lib/http/apiClient'
 import { createHttpResponse } from '../../test/http'
 import {
@@ -8,10 +8,22 @@ import {
   threeDeliveredOneFailed,
 } from '../../test/monitorFixtures'
 import { availableDriver, busyDriver } from '../../test/planningFixtures'
+import { dispatchService } from '../dispatch/dispatchService'
 import { driversService } from '../planning/driversService'
+import { MONITOR_ROUTE_STATUS_LABELS, routeStatusShort } from './monitorLabels'
 import { boardSubscriptions, loadMonitorBoard } from './monitorBoard'
 import { monitorService } from './monitorService'
 import { driverState, routeProgress } from './routeProgress'
+
+// Los enlaces del tablero (#67) consultan la bandeja y las emergencias: sin datos por defecto.
+beforeEach(() => {
+  vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
+    date: '2026-10-21',
+    urgencies: [],
+    failedDeliveries: [],
+  })
+  vi.spyOn(dispatchService, 'emergencies').mockResolvedValue([])
+})
 
 describe('monitorService.listRoutes', () => {
   it('copia solo lo que muestra el monitor, con las paradas en orden y el último motivo de fallo', async () => {
@@ -30,6 +42,8 @@ describe('monitorService.listRoutes', () => {
       startedAt: '2026-10-21T14:00:00Z',
       completedAt: '2026-10-21T16:00:00Z',
       returnedAt: null,
+      cancelledAt: null,
+      cancelReason: null,
       stops: [
         {
           id: 's1',
@@ -125,6 +139,17 @@ describe('driverState', () => {
   it('sin chofer no hay estado de chofer', () => {
     expect(driverState(monitorRoute({ driverId: null }), undefined)).toBeNull()
   })
+
+  it('una ruta CANCELLED no muestra al chofer como ocupado ni retornando', () => {
+    expect(
+      driverState(
+        monitorRoute({ status: 'CANCELLED', driverId: 'driver-1', returnedAt: null }),
+        availableDriver,
+      ),
+    ).toBeNull()
+    expect(MONITOR_ROUTE_STATUS_LABELS.CANCELLED).toBe('Cancelada (CANCELLED)')
+    expect(routeStatusShort('CANCELLED')).toBe('Cancelada')
+  })
 })
 
 describe('loadMonitorBoard y boardSubscriptions', () => {
@@ -134,6 +159,7 @@ describe('loadMonitorBoard y boardSubscriptions', () => {
     vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([
       monitorRoute({ id: 'hoy' }),
       monitorRoute({ id: 'borrador', status: 'DRAFT', driverId: null }),
+      monitorRoute({ id: 'cancelada', status: 'CANCELLED', driverId: 'driver-1' }),
       monitorRoute({ id: 'ayer', date: '2026-10-20T15:00:00Z' }),
     ])
     vi.spyOn(driversService, 'list').mockResolvedValue([availableDriver])

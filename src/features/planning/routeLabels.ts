@@ -6,6 +6,7 @@ export const ROUTE_STATUS_LABELS: Record<RouteStatus, string> = {
   IN_PROGRESS: 'En curso (IN_PROGRESS)',
   INTERRUPTED: 'Interrumpida por emergencia',
   COMPLETED: 'Completada (COMPLETED)',
+  CANCELLED: 'Cancelada (CANCELLED)',
 }
 
 /** Qué significa cada estado y qué se puede hacer con la ruta desde esta pantalla. */
@@ -16,6 +17,8 @@ export const ROUTE_STATUS_HELP: Record<RouteStatus, string> = {
   INTERRUPTED:
     'Detenida por una emergencia: lo entregado se conserva y los pendientes se gestionan en Emergencias.',
   COMPLETED: 'Terminada: no se puede modificar.',
+  CANCELLED:
+    'Cancelada antes de iniciar: sus pedidos volvieron a Planificación y el chofer quedó libre. No se puede modificar.',
 }
 
 /** Por qué un chofer no se puede elegir todavía. */
@@ -23,4 +26,5 @@ export const DRIVER_UNAVAILABLE_LABELS: Record<DriverUnavailableReason, string> 
   ROUTE_HOLD: 'ocupado hasta que regrese al depósito',
   MARKED_UNAVAILABLE: 'marcado como no disponible',
   ABSENT: 'ausente ese día',
+  INACTIVE: 'dado de baja',
 }

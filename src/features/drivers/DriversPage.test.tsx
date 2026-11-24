@@ -85,7 +85,7 @@ describe('ADMIN · repartidores (#36)', () => {
 
     const list = within(await findList())
     expect(await list.findByText('Ausente · Cita médica')).toBeInTheDocument()
-    expect(list.getByText('Ocupado con una ruta')).toBeInTheDocument()
+    expect(list.getByText('Retenido por ruta sin cerrar')).toBeInTheDocument()
     expect(list.getByText('ana@delivery.com')).toBeInTheDocument()
     expect(list.getAllByText('Camioneta blanca').length).toBeGreaterThan(0)
     const nav = screen.getByRole('navigation', { name: 'Principal' })
@@ -93,7 +93,9 @@ describe('ADMIN · repartidores (#36)', () => {
       'aria-current',
       'page',
     )
-    expect(screen.queryByRole('button', { name: /Eliminar|Dar de baja/ })).not.toBeInTheDocument()
+    // Nunca se borra una cuenta: la baja (#64) es reversible y conserva el historial.
+    expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument()
+    expect(list.getByRole('button', { name: 'Dar de baja a Ana Ruta' })).toBeInTheDocument()
   })
 
   it('una ausencia de mañana no lo marca ocupado hoy: la disponibilidad depende del día', async () => {

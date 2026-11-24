@@ -53,5 +53,7 @@ export interface DeclareLossInput {
   unitNumber?: number
   /** Intento fallido del que viene la pérdida, si lo hay. */
   attemptId?: string
+  /** Emergencia activa que autoriza la pérdida, si corresponde. */
+  emergencyId?: string
   reason: string
 }

@@ -279,4 +279,216 @@ describe('retiro en tienda · bandeja de entregas fallidas', () => {
 
     expect(await screen.findByText(/El retiro ya fue confirmado/)).toBeInTheDocument()
   })
+
+  it('obedece allowedActions en retiro: bloquea acordar sin disponibilidad en tienda pero permite registrar rechazo', async () => {
+    const inProgressRoute = monitorRoute({ id: 'r1', status: 'IN_PROGRESS', stops: [FAILED_STOP] })
+    vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
+    vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
+      date: '2030-02-15',
+      urgencies: [],
+      failedDeliveries: [
+        failedDelivery('f1', {
+          attempts: [ATTEMPT],
+          pickup: null,
+          status: 'WAITING_STORE_READINESS',
+          ownership: 'FAILED_DELIVERY',
+          latestFailedAttemptId: 'a1',
+          readiness: null,
+          activeAgreementId: null,
+          allowedActions: {
+            CONTACT: { allowed: true, reasonCode: null, reason: null },
+            CONFIRM_INCIDENT_READY: { allowed: true, reasonCode: null, reason: null },
+            RESCHEDULE: {
+              allowed: false,
+              reasonCode: 'INCIDENT_NOT_READY_AT_STORE',
+              reason: 'Not ready',
+            },
+            PICKUP_AGREE: {
+              allowed: false,
+              reasonCode: 'INCIDENT_NOT_READY_AT_STORE',
+              reason: 'Not ready',
+            },
+            PICKUP_DECLINE: { allowed: true, reasonCode: null, reason: null },
+            PICKUP_CONFIRM: { allowed: false, reasonCode: 'PICKUP_NOT_AGREED', reason: 'None' },
+          },
+        }),
+      ],
+    })
+    vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([inProgressRoute])
+    vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
+    vi.spyOn(ordersService, 'get').mockResolvedValue(ORDER)
+    const decline = vi
+      .spyOn(dispatchService, 'declinePickup')
+      .mockResolvedValue(auditRecord({ action: 'PICKUP_DECLINE', orderId: 'f1' }))
+
+    const { user } = renderPage()
+    await user.click(await screen.findByLabelText('Retiro en tienda'))
+    const box = await findPickup()
+
+    expect(box.getByLabelText('El cliente retirará en tienda')).toBeDisabled()
+    expect(box.getByText(/disponible en tienda/i)).toBeInTheDocument()
+    expect(box.getByLabelText('El cliente no acepta retirar')).toBeEnabled()
+
+    await user.click(box.getByLabelText('El cliente no acepta retirar'))
+    await user.type(box.getByLabelText('Respuesta del cliente'), 'No puede acercarse a tienda')
+    await user.click(box.getByRole('button', { name: 'Registrar respuesta' }))
+
+    expect(decline).toHaveBeenCalledWith({
+      orderId: 'f1',
+      attemptId: 'a1',
+      reason: 'No puede acercarse a tienda',
+    })
+  })
+
+  it('deshabilita Confirmar retiro cuando el servidor niega PICKUP_CONFIRM y muestra el motivo en español', async () => {
+    vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
+    vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
+      date: '2030-02-15',
+      urgencies: [],
+      failedDeliveries: [
+        failedDelivery('f1', {
+          attempts: [ATTEMPT],
+          pickup: PENDING,
+          status: 'PENDING_PICKUP',
+          ownership: 'FAILED_DELIVERY',
+          latestFailedAttemptId: 'a1',
+          readiness: null,
+          activeAgreementId: null,
+          allowedActions: {
+            CONTACT: {
+              allowed: false,
+              reasonCode: 'PICKUP_ALREADY_AGREED',
+              reason: 'Pickup exists',
+            },
+            CONFIRM_INCIDENT_READY: {
+              allowed: false,
+              reasonCode: 'PICKUP_ALREADY_AGREED',
+              reason: 'Pickup exists',
+            },
+            RESCHEDULE: {
+              allowed: false,
+              reasonCode: 'PICKUP_ALREADY_AGREED',
+              reason: 'Pickup exists',
+            },
+            PICKUP_AGREE: {
+              allowed: false,
+              reasonCode: 'PICKUP_ALREADY_AGREED',
+              reason: 'Pickup exists',
+            },
+            PICKUP_DECLINE: {
+              allowed: false,
+              reasonCode: 'PICKUP_ALREADY_AGREED',
+              reason: 'Pickup exists',
+            },
+            PICKUP_CONFIRM: {
+              allowed: false,
+              reasonCode: 'CLAIM_NOT_RELEASED',
+              reason: 'Active claim remains',
+            },
+          },
+        }),
+      ],
+    })
+    vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([R1])
+    vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
+    vi.spyOn(ordersService, 'get').mockResolvedValue(ORDER)
+
+    renderPage()
+    const box = await findPickup()
+
+    expect(box.getByRole('button', { name: 'Confirmar retiro' })).toBeDisabled()
+    expect(box.getByText(/ruta original/i)).toBeInTheDocument()
+    expect(box.queryByText(/Active claim remains/)).not.toBeInTheDocument()
+  })
+
+  it('con READY_AT_STORE permite acordar retiro aunque la ruta original siga en curso', async () => {
+    const inProgressRoute = monitorRoute({ id: 'r1', status: 'IN_PROGRESS', stops: [FAILED_STOP] })
+    vi.spyOn(shopService, 'settings').mockResolvedValue(shopSettings())
+    vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
+      date: '2030-02-15',
+      urgencies: [],
+      failedDeliveries: [
+        failedDelivery('f1', {
+          attempts: [ATTEMPT],
+          pickup: null,
+          status: 'READY_AT_STORE',
+          ownership: 'FAILED_DELIVERY',
+          latestFailedAttemptId: 'a1',
+          readiness: {
+            auditId: 'aud-1',
+            attemptId: 'a1',
+            confirmedAt: '2030-02-15T14:00:00Z',
+            confirmedById: adminUser.id,
+          },
+          activeAgreementId: null,
+          allowedActions: {
+            CONTACT: { allowed: true, reasonCode: null, reason: null },
+            CONFIRM_INCIDENT_READY: {
+              allowed: false,
+              reasonCode: 'INCIDENT_ALREADY_READY',
+              reason: 'Already ready',
+            },
+            RESCHEDULE: {
+              allowed: false,
+              reasonCode: 'RESCHEDULE_AGREEMENT_REQUIRED',
+              reason: 'Needs agreement',
+            },
+            PICKUP_AGREE: { allowed: true, reasonCode: null, reason: null },
+            PICKUP_DECLINE: { allowed: true, reasonCode: null, reason: null },
+            PICKUP_CONFIRM: { allowed: false, reasonCode: 'PICKUP_NOT_AGREED', reason: 'None' },
+          },
+        }),
+      ],
+    })
+    vi.spyOn(monitorService, 'listRoutes').mockResolvedValue([inProgressRoute])
+    vi.spyOn(dispatchService, 'audit').mockResolvedValue([])
+    vi.spyOn(ordersService, 'get').mockResolvedValue(ORDER)
+    const agree = vi
+      .spyOn(dispatchService, 'agreePickup')
+      .mockResolvedValue(auditRecord({ action: 'PICKUP_AGREE', orderId: 'f1' }))
+
+    const { user } = renderPage()
+    await user.click(await screen.findByLabelText('Retiro en tienda'))
+    const box = await findPickup()
+
+    await user.click(box.getByLabelText('El cliente retirará en tienda'))
+    await user.type(box.getByLabelText('Respuesta del cliente'), 'Retira hoy por la tarde')
+    await user.click(box.getByRole('button', { name: 'Registrar respuesta' }))
+
+    expect(agree).toHaveBeenCalledWith({
+      orderId: 'f1',
+      attemptId: 'a1',
+      reason: 'Retira hoy por la tarde',
+    })
+  })
+
+  it('mientras la recarga GET está pendiente tras confirmar retiro bloquea un segundo envío sobre el snapshot anterior', async () => {
+    const { inbox } = mockApi(PENDING)
+    const confirm = vi
+      .spyOn(dispatchService, 'confirmPickup')
+      .mockResolvedValue(auditRecord({ action: 'PICKUP_CONFIRM', orderId: 'f1' }))
+
+    const { user } = renderPage()
+    const box = await findPickup()
+
+    let resolveRefresh!: (value: { date: string; urgencies: []; failedDeliveries: [] }) => void
+    inbox.mockReturnValueOnce(new Promise((res) => (resolveRefresh = res)))
+
+    await user.click(box.getByRole('button', { name: 'Confirmar retiro' }))
+    await user.type(box.getByLabelText('Cómo se confirmó el retiro'), 'Vino el titular')
+    await user.click(box.getByRole('button', { name: 'Sí, el cliente lo retiró' }))
+
+    expect(confirm).toHaveBeenCalledOnce()
+
+    await waitFor(() =>
+      expect(box.getByRole('button', { name: 'Confirmar retiro' })).toBeDisabled(),
+    )
+    await user.click(box.getByRole('button', { name: 'Confirmar retiro' }))
+    expect(confirm).toHaveBeenCalledOnce()
+
+    resolveRefresh({ date: '2030-02-15', urgencies: [], failedDeliveries: [] })
+    expect(
+      await screen.findByText('No hay entregas fallidas pendientes de gestión.'),
+    ).toBeInTheDocument()
+  })
 })

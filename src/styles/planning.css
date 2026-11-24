@@ -1,17 +1,4 @@
 /* Planificación de rutas */
-.notice {
-  margin: 0 0 16px;
-  padding: 12px 16px;
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  font-size: 0.9375rem;
-}
-
-.notice--preview {
-  border-left-color: var(--color-danger);
-}
-
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -97,14 +84,16 @@
 
 .proposal__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
 }
 
 .proposal__header h3 {
-  flex: 1;
-  margin: 0;
+  flex: 0 1 auto;
+  margin: 0 auto 0 0;
   font-size: 1rem;
+  white-space: nowrap;
 }
 
 .proposal__swatch {
@@ -724,11 +713,11 @@
   background: var(--color-signal-soft);
 }
 
-/* Pedidos excluidos (en el panel lateral): una fila por pedido, con su código y el motivo. */
+/* Pedidos excluidos (en el panel lateral): una tarjeta vertical por pedido, legible en cualquier ancho. */
 .excluded-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -736,19 +725,58 @@
 }
 
 .excluded-list li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: 14px;
-  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-signal);
   border-radius: var(--radius-md);
+  background: var(--color-surface);
   font-size: 0.875rem;
+  line-height: 1.45;
   color: var(--color-heading);
 }
 
+.excluded-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+}
+
+.excluded-item__reason {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.excluded-item__hint {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.excluded-item__pickup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.excluded-item__pickup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
 .excluded-list code {
+  flex-shrink: 0;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   background: var(--color-bg);

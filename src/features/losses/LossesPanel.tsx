@@ -330,9 +330,10 @@ export function LossesPanel({
                               variant="secondary"
                               disabled={saving}
                               aria-label={`Anular pérdida de ${name}`}
+                              title="Deshacer un reporte hecho por error y devolver al stock la unidad de reemplazo"
                               onClick={() => setAction({ kind: 'cancel', loss })}
                             >
-                              Anular pérdida
+                              Anular pérdida (fue un error)
                             </Button>
                           )}
                           {!loss.cancelledAt && loss.replacement.state === 'PENDING' && (
@@ -350,12 +351,20 @@ export function LossesPanel({
                               variant="secondary"
                               disabled={saving}
                               aria-label={`Registrar recuperación del original de ${name}`}
+                              title="El reemplazo sigue vigente, pero apareció el producto original (elige si volvió vendible o dañado)"
                               onClick={() => setAction({ kind: 'recover', loss })}
                             >
-                              Registrar recuperación del original
+                              Apareció el producto original
                             </Button>
                           )}
                         </div>
+                        {!loss.cancelledAt && loss.original.state === 'LOST' && (
+                          <p className="text-muted">
+                            <strong>Anular pérdida:</strong> corrige un reporte por error y devuelve
+                            el reemplazo al stock. <strong>Apareció el original:</strong> mantiene el
+                            reemplazo y registra si el original volvió vendible o dañado.
+                          </p>
+                        )}
                         {action && action.kind !== 'declare' && action.loss.id === loss.id && (
                           <ActionForm
                             action={action}

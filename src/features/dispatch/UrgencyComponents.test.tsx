@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { auditRecord, urgencyProposal } from '../../test/dispatchFixtures'
 import { orders } from '../../test/fixtures'
 import { availableDriver, busyDriver } from '../../test/planningFixtures'
+import { formatTimeLabel } from '../orders/orderInput'
 import { DispatchAuditList } from './DispatchAuditList'
 import { UrgencyCard, type UrgencyCardProps } from './UrgencyCard'
 
@@ -32,6 +33,11 @@ const renderCard = (overrides: Partial<UrgencyCardProps> = {}) => {
 }
 
 const card = () => within(screen.getByRole('article', { name: `Urgencia ${TITLE}` }))
+/** La hora se elige en la lista del panel (cada 30 min dentro del horario), no se escribe. */
+const pickTime = async (label: string, time: string) => {
+  await userEvent.click(card().getByLabelText(label))
+  await userEvent.click(await screen.findByRole('option', { name: formatTimeLabel(time) }))
+}
 const typeReason = (text: string) =>
   userEvent.type(card().getByLabelText(`Motivo de la decisión para ${TITLE}`), text)
 
@@ -42,7 +48,7 @@ describe('UrgencyCard', () => {
     expect(card().getByText('Insertar en una ruta')).toBeInTheDocument()
     expect(card().getByText('Pendiente (PENDING)')).toBeInTheDocument()
     expect(card().getByText('María Pérez')).toBeInTheDocument()
-    expect(card().getByText('FIC-02')).toBeInTheDocument()
+    expect(card().queryByText('Zona')).toBeNull()
     expect(card().getByText('Ruta guardada 1 · FIC-02')).toBeInTheDocument()
     expect(
       card().getByText(/quedaría con 2 paradas \(2,40 km estimados en línea recta\)/),
@@ -148,12 +154,8 @@ describe('UrgencyCard', () => {
     fireEvent.change(form.getByLabelText('Nuevo día de entrega'), {
       target: { value: '2030-02-15' },
     })
-    fireEvent.change(form.getByLabelText('Desde (hora de Guayaquil)'), {
-      target: { value: '09:00' },
-    })
-    fireEvent.change(form.getByLabelText('Hasta (hora de Guayaquil)'), {
-      target: { value: '11:30' },
-    })
+    await pickTime('Desde (hora de Guayaquil)', '09:00')
+    await pickTime('Hasta (hora de Guayaquil)', '11:30')
     await typeReason('Sin cupo hoy')
 
     await userEvent.click(form.getByRole('button', { name: 'Guardar reprogramación' }))
@@ -165,6 +167,23 @@ describe('UrgencyCard', () => {
       deliveryWindowEnd: '2030-02-15T11:30:00-05:00',
       reason: 'Sin cupo hoy',
     })
+  })
+
+  it('la franja se elige en la lista del horario de la tienda, como en Entregas fallidas (#68)', async () => {
+    renderCard({
+      schedule: { timeZone: 'America/Guayaquil', startTime: '08:00', endTime: '10:00' },
+    })
+    await userEvent.click(card().getByRole('button', { name: 'Reprogramar…' }))
+
+    await userEvent.click(card().getByLabelText('Desde (hora de Guayaquil)'))
+    const options = await screen.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      '8:00 a. m.',
+      '8:30 a. m.',
+      '9:00 a. m.',
+      '9:30 a. m.',
+      '10:00 a. m.',
+    ])
   })
 
   it('no reprograma con datos incompletos o una franja al revés', async () => {
@@ -181,12 +200,8 @@ describe('UrgencyCard', () => {
     fireEvent.change(form.getByLabelText('Nuevo día de entrega'), {
       target: { value: '2030-02-15' },
     })
-    fireEvent.change(form.getByLabelText('Desde (hora de Guayaquil)'), {
-      target: { value: '11:00' },
-    })
-    fireEvent.change(form.getByLabelText('Hasta (hora de Guayaquil)'), {
-      target: { value: '09:00' },
-    })
+    await pickTime('Desde (hora de Guayaquil)', '11:00')
+    await pickTime('Hasta (hora de Guayaquil)', '09:00')
     await userEvent.click(form.getByRole('button', { name: 'Guardar reprogramación' }))
 
     expect(form.getByText('La hora final debe ser posterior a la inicial')).toBeInTheDocument()

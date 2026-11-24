@@ -12,7 +12,8 @@ export const DISPATCH_ACTION_LABELS: Record<DispatchAction, string> = {
   REORDER: 'Reordenar paradas',
   MOVE: 'Mover pedido de ruta',
   REASSIGN_DRIVER: 'Cambiar chofer',
-  RELEASE_DRAFT: 'Liberar borrador vencido',
+  RELEASE_DRAFT: 'Liberar borrador',
+  CANCEL_ROUTE: 'Cancelar ruta',
   PICKUP_AGREE: 'Acuerdo de retiro en tienda',
   PICKUP_DECLINE: 'El cliente no aceptó retirar',
   PICKUP_CONFIRM: 'Retiro en tienda confirmado',
@@ -27,6 +28,7 @@ export const DISPATCH_ACTION_LABELS: Record<DispatchAction, string> = {
   EMERGENCY_REQUEUE: 'Pedido habilitado para planificar',
   PRIORITIZE: 'Priorizar',
   CONTACT: 'Contacto con el destinatario',
+  CONFIRM_INCIDENT_READY: 'Disponibilidad en tienda confirmada',
   RESCHEDULE: 'Reprogramar',
 }
 

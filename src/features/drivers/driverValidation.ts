@@ -110,6 +110,6 @@ export function availabilityLabel(day: DriverDayAvailability): {
     }
   }
   if (day.isAvailable) return { text: 'Disponible', tone: 'success' }
-  if (day.hasPersistedHolds) return { text: 'Ocupado con una ruta', tone: 'warning' }
+  if (day.hasPersistedHolds) return { text: 'Retenido por ruta sin cerrar', tone: 'warning' }
   return { text: 'Marcado como no disponible', tone: 'warning' }
 }

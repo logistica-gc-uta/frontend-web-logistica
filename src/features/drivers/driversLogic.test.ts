@@ -101,7 +101,7 @@ describe('repartidores · disponibilidad de un día', () => {
       ),
     ).toEqual({ text: 'Ausente · Cita médica', tone: 'danger' })
     expect(availabilityLabel(day({ isAvailable: false, hasPersistedHolds: true })).text).toBe(
-      'Ocupado con una ruta',
+      'Retenido por ruta sin cerrar',
     )
     expect(availabilityLabel(day({ isAvailable: false, compatibilityFlagBlocks: true })).text).toBe(
       'Marcado como no disponible',

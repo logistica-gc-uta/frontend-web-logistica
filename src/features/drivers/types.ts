@@ -12,6 +12,14 @@ export interface DriverProfile {
   vehicleCapacity?: number | null
   createdAt: string
   user: { id: string; name: string; email: string }
+  /**
+   * Baja operativa reversible (backend #82). Un registro sin el campo cuenta como activo: solo
+   * `false` es una baja. Dado de baja no puede iniciar sesión ni recibir rutas.
+   */
+  isActive?: boolean
+  /** Último cambio de estado: cuándo y por qué (visible en el historial del backend). */
+  statusChangedAt?: string | null
+  statusReason?: string | null
   /** Disponibilidad efectiva de hoy (rutas/reservas), sin ausencias: ver `DriverDayAvailability`. */
   effectiveAvailability: {
     isAvailable: boolean
@@ -67,6 +75,14 @@ export interface AbsenceInput {
   startDate: string
   endDate: string
   reason?: string
+}
+
+/** Ruta que impide dar de baja a un repartidor (`DRIVER_HAS_OPEN_ROUTE`, backend #82). */
+export interface BlockingRoute {
+  routeId: string
+  status: string | null
+  /** `true` si el regreso al depósito ya se confirmó. */
+  returnConfirmed: boolean
 }
 
 /** `GET /drivers/:id/availability?date=`: disponibilidad de un día, incluida la ausencia. */

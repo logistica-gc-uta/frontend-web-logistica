@@ -1,4 +1,6 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render as rtlRender, screen, waitFor, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { paths } from '../../app/paths'
@@ -8,6 +10,7 @@ import { createFakeSocket } from '../../test/fakeSocket'
 import { monitorRoute, stopWith, threeDeliveredOneFailed } from '../../test/monitorFixtures'
 import { availableDriver } from '../../test/planningFixtures'
 import { renderWithProviders } from '../../test/renderWithProviders'
+import { dispatchService } from '../dispatch/dispatchService'
 import { driversService } from '../planning/driversService'
 import { MonitorRouteCard } from './MonitorRouteCard'
 import { monitorService } from './monitorService'
@@ -34,7 +37,20 @@ const mockApi = (...responses: MonitorRoute[][]) => {
 const renderPage = () =>
   renderWithProviders(<App />, { route: paths.monitor, session: adminSession })
 
+/** La tarjeta enlaza al pedido, a Entregas fallidas y a Emergencias (#67): necesita un router. */
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter })
+
 const routeCard = () => within(screen.getByRole('article', { name: 'Ruta 1 · FIC-02' }))
+
+// Los enlaces del tablero (#67) consultan la bandeja y las emergencias: sin datos por defecto.
+beforeEach(() => {
+  vi.spyOn(dispatchService, 'inbox').mockResolvedValue({
+    date: '2026-10-21',
+    urgencies: [],
+    failedDeliveries: [],
+  })
+  vi.spyOn(dispatchService, 'emergencies').mockResolvedValue([])
+})
 
 describe('MonitorRouteCard', () => {
   it('3 entregas y 1 fallida: 75 % entregado, 4 de 4 resueltas y el motivo del fallo', () => {
@@ -55,10 +71,10 @@ describe('MonitorRouteCard', () => {
     expect(dots.querySelectorAll('.monitor-dot--successful')).toHaveLength(3)
     expect(dots.querySelectorAll('.monitor-dot--failed')).toHaveLength(1)
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Parada 1Entregado',
-      'Parada 2Entregado',
-      'Parada 3Visita fallida: destinatario ausente',
-      'Parada 4Entregado',
+      '1Parada 1PedidoEntregado',
+      '2Parada 2PedidoEntregado',
+      '3Parada 3PedidoVisita fallida: destinatario ausente',
+      '4Parada 4PedidoEntregado',
     ])
     expect(screen.getByText('Ocupado con esta ruta')).toBeInTheDocument()
   })
@@ -139,20 +155,22 @@ describe('MonitorPage', () => {
     )
   })
 
-  it('con más de dos rutas se ven de dos en dos, con navegación', async () => {
+  it('con más de cuatro rutas se ven de cuatro en cuatro, con navegación', async () => {
     mockApi([
       today({ id: 'r1', createdAt: '2026-10-21T10:00:00Z' }),
       today({ id: 'r2', createdAt: '2026-10-21T11:00:00Z' }),
       today({ id: 'r3', createdAt: '2026-10-21T12:00:00Z' }),
+      today({ id: 'r4', createdAt: '2026-10-21T13:00:00Z' }),
+      today({ id: 'r5', createdAt: '2026-10-21T14:00:00Z' }),
     ])
     const { user } = renderPage()
 
-    expect(await screen.findByText('Rutas 1–2')).toBeInTheDocument()
-    expect(screen.getAllByRole('article')).toHaveLength(2)
+    expect(await screen.findByText('Rutas 1–4')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(4)
 
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
-    expect(screen.getByText('Ruta 3')).toBeInTheDocument()
+    expect(screen.getByText('Ruta 5')).toBeInTheDocument()
     expect(screen.getAllByRole('article')).toHaveLength(1)
   })
 

@@ -16,9 +16,15 @@ export interface MonitorStop {
   failureContext: string | null
 }
 
-/** `INTERRUPTED`: se declaró una emergencia en ruta (backend #51). */
+/** `INTERRUPTED`: se declaró una emergencia en ruta (backend #51). `CANCELLED`: cancelada antes de iniciar. */
 export type MonitorRouteStatus =
-  'UNVERIFIED' | 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERRUPTED' | 'COMPLETED'
+  | 'UNVERIFIED'
+  | 'DRAFT'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'INTERRUPTED'
+  | 'COMPLETED'
+  | 'CANCELLED'
 
 /** Ruta tal como la sigue el monitor (solo lo necesario de `GET /routes`). */
 export interface MonitorRoute {
@@ -35,6 +41,9 @@ export interface MonitorRoute {
   completedAt: string | null
   /** Regreso al depósito confirmado por el chofer. */
   returnedAt: string | null
+  /** Cancelada antes de salir: cuándo y por qué (opcionales en registros anteriores). */
+  cancelledAt?: string | null
+  cancelReason?: string | null
   stops: MonitorStop[]
 }
 

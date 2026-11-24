@@ -1,11 +1,12 @@
-import { useCallback, useId, useState } from 'react'
-import { Link } from 'react-router'
-import { orderReceiptPath, paths } from '../../app/paths'
+import { useCallback, useEffect, useId, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import { monitorRoutePath, orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { StepNav } from '../../components/ui/StepNav'
 import { Button } from '../../components/ui/Button'
 import { Drawer } from '../../components/ui/Drawer'
+import { Notice } from '../../components/ui/Notice'
 import { TextField } from '../../components/ui/TextField'
 import { useFetch } from '../../hooks/useFetch'
 import { useRealtimeUpdates } from '../../hooks/useRealtimeUpdates'
@@ -113,32 +114,7 @@ function UnitRow({
     <li className="emergency__unit" aria-label={`Unidad ${label}`}>
       <div className="emergency__unit-head">
         <strong>{label}</strong>
-        {unit.status === 'PENDING' ? (
-          // Si no aparece, la pérdida se declara en el comprobante de este pedido.
-          <Link
-            className="emergency__lost"
-            to={`${orderReceiptPath(unit.orderId)}#perdidas`}
-            aria-label="No aparece: declarar pérdida"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3M9 9l4 4M13 9l-4 4" />
-            </svg>
-            Declarar pérdida
-          </Link>
-        ) : (
-          <span className={`badge ${status.tone}`}>{status.text}</span>
-        )}
+        {unit.status !== 'PENDING' && <span className={`badge ${status.tone}`}>{status.text}</span>}
       </div>
       {unit.recoveredAt && (
         <p className="text-muted">Confirmada el {formatDateTime(unit.recoveredAt)}</p>
@@ -158,6 +134,73 @@ function UnitRow({
               )
             }
           />
+          <ReasonAction
+            label="Declarar pérdida o daño"
+            fieldLabel={`Motivo de la pérdida o daño de ${label}`}
+            confirmLabel="Sí, declarar pérdida"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () =>
+                  dispatchService.declareLoss({
+                    orderId: unit.orderId,
+                    orderItemId: unit.orderItemId,
+                    unitNumber: unit.unitNumber,
+                    emergencyId: unit.emergencyId,
+                    reason,
+                  }),
+                `Pérdida de ${label} declarada. Si había stock libre se apartó el reemplazo.`,
+                'No se pudo declarar la pérdida',
+              )
+            }
+          />
+        </div>
+      )}
+      {unit.status === 'LOST_PENDING' && unit.lossId && (
+        <div className="emergency__buttons">
+          <ReasonAction
+            label="Preparar reemplazo"
+            fieldLabel={`Motivo para preparar reemplazo de ${label}`}
+            confirmLabel="Preparar reemplazo"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () => dispatchService.prepareReplacement(unit.lossId!, reason),
+                `Reemplazo de ${label} preparado.`,
+                'No se pudo preparar el reemplazo',
+              )
+            }
+          />
+          <ReasonAction
+            label="Anular pérdida (fue un error)"
+            fieldLabel={`Motivo para anular la pérdida de ${label}`}
+            confirmLabel="Anular pérdida"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () => dispatchService.cancelLoss(unit.lossId!, reason),
+                `Pérdida de ${label} anulada.`,
+                'No se pudo anular la pérdida',
+              )
+            }
+          />
+        </div>
+      )}
+      {unit.status === 'LOST_PREPARED' && unit.lossId && (
+        <div className="emergency__buttons">
+          <ReasonAction
+            label="Anular pérdida (fue un error)"
+            fieldLabel={`Motivo para anular la pérdida de ${label}`}
+            confirmLabel="Anular pérdida"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () => dispatchService.cancelLoss(unit.lossId!, reason),
+                `Pérdida de ${label} anulada: la unidad del reemplazo volvió al stock.`,
+                'No se pudo anular la pérdida',
+              )
+            }
+          />
         </div>
       )}
     </li>
@@ -173,6 +216,9 @@ function OrderBlock({ entry, run, busy }: { entry: EmergencyOrder } & ActionsPro
     <section className="emergency__order" aria-label={`Pedido ${title}`}>
       <div className="emergency__order-head">
         <h4>{title}</h4>
+        <Link to={orderReceiptPath(entry.orderId)} aria-label={`Ver pedido ${title}`}>
+          Ver pedido
+        </Link>
         {entry.units.some((unit) => unit.status === 'PENDING') && (
           <span className={`badge ${UNIT_STATUS.PENDING.tone}`}>{UNIT_STATUS.PENDING.text}</span>
         )}
@@ -242,6 +288,7 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
         <span className="emergency__declared">
           <strong>Declarada</strong> el {formatDateTime(emergency.declaredAt)}
         </span>
+        <Link to={monitorRoutePath(emergency.routeId)}>Ver la ruta en Seguimiento</Link>
       </p>
 
       <dl className="emergency__counts" aria-label={`Unidades de ${name}`}>
@@ -367,10 +414,10 @@ function EmergencyCard({ view, run, busy }: { view: EmergencyView } & ActionsPro
         </div>
       )}
       {emergency.closedAt && counts.pendingUnits + counts.lostPendingUnits > 0 && (
-        <p className="notice" role="note">
+        <Notice tone="warning">
           <strong>Cerrada con pendientes:</strong> quedan{' '}
           {counts.pendingUnits + counts.lostPendingUnits} unidades sin recuperar o sin reemplazo.
-        </p>
+        </Notice>
       )}
     </article>
   )
@@ -402,7 +449,36 @@ export function EmergenciesPage() {
   })
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState(0)
+  // La emergencia a la vista se recuerda por su ruta (id estable): sigue siendo la misma aunque el
+  // tablero se recargue o cambie de orden (#67).
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedRouteId = searchParams.get('ruta')
+  const clearLink = useCallback(
+    () =>
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete('ruta')
+          return next
+        },
+        { replace: true },
+      ),
+    [setSearchParams],
+  )
+
+  // Un enlace `?ruta=` (desde Seguimiento o Entregas fallidas) selecciona su emergencia; una vez
+  // encontrada pasa a ser la selección normal.
+  const views = board.data?.views
+  useEffect(() => {
+    if (!linkedRouteId || !views) return
+    const index = views.findIndex(({ emergency }) => emergency.routeId === linkedRouteId)
+    if (index < 0) return
+    setSelected(index)
+    setSelectedRouteId(linkedRouteId)
+    clearLink()
+  }, [linkedRouteId, views, clearLink])
 
   const run = async (perform: () => Promise<unknown>, done: string, fallback: string) => {
     setBusy(true)
@@ -443,20 +519,43 @@ export function EmergenciesPage() {
         )}
         <AsyncContent {...board} onRetry={board.reload} loadingText="Cargando emergencias...">
           {({ views }) => {
+            const missingLink =
+              linkedRouteId !== null &&
+              !views.some(({ emergency }) => emergency.routeId === linkedRouteId) ? (
+                <Notice tone="warning">
+                  Esa ruta no tiene una emergencia registrada o la ruta ya no existe.{' '}
+                  <Link to={monitorRoutePath(linkedRouteId)}>Ver la ruta en Seguimiento</Link>{' '}
+                  <Button variant="secondary" onClick={clearLink}>
+                    Ver todas las emergencias
+                  </Button>
+                </Notice>
+              ) : null
             if (views.length === 0) {
-              return <p className="empty-state">No hay emergencias registradas.</p>
+              return (
+                <>
+                  {missingLink}
+                  <p className="empty-state">No hay emergencias registradas.</p>
+                </>
+              )
             }
             // Una emergencia por pantalla, con «Emergencia 2 de 5» y las flechas.
-            const position = Math.min(selected, views.length - 1)
+            const byId = selectedRouteId
+              ? views.findIndex(({ emergency }) => emergency.routeId === selectedRouteId)
+              : -1
+            const position = byId >= 0 ? byId : Math.min(selected, views.length - 1)
             const view = views[position]
             return (
               <>
+                {missingLink}
                 <StepNav
                   noun="Emergencia"
                   label="Emergencias"
                   position={position}
                   total={views.length}
-                  onChange={setSelected}
+                  onChange={(next) => {
+                    setSelected(next)
+                    setSelectedRouteId(views[next]?.emergency.routeId ?? null)
+                  }}
                 />
                 <EmergencyCard key={view.emergency.id} view={view} run={run} busy={busy} />
               </>

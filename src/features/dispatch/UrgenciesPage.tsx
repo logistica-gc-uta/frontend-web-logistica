@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { paths } from '../../app/paths'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Drawer } from '../../components/ui/Drawer'
+import { Notice } from '../../components/ui/Notice'
 import { useFetch } from '../../hooks/useFetch'
 import { useKeyedActions } from '../../hooks/useKeyedActions'
 import { useRealtimeUpdates } from '../../hooks/useRealtimeUpdates'
@@ -13,6 +14,7 @@ import { planningService } from '../planning/planningService'
 import { SavedRoutes } from '../planning/SavedRoutes'
 import { namedRoutesOfDay, savedRouteNames } from '../planning/savedRouteNames'
 import { useSavedRouteActions } from '../planning/useSavedRouteActions'
+import { shopService } from '../shop/shopService'
 import { loadTodayAuditLog } from './auditLog'
 import { DispatchAuditList } from './DispatchAuditList'
 import { describeDispatchError } from './dispatchError'
@@ -50,6 +52,8 @@ export function UrgenciesPage() {
   // Las rutas de la bandeja son de hoy: un chofer ausente hoy no se ofrece (#36).
   const drivers = useFetch(loadDriversToday, 'No se pudieron cargar los choferes')
   const audit = useFetch(loadTodayAuditLog, 'No se pudieron cargar las decisiones')
+  // Horario de entrega de la tienda: la franja de una reprogramación se elige dentro de él.
+  const settings = useFetch(shopService.settings, 'No se pudo consultar el horario de entrega')
 
   const { reload: reloadBoard } = board
   const { reload: reloadRoutes } = routes
@@ -184,7 +188,7 @@ export function UrgenciesPage() {
                 {(failedDeliveries > 0 || alreadyRouted > 0) && (
                   <div className="urgency-infos">
                     {failedDeliveries > 0 && (
-                      <p className="notice urgency-info urgency-info--alert" role="note">
+                      <Notice tone="warning" className="urgency-info urgency-info--alert">
                         <svg {...ICON} width={16} height={16} className="urgency-info__icon">
                           <path d="M12 3 2 20h20L12 3ZM12 10v4M12 17.5v.01" />
                         </svg>
@@ -193,10 +197,10 @@ export function UrgenciesPage() {
                           : `Hay ${failedDeliveries} pedidos con una entrega fallida esperando revisión.`}{' '}
                         Se gestionan en <Link to={paths.failedDeliveries}>Entregas fallidas</Link>,
                         no aquí.
-                      </p>
+                      </Notice>
                     )}
                     {alreadyRouted > 0 && (
-                      <p className="urgency-info">
+                      <Notice role={null} className="urgency-info">
                         <svg {...ICON} width={16} height={16} className="urgency-info__icon">
                           <circle cx="12" cy="12" r="9" />
                           <path d="M12 11v5M12 7.5v.01" />
@@ -204,7 +208,7 @@ export function UrgenciesPage() {
                         {alreadyRouted === 1
                           ? '1 pedido de hoy ya está en una ruta: se ve en "Rutas de hoy".'
                           : `${alreadyRouted} pedidos de hoy ya están en una ruta: se ven en "Rutas de hoy".`}
-                      </p>
+                      </Notice>
                     )}
                   </div>
                 )}
@@ -229,6 +233,7 @@ export function UrgenciesPage() {
                           proposal.routeId ? routeNames[proposal.routeId] : undefined
                         }
                         drivers={drivers.data ?? []}
+                        schedule={settings.data?.deliverySchedule}
                         state={urgencyActions.states[proposal.orderId]}
                         onConfirm={confirm}
                         onReject={reject}
@@ -269,6 +274,7 @@ export function UrgenciesPage() {
                   onReassign={routeActions.reassign}
                   onReorder={routeActions.reorder}
                   onMove={routeActions.move}
+                  onCancel={routeActions.cancel}
                 />
               </>
             )}
