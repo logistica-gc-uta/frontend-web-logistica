@@ -407,12 +407,13 @@ export const dispatchService = {
    * Declara la pérdida de una unidad. Con stock libre el servidor descuenta una unidad y deja el
    * reemplazo preparado; sin stock queda pendiente. No crea otra compra ni otro comprobante.
    */
-  declareLoss: ({ orderId, orderItemId, unitNumber, attemptId, reason }: DeclareLossInput) =>
+  declareLoss: ({ orderId, orderItemId, unitNumber, attemptId, emergencyId, reason }: DeclareLossInput) =>
     intervene('LOSS_DECLARE', {
       orderId,
       orderItemId,
       ...(unitNumber !== undefined ? { unitNumber } : {}),
       ...(attemptId ? { attemptId } : {}),
+      ...(emergencyId ? { emergencyId } : {}),
       reason,
     }),
 

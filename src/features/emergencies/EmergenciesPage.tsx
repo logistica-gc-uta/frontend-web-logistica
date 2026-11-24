@@ -114,32 +114,7 @@ function UnitRow({
     <li className="emergency__unit" aria-label={`Unidad ${label}`}>
       <div className="emergency__unit-head">
         <strong>{label}</strong>
-        {unit.status === 'PENDING' ? (
-          // Si no aparece, la pérdida se declara en el comprobante de este pedido.
-          <Link
-            className="emergency__lost"
-            to={`${orderReceiptPath(unit.orderId)}#perdidas`}
-            aria-label="No aparece: declarar pérdida"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3M9 9l4 4M13 9l-4 4" />
-            </svg>
-            Declarar pérdida
-          </Link>
-        ) : (
-          <span className={`badge ${status.tone}`}>{status.text}</span>
-        )}
+        {unit.status !== 'PENDING' && <span className={`badge ${status.tone}`}>{status.text}</span>}
       </div>
       {unit.recoveredAt && (
         <p className="text-muted">Confirmada el {formatDateTime(unit.recoveredAt)}</p>
@@ -156,6 +131,73 @@ function UnitRow({
                 () => dispatchService.confirmUnitRecovery(unit.id, reason),
                 `Retorno de ${label} confirmado. El stock no cambia.`,
                 'No se pudo confirmar el retorno',
+              )
+            }
+          />
+          <ReasonAction
+            label="Declarar pérdida o daño"
+            fieldLabel={`Motivo de la pérdida o daño de ${label}`}
+            confirmLabel="Sí, declarar pérdida"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () =>
+                  dispatchService.declareLoss({
+                    orderId: unit.orderId,
+                    orderItemId: unit.orderItemId,
+                    unitNumber: unit.unitNumber,
+                    emergencyId: unit.emergencyId,
+                    reason,
+                  }),
+                `Pérdida de ${label} declarada. Si había stock libre se apartó el reemplazo.`,
+                'No se pudo declarar la pérdida',
+              )
+            }
+          />
+        </div>
+      )}
+      {unit.status === 'LOST_PENDING' && unit.lossId && (
+        <div className="emergency__buttons">
+          <ReasonAction
+            label="Preparar reemplazo"
+            fieldLabel={`Motivo para preparar reemplazo de ${label}`}
+            confirmLabel="Preparar reemplazo"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () => dispatchService.prepareReplacement(unit.lossId!, reason),
+                `Reemplazo de ${label} preparado.`,
+                'No se pudo preparar el reemplazo',
+              )
+            }
+          />
+          <ReasonAction
+            label="Anular pérdida (fue un error)"
+            fieldLabel={`Motivo para anular la pérdida de ${label}`}
+            confirmLabel="Anular pérdida"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () => dispatchService.cancelLoss(unit.lossId!, reason),
+                `Pérdida de ${label} anulada.`,
+                'No se pudo anular la pérdida',
+              )
+            }
+          />
+        </div>
+      )}
+      {unit.status === 'LOST_PREPARED' && unit.lossId && (
+        <div className="emergency__buttons">
+          <ReasonAction
+            label="Anular pérdida (fue un error)"
+            fieldLabel={`Motivo para anular la pérdida de ${label}`}
+            confirmLabel="Anular pérdida"
+            busy={busy}
+            onConfirm={(reason) =>
+              run(
+                () => dispatchService.cancelLoss(unit.lossId!, reason),
+                `Pérdida de ${label} anulada: la unidad del reemplazo volvió al stock.`,
+                'No se pudo anular la pérdida',
               )
             }
           />

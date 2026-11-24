@@ -194,13 +194,21 @@ describe('IncidentCard', () => {
     await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
     expect(card().getByText('Indica el día y la franja horaria acordados')).toBeInTheDocument()
 
-    await setWindow('2030-02-15', '11:00', '09:00')
-    await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
-    expect(card().getByText('La hora final debe ser posterior a la inicial')).toBeInTheDocument()
+    // En un día pasado no se ofrecen horas disponibles en «Desde».
+    fireEvent.change(card().getByLabelText('Día acordado'), { target: { value: '2001-01-01' } })
+    expect(card().getByLabelText('Desde')).toHaveTextContent('Sin horarios disponibles')
+    await userEvent.click(card().getByLabelText('Desde'))
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    await userEvent.click(card().getByLabelText('Desde'))
 
-    await setWindow('2001-01-01', '09:00', '10:00')
-    await userEvent.click(card().getByRole('button', { name: 'Registrar contacto' }))
-    expect(card().getByText('La franja acordada debe ser futura')).toBeInTheDocument()
+    // Al elegir «Desde» en un día futuro, «Hasta» solo ofrece horas posteriores.
+    fireEvent.change(card().getByLabelText('Día acordado'), { target: { value: '2030-02-15' } })
+    await pickTime('Desde', '11:00')
+    await userEvent.click(card().getByLabelText('Hasta'))
+    expect(screen.queryByRole('option', { name: formatTimeLabel('09:00') })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: formatTimeLabel('11:00') })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: formatTimeLabel('11:30') })).toBeInTheDocument()
+    await userEvent.click(card().getByLabelText('Hasta'))
     expect(onContact).not.toHaveBeenCalled()
 
     await setWindow('2030-02-15', '09:00', '11:30')
@@ -819,12 +827,25 @@ describe('FailedDeliveriesPage', () => {
     ])
 
     renderPage()
+    expect(
+      await screen.findByText(/Hay 1 pedido bajo custodia por emergencia activa/i),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ir a Emergencias' })).toHaveAttribute(
+      'href',
+      paths.emergencies,
+    )
+    expect(screen.queryByRole('article', { name: /Entrega fallida/i })).not.toBeInTheDocument()
+
+    // #67: con enlace directo `?pedido=`, muestra la tarjeta de custodia con el enlace a esa ruta.
+    renderWithProviders(<App />, {
+      route: `${paths.failedDeliveries}?pedido=f1`,
+      session: adminSession,
+    })
     const cardOf = await findCard()
 
     expect(cardOf.getByText('En custodia por emergencia', { selector: '.badge' })).toBeInTheDocument()
     expect(cardOf.getByText(/2 de 3 unidades pendientes de recuperación/i)).toBeInTheDocument()
     const link = cardOf.getByRole('link', { name: 'Ir a Emergencias' })
-    // #67: el enlace lleva a la emergencia de esa ruta, no solo a la lista.
     expect(link).toHaveAttribute('href', emergencyRoutePath('r1'))
     expect(cardOf.queryByRole('button', { name: 'Registrar contacto' })).not.toBeInTheDocument()
     expect(

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { orderReceiptPath } from '../../app/paths'
+import { orderReceiptPath, paths } from '../../app/paths'
 import { Alert } from '../../components/ui/Alert'
 import { AsyncContent } from '../../components/ui/AsyncContent'
 import { Button } from '../../components/ui/Button'
@@ -14,6 +14,7 @@ import { shopService } from '../shop/shopService'
 import { dispatchService } from '../dispatch/dispatchService'
 import type { ContactInput } from '../dispatch/types'
 import { IncidentCard, type RegisteredAgreement } from './IncidentCard'
+import { resolveIncidentState } from './incidentActions'
 import { describeWindow } from './incidentFormat'
 import { describeIncidentMutationError, isStaleIncidentError } from './incidentLabels'
 import { ConnectionStatus } from '../monitor/ConnectionStatus'
@@ -241,9 +242,53 @@ export function FailedDeliveriesPage() {
                     </Button>
                   </Notice>
                 ) : null
-              if (incidents.length === 0) {
+              const emergencyIncidents = incidents.filter(
+                (item) => resolveIncidentState(item, agreements[item.orderId]).isEmergencyCustody,
+              )
+              const ordinaryIncidents = incidents.filter(
+                (item) => !resolveIncidentState(item, agreements[item.orderId]).isEmergencyCustody,
+              )
+              const linkedEmergency =
+                linkedOrderId !== null
+                  ? emergencyIncidents.find((item) => item.orderId === linkedOrderId)
+                  : undefined
+              const emergencyBanner =
+                emergencyIncidents.length > 0 ? (
+                  <Notice tone="warning">
+                    {emergencyIncidents.length === 1
+                      ? 'Hay 1 pedido bajo custodia por emergencia activa. Su recuperación se gestiona aparte en Emergencias.'
+                      : `Hay ${emergencyIncidents.length} pedidos bajo custodia por emergencia activa. Su recuperación se gestiona aparte en Emergencias.`}{' '}
+                    <Link to={paths.emergencies}>Ir a Emergencias</Link>
+                  </Notice>
+                ) : null
+              if (linkedEmergency) {
+                return (
+                  <div className="incident-list">
+                    {emergencyBanner}
+                    {missingIncidentErrors.map(([orderId, error]) => (
+                      <Alert key={orderId}>{error}</Alert>
+                    ))}
+                    <IncidentCard
+                      key={linkedEmergency.orderId}
+                      incident={linkedEmergency}
+                      schedule={settings.data?.deliverySchedule}
+                      agreement={agreements[linkedEmergency.orderId]}
+                      state={actions.states[linkedEmergency.orderId]}
+                      isRefreshing={board.isLoading}
+                      currentUserId={user?.id}
+                      onContact={contact}
+                      onConfirmReady={confirmReady}
+                      onReschedule={reschedule}
+                      onPickupDecision={pickupDecision}
+                      onPickupConfirm={pickupConfirm}
+                    />
+                  </div>
+                )
+              }
+              if (ordinaryIncidents.length === 0) {
                 return (
                   <>
+                    {emergencyBanner}
                     {missingLink}
                     {missingIncidentErrors.map(([orderId, error]) => (
                       <Alert key={orderId}>{error}</Alert>
@@ -252,14 +297,15 @@ export function FailedDeliveriesPage() {
                   </>
                 )
               }
-              // Se atiende una falla a la vez; al resolverse una, el mismo lugar pasa a la siguiente.
+              // Se atiende una falla ordinaria a la vez; las emergencias quedan fuera de esta cola.
               const byId = selectedOrderId
-                ? incidents.findIndex((item) => item.orderId === selectedOrderId)
+                ? ordinaryIncidents.findIndex((item) => item.orderId === selectedOrderId)
                 : -1
-              const position = byId >= 0 ? byId : Math.min(selected, incidents.length - 1)
-              const incident = incidents[position]
+              const position = byId >= 0 ? byId : Math.min(selected, ordinaryIncidents.length - 1)
+              const incident = ordinaryIncidents[position]
               return (
                 <div className="incident-list">
+                  {emergencyBanner}
                   {missingLink}
                   {missingIncidentErrors.map(([orderId, error]) => (
                     <Alert key={orderId}>{error}</Alert>
@@ -268,10 +314,10 @@ export function FailedDeliveriesPage() {
                     noun="Falla"
                     label="Entregas fallidas"
                     position={position}
-                    total={incidents.length}
+                    total={ordinaryIncidents.length}
                     onChange={(next) => {
                       setSelected(next)
-                      setSelectedOrderId(incidents[next]?.orderId ?? null)
+                      setSelectedOrderId(ordinaryIncidents[next]?.orderId ?? null)
                     }}
                   />
                   <IncidentCard

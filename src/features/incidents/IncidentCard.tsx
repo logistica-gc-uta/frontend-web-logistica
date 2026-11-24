@@ -117,10 +117,10 @@ function StoreReadinessSection({
   if (readiness) {
     return (
       <section className="incident__pickup" aria-label={`Disponibilidad en tienda de ${title}`}>
-        <h4>Disponibilidad en tienda</h4>
+        <h4>Paso 1 · Paquete en tienda</h4>
         <p>
-          <strong>Disponibilidad en tienda confirmada</strong> el{' '}
-          {formatDateTime(readiness.confirmedAt)} ·{' '}
+          <strong>Disponibilidad en tienda confirmada</strong> (paquete devuelto sano o reemplazo
+          listo) el {formatDateTime(readiness.confirmedAt)} ·{' '}
           {readiness.confirmedById === currentUserId ? 'Tú' : 'Otro administrador'}.
         </p>
       </section>
@@ -152,13 +152,13 @@ function StoreReadinessSection({
 
   return (
     <section className="incident__pickup" aria-label={`Disponibilidad en tienda de ${title}`}>
-      <h4>Disponibilidad en tienda</h4>
+      <h4>Paso 1 · Estado del paquete en tienda</h4>
       {confirming && canConfirm ? (
         <fieldset disabled={isBusy}>
           <legend>Confirmar disponibilidad en tienda</legend>
           <p className="text-muted">
-            Confirma que el pedido devuelto o un reemplazo está físicamente disponible en tienda.
-            Esta confirmación no replanifica automáticamente el pedido.
+            Marca que el pedido devuelto está físicamente listo en bodega para volver a entregarse o
+            ser retirado en tienda. Esta confirmación no replanifica automáticamente el pedido.
           </p>
           <TextField
             label="Motivo o verificación en tienda"
@@ -193,8 +193,8 @@ function StoreReadinessSection({
       ) : (
         <>
           <p className="text-muted">
-            Antes de reprogramar o acordar el retiro en tienda, confirma que el pedido devuelto o un
-            reemplazo está disponible en tienda.
+            Confirma que el pedido devuelto por el repartidor está físicamente listo en tienda antes
+            de reprogramar o acordar el retiro.
           </p>
           <Button
             variant="secondary"
@@ -247,6 +247,43 @@ export function IncidentCard({
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Solo horas futuras para el día elegido, dejando al menos un bloque posterior para «Hasta».
+  const fromOptions = useMemo(() => {
+    const candidates = windowOptions.slice(0, -1)
+    if (!day) return candidates
+    const nowMs = Date.now()
+    return candidates.filter((option) => {
+      const iso = localDateTimeToIso(`${day}T${option.value}`)
+      return iso !== null && Date.parse(iso) > nowMs
+    })
+  }, [windowOptions, day])
+
+  // «Hasta» solo permite horas estrictamente posteriores a «Desde».
+  const toOptions = useMemo(() => {
+    if (!from) return []
+    return windowOptions.filter((option) => option.value > from)
+  }, [windowOptions, from])
+
+  const handleDayChange = (nextDay: string) => {
+    setDay(nextDay)
+    if (from) {
+      const iso = localDateTimeToIso(`${nextDay}T${from}`)
+      if (!iso || Date.parse(iso) <= Date.now()) {
+        setFrom('')
+        setTo('')
+      }
+    }
+    setErrors((prev) => ({ ...prev, window: '' }))
+  }
+
+  const handleFromChange = (nextFrom: string) => {
+    setFrom(nextFrom)
+    if (to && to <= nextFrom) {
+      setTo('')
+    }
+    setErrors((prev) => ({ ...prev, window: '' }))
+  }
 
   const { order, latestAttempt, originalRoute } = incident
   const title = order?.deliveryAddress ?? `Pedido ${incident.orderId.slice(0, 8)}`
@@ -465,7 +502,7 @@ export function IncidentCard({
           )}
 
           <fieldset className="incident__path" disabled={isBusy}>
-            <legend>¿Cómo se resolverá?</legend>
+            <legend>Paso 2 · ¿Cómo se resolverá?</legend>
             <div className="choices" role="radiogroup" aria-label="Camino para resolver la entrega">
               <label>
                 <input
@@ -576,25 +613,32 @@ export function IncidentCard({
                       type="date"
                       min={todayInGuayaquil()}
                       value={day}
-                      onChange={(event) => setDay(event.target.value)}
+                      onChange={(event) => handleDayChange(event.target.value)}
                     />
                     <SelectMenu
                       id={`from-${incident.orderId}`}
                       label="Desde"
                       value={from}
-                      placeholder="Elige la hora"
-                      options={windowOptions}
-                      onChange={setFrom}
+                      placeholder={
+                        day && fromOptions.length === 0
+                          ? 'Sin horarios disponibles'
+                          : 'Elige la hora'
+                      }
+                      options={fromOptions}
+                      onChange={handleFromChange}
                     />
                     <SelectMenu
                       id={`to-${incident.orderId}`}
                       label="Hasta"
                       value={to}
-                      placeholder="Elige la hora"
-                      options={windowOptions}
+                      placeholder={from ? 'Elige la hora' : 'Elige primero «Desde»'}
+                      options={toOptions}
                       error={errors.window}
                       errorId={`to-${incident.orderId}-error`}
-                      onChange={setTo}
+                      onChange={(nextTo) => {
+                        setTo(nextTo)
+                        setErrors((prev) => ({ ...prev, window: '' }))
+                      }}
                     />
                     {errors.window && (
                       <p
