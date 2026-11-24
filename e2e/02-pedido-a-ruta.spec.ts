@@ -1,8 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openFullDaySchedule, setDeliverySchedule } from './support/aislado'
 import { apiAs, type Api } from './support/api'
+import { fillDeliveryDateTime, pickOrderProduct } from './support/controls'
 import {
+  createNamedProduct,
   createOrder,
-  createProduct,
   createZone,
   getOrder,
   routesWithOrder,
@@ -10,39 +12,55 @@ import {
 } from './support/data'
 import { uniqueSuffix } from './support/env'
 import { evidence } from './support/evidence'
-import { at, randomFarDay } from './support/time'
+import { at, guayaquilSlotIn, guayaquilTimeIn, todayInGuayaquil } from './support/time'
 
 /**
  * Flujo web completo contra la API real: alta de pedido con confirmación en el mapa → propuesta
  * Clarke & Wright (se puede repetir sin guardar) → ruta DRAFT confirmada una sola vez → corrección
- * de paradas auditada. Usa su propia zona y un día lejano; no asigna choferes.
+ * de paradas auditada. Usa hoy porque el backend solo permite confirmar rutas del día operativo.
  */
-const DAY = randomFarDay()
+const DAY = todayInGuayaquil()
+const DELIVERY_TIME = guayaquilSlotIn(60)
+const CAN_CONFIRM_TODAY = guayaquilTimeIn(0) < DELIVERY_TIME && DELIVERY_TIME <= '23:30'
 
 let admin: Api
+let originalSchedule: { startTime: string; endTime: string } | null = null
 let zone: Zone
-let productId: string
+let product: { id: string; name: string }
 const extraOrders: { id: string; address: string }[] = []
 
 test.describe.configure({ mode: 'serial' })
+test.skip(!CAN_CONFIRM_TODAY, 'No queda una franja futura dentro del horario operativo de hoy')
 
 test.beforeAll(async () => {
   admin = await apiAs('ADMIN')
+  originalSchedule = await openFullDaySchedule(admin)
   zone = await createZone(admin, 'Flujo')
-  productId = await createProduct(admin)
+  product = await createNamedProduct(admin)
   for (const k of [2, 3]) {
     extraOrders.push(
-      await createOrder(admin, { zone, productId, scheduledAt: at(DAY, '10:00'), k }),
+      await createOrder(admin, {
+        zone,
+        productId: product.id,
+        scheduledAt: at(DAY, DELIVERY_TIME),
+        k,
+      }),
     )
   }
 })
 
-test.afterAll(async () => admin?.dispose())
+test.afterAll(async () => {
+  if (originalSchedule) {
+    await setDeliverySchedule(admin, originalSchedule.startTime, originalSchedule.endTime).catch(
+      () => undefined,
+    )
+  }
+  await admin?.dispose()
+})
 
 async function previewDay(page: Page) {
   const form = page.getByRole('form', { name: 'Datos de la propuesta' })
   await form.getByLabel('Día a planificar').fill(DAY)
-  await form.getByLabel('Zona').selectOption(zone.id)
   await form.getByRole('button', { name: 'Previsualizar rutas' }).click()
   await expect(page.getByRole('heading', { name: `Propuesta para el ${DAY}` })).toBeVisible()
 }
@@ -59,10 +77,8 @@ test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
     await form.getByLabel('Teléfono del comprador').fill('0991234567')
     await form.getByRole('radio', { name: 'Efectivo' }).check()
     await form.getByLabel('Dirección de entrega').fill(`E2E Venta ${uniqueSuffix()}`)
-    await form
-      .getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)')
-      .fill(`${DAY}T10:00`)
-    await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
+    await fillDeliveryDateTime(form, page, DAY, DELIVERY_TIME)
+    await pickOrderProduct(form, page, product.name)
 
     // Un clic en el mapa coloca el marcador; el servidor lo verifica y luego se confirma.
     const map = form.locator('.location-picker__canvas')
@@ -84,15 +100,15 @@ test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
     await evidence(page.locator('.admin-receipt'), '02-venta-comprobante')
     const sale = await getOrder(admin, saleId)
     expect(sale.status).toBe('PENDING')
-    // Sin zona (#42): la planificación lo tomará cuando backend #49 agrupe por cobertura.
+    // Sin zona (#42): la planificación lo agrupa por cobertura de tienda.
     expect(sale.zoneId).toBeNull()
   })
 
-  await test.step('pedido planificable del día (con zona, por API hasta backend #49)', async () => {
+  await test.step('pedido planificable del día (con zona propia para aislar la propuesta)', async () => {
     const order = await createOrder(admin, {
       zone,
-      productId,
-      scheduledAt: at(DAY, '10:00'),
+      productId: product.id,
+      scheduledAt: at(DAY, DELIVERY_TIME),
       k: 1,
     })
     orderId = order.id
@@ -114,7 +130,7 @@ test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
     const proposal = page.getByRole('article').filter({ hasText: address })
     await proposal.getByRole('button', { name: 'Confirmar ruta' }).dblclick()
 
-    await expect(proposal.getByText('Guardada como borrador (DRAFT)')).toBeVisible()
+    await expect(proposal.getByText('Guardada como borrador')).toBeVisible()
     await evidence(proposal, '03-ruta-draft-confirmada')
     const routes = await routesWithOrder(admin, orderId)
     expect(routes).toHaveLength(1)
@@ -128,7 +144,9 @@ test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
     await previewDay(page)
 
     await expect(page.getByRole('article').filter({ hasText: address })).toHaveCount(0)
-    const saved = page.getByRole('listitem', { name: new RegExp(`· ${zone.code}$`) })
+    await page.getByRole('button', { name: 'Ver rutas guardadas' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Rutas guardadas' })
+    const saved = drawer.getByRole('listitem', { name: new RegExp(`· ${zone.code}$`) })
     await expect(saved).toContainText(address)
     await expect(saved).toContainText('Borrador')
   })
@@ -144,7 +162,8 @@ test('del alta del pedido a la ruta DRAFT corregida', async ({ page }) => {
     const before = await sequence()
     const first = route.orders.find((order) => order.id === before[0])!
 
-    const saved = page.getByRole('listitem', { name: new RegExp(`· ${zone.code}$`) })
+    const drawer = page.getByRole('dialog', { name: 'Rutas guardadas' })
+    const saved = drawer.getByRole('listitem', { name: new RegExp(`· ${zone.code}$`) })
     await saved.getByRole('button', { name: 'Corregir paradas' }).click()
     const correction = page.getByRole('group', { name: /^Corregir / })
     await correction.getByRole('button', { name: `Bajar ${first.deliveryAddress}` }).click()

@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { apiAs, type Api } from './support/api'
-import { createOrder, createProduct, createZone, type Zone } from './support/data'
+import { fillDeliveryDateTime, pickOrderProduct } from './support/controls'
+import { createNamedProduct, createOrder, createZone, type Zone } from './support/data'
 import { uniqueSuffix } from './support/env'
 import { evidence } from './support/evidence'
 import { at, randomFarDay } from './support/time'
@@ -11,12 +12,12 @@ import { at, randomFarDay } from './support/time'
  */
 let admin: Api
 let zone: Zone
-let productId: string
+let product: { id: string; name: string }
 
 test.beforeAll(async () => {
   admin = await apiAs('ADMIN')
   zone = await createZone(admin, 'Validaciones')
-  productId = await createProduct(admin, 1)
+  product = await createNamedProduct(admin, 1)
 })
 
 test.afterAll(async () => admin?.dispose())
@@ -38,7 +39,7 @@ async function placeMarker(form: Locator) {
 }
 
 async function fillBuyer(form: Locator) {
-  await form.getByLabel('Nombre del comprador').fill('E2E Comprador')
+  await form.getByLabel('Nombre del comprador').fill('Prueba Comprador')
   await form.getByLabel('Teléfono del comprador').fill('0991234567')
   await form.getByRole('radio', { name: 'Efectivo' }).check()
 }
@@ -72,10 +73,8 @@ test('una fecha pasada y una ubicación sin confirmar se rechazan antes de envia
   const form = page.getByRole('form', { name: 'Nueva venta' })
   await fillBuyer(form)
   await form.getByLabel('Dirección de entrega').fill(`E2E Validación ${uniqueSuffix()}`)
-  await form
-    .getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)')
-    .fill('2020-01-01T10:00')
-  await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
+  await fillDeliveryDateTime(form, page, '2020-01-01', '10:00')
+  await pickOrderProduct(form, page, product.name)
   await placeMarker(form)
   await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
 
@@ -98,14 +97,14 @@ test('si otra venta se lleva el último stock, el backend la rechaza y no se mue
   const form = page.getByRole('form', { name: 'Nueva venta' })
   await fillBuyer(form)
   await form.getByLabel('Dirección de entrega').fill(`E2E Sin stock ${uniqueSuffix()}`)
-  await form.getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)').fill(`${day}T10:00`)
-  await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
+  await fillDeliveryDateTime(form, page, day, '10:00')
+  await pickOrderProduct(form, page, product.name)
   await placeMarker(form)
   await expect(form.getByText('Dentro de la zona de entrega.')).toBeVisible()
   await form.getByRole('button', { name: 'Confirmar ubicación' }).click()
 
   // Mientras el formulario está abierto, otra venta consume la única unidad del producto.
-  await createOrder(admin, { zone, productId, scheduledAt: at(day, '10:00'), k: 1 })
+  await createOrder(admin, { zone, productId: product.id, scheduledAt: at(day, '10:00'), k: 1 })
 
   const response = page.waitForResponse((r) => r.url().endsWith('/orders/admin'))
   await form.getByRole('button', { name: 'Registrar venta' }).click()
@@ -114,5 +113,5 @@ test('si otra venta se lleva el último stock, el backend la rechaza y no se mue
   await expect(form.getByRole('alert')).toContainText('No se registró la venta')
   await evidence(form, '05-rechazo-del-backend')
   await expect(page.getByText('Venta registrada')).toHaveCount(0)
-  await expect(form.getByLabel('Nombre del comprador')).toHaveValue('E2E Comprador')
+  await expect(form.getByLabel('Nombre del comprador')).toHaveValue('Prueba Comprador')
 })

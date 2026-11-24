@@ -222,6 +222,11 @@ describe.skipIf(!HAS_TIME_TODAY)(`Integración real · entregas fallidas · hoy 
       agreement,
       reason: 'IT: acordó más tarde',
     })
+    await dispatchService.confirmIncidentReady({
+      orderId: failedId,
+      attemptId,
+      reason: 'IT: producto disponible en tienda',
+    })
     const rescheduled = await dispatchService.rescheduleWithAgreement(
       failedId,
       contact.id,

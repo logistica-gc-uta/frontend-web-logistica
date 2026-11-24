@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { deflateSync } from 'node:zlib'
 import { apiAs, type Api } from './support/api'
+import { pickSelectMenu } from './support/controls'
 import { API_URL, uniqueSuffix } from './support/env'
 import { evidence } from './support/evidence'
 import { registerCustomer } from './support/shop'
@@ -58,9 +59,11 @@ test('el ADMIN crea, ilustra y publica un regalo, y el Shop lo muestra', async (
   const suffix = uniqueSuffix()
   const category = `E2E Graduación ${suffix}`
   const name = `E2E Kit de graduación ${suffix}`
+  let productId = ''
 
   await test.step('crea la categoría con su slug', async () => {
     await page.goto('/categorias')
+    await page.getByRole('button', { name: 'Nueva categoría' }).click()
     const form = page.getByRole('form', { name: 'Nueva categoría' })
     await form.getByLabel('Nombre').fill(category)
     await expect(form.getByLabel('Slug (enlace en el Shop)')).toHaveValue(
@@ -72,15 +75,21 @@ test('el ADMIN crea, ilustra y publica un regalo, y el Shop lo muestra', async (
 
   await test.step('crea el producto: queda despublicado', async () => {
     await page.goto('/productos')
-    await page.getByRole('link', { name: 'Nuevo producto' }).click()
+    await page.getByRole('button', { name: 'Nuevo producto' }).click()
     const form = page.getByRole('form', { name: 'Datos del producto' })
     await form.getByLabel('SKU').fill(`E2E-GRAD-${suffix}`)
     await form.getByLabel('Nombre').fill(name)
     await form.getByLabel('Descripción').fill('Birrete de chocolate y tarjeta.')
-    await form.getByLabel('Categoría').selectOption({ label: category })
+    await pickSelectMenu(form, page, 'Categoría', category)
     await form.getByLabel('Precio (USD)').fill('19,50')
     await form.getByLabel('Stock').fill('6')
+    const created = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/admin/catalog/products') &&
+        response.request().method() === 'POST',
+    )
     await form.getByRole('button', { name: 'Crear producto' }).click()
+    productId = ((await (await created).json()) as { id: string }).id
     await expect(page.getByText(/Producto creado \(despublicado\)/)).toBeVisible()
     await expect(page.getByRole('note').filter({ hasText: 'Para publicarlo falta' })).toHaveText(
       'Para publicarlo falta: una imagen principal.',
@@ -98,7 +107,7 @@ test('el ADMIN crea, ilustra y publica un regalo, y el Shop lo muestra', async (
       .getByLabel('Texto alternativo (describe la imagen)')
       .fill('Kit de graduación verde')
     await images.getByRole('button', { name: 'Subir imagen' }).click()
-    await expect(images.getByText('Imagen subida y asociada al producto.')).toBeVisible({
+    await expect(page.getByText('Imagen subida y asociada al producto.')).toBeVisible({
       timeout: 60_000,
     })
     await expect(images.getByText('Imagen principal', { exact: true })).toBeVisible()
@@ -107,11 +116,10 @@ test('el ADMIN crea, ilustra y publica un regalo, y el Shop lo muestra', async (
   await test.step('publica con confirmación y el visitante lo ve en el Shop', async () => {
     const publication = page.getByRole('region', { name: 'Publicación' })
     await publication.getByRole('button', { name: /^Publicar/ }).click()
-    await publication.getByRole('button', { name: 'Sí, publicar' }).click()
-    await expect(publication.getByText('Publicado: ya se muestra en el Shop.')).toBeVisible()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Sí, publicar' }).click()
+    await expect(page.getByText('Publicado: ya se muestra en el Shop.')).toBeVisible()
     await evidence(page, 'e2e-01-editor-publicado', FOLDER)
 
-    const productId = page.url().split('/').pop()!
     await page.goto(`/productos/${productId}`)
     await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible()
     await expect(page.getByRole('img', { name: 'Kit de graduación verde' })).toBeVisible()
@@ -131,7 +139,7 @@ test('un cambio del límite por SKU en Configuración Shop se refleja en el Shop
   try {
     await page.goto('/configuracion-shop')
     const form = page.getByRole('form', { name: 'Configuración del Shop' })
-    await form.getByLabel(/Unidades máximas/).fill(String(next))
+    await form.getByLabel(/Unidades máximas de un mismo producto/).fill(String(next))
     await form.getByRole('button', { name: 'Guardar configuración' }).click()
     await expect(
       page.getByText(`Configuración guardada (versión ${current.version + 1})`, { exact: false }),
@@ -143,11 +151,16 @@ test('un cambio del límite por SKU en Configuración Shop se refleja en el Shop
     }
     expect(settings.limits.maxUnitsPerSkuPerOrder).toBe(next)
   } finally {
-    const latest = await admin.get<{ version: number }>('/admin/shop-settings')
-    await admin.patch('/admin/shop-settings', {
-      expectedVersion: latest.version,
-      limits: { maxUnitsPerSkuPerOrder: original },
-    })
+    const latest = await admin.get<{
+      version: number
+      limits: { maxUnitsPerSkuPerOrder: number }
+    }>('/admin/shop-settings')
+    if (latest.limits.maxUnitsPerSkuPerOrder !== original) {
+      await admin.patch('/admin/shop-settings', {
+        expectedVersion: latest.version,
+        limits: { maxUnitsPerSkuPerOrder: original },
+      })
+    }
   }
 })
 
