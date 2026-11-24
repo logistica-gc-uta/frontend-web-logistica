@@ -84,14 +84,16 @@
 
 .proposal__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
 }
 
 .proposal__header h3 {
-  flex: 1;
-  margin: 0;
+  flex: 0 1 auto;
+  margin: 0 auto 0 0;
   font-size: 1rem;
+  white-space: nowrap;
 }
 
 .proposal__swatch {

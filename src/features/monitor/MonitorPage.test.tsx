@@ -155,20 +155,22 @@ describe('MonitorPage', () => {
     )
   })
 
-  it('con más de dos rutas se ven de dos en dos, con navegación', async () => {
+  it('con más de cuatro rutas se ven de cuatro en cuatro, con navegación', async () => {
     mockApi([
       today({ id: 'r1', createdAt: '2026-10-21T10:00:00Z' }),
       today({ id: 'r2', createdAt: '2026-10-21T11:00:00Z' }),
       today({ id: 'r3', createdAt: '2026-10-21T12:00:00Z' }),
+      today({ id: 'r4', createdAt: '2026-10-21T13:00:00Z' }),
+      today({ id: 'r5', createdAt: '2026-10-21T14:00:00Z' }),
     ])
     const { user } = renderPage()
 
-    expect(await screen.findByText('Rutas 1–2')).toBeInTheDocument()
-    expect(screen.getAllByRole('article')).toHaveLength(2)
+    expect(await screen.findByText('Rutas 1–4')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(4)
 
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
-    expect(screen.getByText('Ruta 3')).toBeInTheDocument()
+    expect(screen.getByText('Ruta 5')).toBeInTheDocument()
     expect(screen.getAllByRole('article')).toHaveLength(1)
   })
 

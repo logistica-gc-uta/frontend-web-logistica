@@ -16,10 +16,10 @@ import {
 } from './monitorBoard'
 import { MonitorRouteCard } from './MonitorRouteCard'
 
-/** Rutas por pantalla: de dos en dos, para no saturar la página. */
-const ROUTES_PER_PAGE = 2
+/** Rutas por pantalla: hasta cuatro en rejilla responsiva (2×2 en escritorio), sin saturar. */
+const ROUTES_PER_PAGE = 4
 
-/** Dos rutas a la vez, con «Rutas 1–2 de 5» y las flechas cuando hay más. */
+/** Hasta cuatro rutas a la vez, con «Rutas 1–4 de N» y las flechas cuando hay más. */
 function RoutesPage({
   routes,
   drivers,

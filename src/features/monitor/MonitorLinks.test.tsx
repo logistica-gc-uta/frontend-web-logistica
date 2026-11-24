@@ -140,22 +140,22 @@ describe('Seguimiento · enlaces por id estable (#67)', () => {
   })
 
   it('con ?ruta= abre la página de esa ruta, la resalta y la recuerda tras una recarga en vivo', async () => {
-    const routes = ['r1', 'r2', 'r3'].map((id) => route(id))
+    const routes = ['r1', 'r2', 'r3', 'r4', 'r5'].map((id) => route(id))
     const { listRoutes } = mockMonitor(routes)
     const { user } = renderWithProviders(<App />, {
-      route: monitorRoutePath('r3'),
+      route: monitorRoutePath('r5'),
       session: adminSession,
     })
 
-    const target = await screen.findByRole('article', { name: 'Ruta 3 · FIC-02' })
+    const target = await screen.findByRole('article', { name: 'Ruta 5 · FIC-02' })
     expect(target).toHaveAttribute('aria-current', 'true')
     expect(screen.queryByRole('article', { name: 'Ruta 1 · FIC-02' })).not.toBeInTheDocument()
 
     // Un aviso en vivo recarga por REST: la ruta enlazada sigue a la vista.
     act(() => socket.fire('connect'))
-    act(() => socket.fire('route.updated', { data: { routeId: 'r3' } }))
+    act(() => socket.fire('route.updated', { data: { routeId: 'r5' } }))
     await waitFor(() => expect(listRoutes.mock.calls.length).toBeGreaterThanOrEqual(2))
-    expect(await screen.findByRole('article', { name: 'Ruta 3 · FIC-02' })).toBeInTheDocument()
+    expect(await screen.findByRole('article', { name: 'Ruta 5 · FIC-02' })).toBeInTheDocument()
 
     // Al navegar por su cuenta se suelta la selección del enlace.
     await user.click(screen.getByRole('button', { name: 'Anterior' }))
