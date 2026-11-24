@@ -152,11 +152,6 @@ describe.skipIf(!HAS_TIME_TODAY)(`Integración real · retiro en tienda (#38) ·
   })
 
   it('el acuerdo deja el pedido pendiente de retiro, sin ruta nueva y sin entregarlo', async () => {
-    await dispatchService.confirmIncidentReady({
-      orderId: failedId,
-      attemptId,
-      reason: 'IT: paquete listo en tienda',
-    })
     await dispatchService.agreePickup({ orderId: failedId, attemptId, reason: 'IT: lo retira' })
 
     expect((await incidentOf(failedId))?.pickup).toEqual(

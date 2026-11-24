@@ -12,7 +12,6 @@ import {
 } from '../features/shop/orders/customerOrdersService'
 import { shopErrorInfo } from '../features/shop/shopError'
 import { authStorage } from '../lib/auth/authStorage'
-import { apiClient } from '../lib/api/apiClient'
 import { BUSINESS_TIME_ZONE } from '../lib/time/guayaquil'
 import type { Session } from '../types/auth'
 import { fromPolygon } from '../features/store-coverage/coverageDraft'
@@ -304,58 +303,18 @@ describe('Integración real · compra en el Shop (CLIENT)', () => {
       await setProductPrice(gift.id, 3650)
     })
 
-    describe('horario operativo 07:00–17:00', () => {
-      let prevSchedule: { startTime: string; endTime: string } | null = null
-
-      beforeAll(async () => {
-        await loginAsAdmin()
-        const { data } = await apiClient.get<{
-          version: number
-          deliverySchedule: { startTime: string; endTime: string }
-        }>('/admin/shop-settings')
-        prevSchedule = {
-          startTime: data.deliverySchedule.startTime,
-          endTime: data.deliverySchedule.endTime,
-        }
-        if (prevSchedule.startTime !== '07:00' || prevSchedule.endTime !== '17:00') {
-          await apiClient.patch('/admin/shop-settings', {
-            expectedVersion: data.version,
-            deliverySchedule: { startTime: '07:00', endTime: '17:00' },
-          })
-        }
-      })
-
-      afterAll(async () => {
-        if (!prevSchedule) return
-        await loginAsAdmin()
-        const { data } = await apiClient.get<{
-          version: number
-          deliverySchedule: { startTime: string; endTime: string }
-        }>('/admin/shop-settings')
-        if (
-          data.deliverySchedule.startTime !== prevSchedule.startTime ||
-          data.deliverySchedule.endTime !== prevSchedule.endTime
-        ) {
-          await apiClient.patch('/admin/shop-settings', {
-            expectedVersion: data.version,
-            deliverySchedule: prevSchedule,
-          })
-        }
-      })
-
-      it.each([
-        ['06:59', 'DELIVERY_OUTSIDE_HOURS'],
-        ['07:00', null],
-        ['17:00', null],
-        ['17:01', 'DELIVERY_OUTSIDE_HOURS'],
-      ])('hora de Ecuador %s → %s', async (time, code) => {
-        as(buyerA)
-        const result = await checkoutService
-          .quote([{ productId: cheap.id, quantity: 1 }], deliveryAt(time))
-          .catch((error: unknown) => error)
-        if (code) expect(codeOf(result)).toBe(code)
-        else expect(result).toEqual(expect.objectContaining({ totalCents: expect.any(Number) }))
-      })
+    it.each([
+      ['06:59', 'DELIVERY_OUTSIDE_HOURS'],
+      ['07:00', null],
+      ['17:00', null],
+      ['17:01', 'DELIVERY_OUTSIDE_HOURS'],
+    ])('hora de Ecuador %s → %s', async (time, code) => {
+      as(buyerA)
+      const result = await checkoutService
+        .quote([{ productId: cheap.id, quantity: 1 }], deliveryAt(time))
+        .catch((error: unknown) => error)
+      if (code) expect(codeOf(result)).toBe(code)
+      else expect(result).toEqual(expect.objectContaining({ totalCents: expect.any(Number) }))
     })
   })
 
