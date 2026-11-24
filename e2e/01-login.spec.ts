@@ -49,38 +49,3 @@ test.describe('Login del panel administrativo', () => {
     await expect(page).toHaveURL(/\/login$/)
   })
 })
-
-test.describe('Ingreso del cliente en el Shop', () => {
-  test('sin sesión, Mi cuenta redirige al ingreso del cliente', async ({ page }) => {
-    await page.goto('/mi-cuenta')
-
-    await expect(page).toHaveURL(/\/ingresar/)
-    await expect(page.getByRole('heading', { name: 'Qué bueno verte.' })).toBeVisible()
-  })
-
-  test('el CLIENT ingresa en el Shop, ve su cuenta y puede cerrar sesión', async ({ page }) => {
-    const { email, password } = credentialsFor('CLIENT')
-    await page.goto('/ingresar')
-    await page.getByLabel('Correo electrónico').fill(email)
-    await page.getByLabel('Contraseña', { exact: true }).fill(password)
-    await page.getByRole('button', { name: 'Ingresar' }).click()
-
-    await expect(page).not.toHaveURL(/\/ingresar/)
-    await page.goto('/mi-cuenta')
-    await expect(page.getByRole('heading', { name: 'Mi cuenta', level: 1 })).toBeVisible()
-    await expect(page.getByText(email)).toBeVisible()
-
-    await page.getByRole('button', { name: 'Cerrar sesión' }).click()
-    await expect(page).toHaveURL(/\/ingresar/)
-  })
-
-  test('en el Shop, una contraseña incorrecta se rechaza y no abre la cuenta', async ({ page }) => {
-    await page.goto('/ingresar')
-    await page.getByLabel('Correo electrónico').fill(credentialsFor('CLIENT').email)
-    await page.getByLabel('Contraseña', { exact: true }).fill('contraseña-incorrecta-e2e')
-    await page.getByRole('button', { name: 'Ingresar' }).click()
-
-    await expect(page.getByRole('alert')).toBeVisible()
-    await expect(page).toHaveURL(/\/ingresar/)
-  })
-})

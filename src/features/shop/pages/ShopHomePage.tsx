@@ -78,7 +78,7 @@ export function ShopHomePage() {
           <p className="eyebrow shop-eyebrow">Detalles con intención</p>
           <h1 id="shop-hero-title">
             Hay regalos que <br />
-            lo dicen todo. ---
+            lo dicen todo.
           </h1>
           <p>Para celebrar, agradecer o simplemente decir: pensé en ti.</p>
           <ShopSearch />

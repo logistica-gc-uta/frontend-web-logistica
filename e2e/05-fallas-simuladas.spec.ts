@@ -1,17 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openFullDaySchedule, setDeliverySchedule } from './support/aislado'
 import { apiAs, type Api } from './support/api'
-import { fillDeliveryDateTime, pickOrderProduct } from './support/controls'
-import {
-  createNamedProduct,
-  createOrder,
-  createZone,
-  routesWithOrder,
-  type Zone,
-} from './support/data'
+import { createOrder, createProduct, createZone, routesWithOrder, type Zone } from './support/data'
 import { uniqueSuffix } from './support/env'
 import { evidence } from './support/evidence'
-import { at, guayaquilSlotIn, guayaquilTimeIn, randomFarDay, todayInGuayaquil } from './support/time'
+import { at, randomFarDay } from './support/time'
 
 /**
  * SIMULADAS: el panel y el backend son reales, pero la falla se inyecta en la red del navegador
@@ -19,53 +11,38 @@ import { at, guayaquilSlotIn, guayaquilTimeIn, randomFarDay, todayInGuayaquil } 
  * red no se pueden provocar a voluntad en el backend. Comprueban que la pantalla nunca muestra un
  * éxito falso y que, al quitar la falla, el reintento funciona contra la API real.
  */
-const DAY = todayInGuayaquil()
-const DELIVERY_TIME = guayaquilSlotIn(60)
-const CAN_CONFIRM_TODAY = guayaquilTimeIn(0) < DELIVERY_TIME && DELIVERY_TIME <= '23:30'
-const FUTURE_DAY = randomFarDay()
+const DAY = randomFarDay()
 
 let admin: Api
-let originalSchedule: { startTime: string; endTime: string } | null = null
 let zone: Zone
 let orderId: string
-let orderAddress: string
-let product: { id: string; name: string }
+let productId: string
 
 test.describe.configure({ mode: 'serial' })
 
 test.beforeAll(async () => {
   admin = await apiAs('ADMIN')
-  if (CAN_CONFIRM_TODAY) originalSchedule = await openFullDaySchedule(admin)
   zone = await createZone(admin, 'Fallas')
-  product = await createNamedProduct(admin)
-  const created = await createOrder(admin, {
+  productId = await createProduct(admin)
+  ;({ id: orderId } = await createOrder(admin, {
     zone,
-    productId: product.id,
-    scheduledAt: at(CAN_CONFIRM_TODAY ? DAY : FUTURE_DAY, CAN_CONFIRM_TODAY ? DELIVERY_TIME : '10:00'),
+    productId,
+    scheduledAt: at(DAY, '10:00'),
     k: 1,
-  })
-  orderId = created.id
-  orderAddress = created.address
+  }))
 })
 
-test.afterAll(async () => {
-  if (originalSchedule) {
-    await setDeliverySchedule(admin, originalSchedule.startTime, originalSchedule.endTime).catch(
-      () => undefined,
-    )
-  }
-  await admin?.dispose()
-})
+test.afterAll(async () => admin?.dispose())
 
-async function previewDay(page: Page, day = CAN_CONFIRM_TODAY ? DAY : FUTURE_DAY) {
+async function previewDay(page: Page) {
   await page.goto('/planificacion')
   const form = page.getByRole('form', { name: 'Datos de la propuesta' })
-  await form.getByLabel('Día a planificar').fill(day)
+  await form.getByLabel('Día a planificar').fill(DAY)
+  await form.getByLabel('Zona').selectOption(zone.id)
   await form.getByRole('button', { name: 'Previsualizar rutas' }).click()
 }
 
 test('[simulada] un 409 al confirmar la ruta no la da por guardada', async ({ page }) => {
-  test.skip(!CAN_CONFIRM_TODAY, 'No queda una franja futura dentro del horario operativo de hoy')
   await page.route('**/api/v1/routes', (route) =>
     route.request().method() === 'POST'
       ? route.fulfill({
@@ -74,14 +51,14 @@ test('[simulada] un 409 al confirmar la ruta no la da por guardada', async ({ pa
         })
       : route.fallback(),
   )
-  await previewDay(page, DAY)
-  const proposal = page.getByRole('article').filter({ hasText: orderAddress })
+  await previewDay(page)
+  const proposal = page.getByRole('article', { name: /^Ruta 1/ })
 
   await proposal.getByRole('button', { name: 'Confirmar ruta' }).click()
 
   await expect(proposal.getByRole('alert')).toContainText('Conflicto')
   await expect(proposal.getByRole('alert')).toContainText('Vuelve a previsualizar')
-  await expect(proposal.getByText('Guardada como borrador')).toHaveCount(0)
+  await expect(proposal.getByText('Guardada como borrador (DRAFT)')).toHaveCount(0)
   await evidence(proposal, '10-simulada-409-confirmar')
   expect(await routesWithOrder(admin, orderId)).toEqual([])
 })
@@ -90,26 +67,23 @@ test('[simulada] un tiempo de espera agotado se informa y el reintento funciona'
   page,
 }) => {
   test.setTimeout(120_000)
-  const targetDay = CAN_CONFIRM_TODAY ? DAY : FUTURE_DAY
   // La API tarda más que el límite del cliente (30 s) en la primera consulta.
   let delayed = false
-  await page.route('**/api/v1/route-proposals?*', async (route) => {
+  await page.route('**/api/v1/route-proposals**', async (route) => {
     if (delayed) return route.fallback()
     delayed = true
     await new Promise((resolve) => setTimeout(resolve, 31_000))
     await route.abort('timedout').catch(() => undefined)
   })
-  await previewDay(page, targetDay)
+  await previewDay(page)
 
-  await expect(
-    page.getByRole('alert').filter({ hasText: 'El servidor tardó demasiado en responder' }),
-  ).toBeVisible({
+  await expect(page.getByRole('alert')).toContainText('El servidor tardó demasiado en responder', {
     timeout: 45_000,
   })
-  await expect(page.getByRole('heading', { name: `Propuesta para el ${targetDay}` })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: `Propuesta para el ${DAY}` })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Previsualizar rutas' }).click()
-  await expect(page.getByRole('heading', { name: `Propuesta para el ${targetDay}` })).toBeVisible()
+  await expect(page.getByRole('heading', { name: `Propuesta para el ${DAY}` })).toBeVisible()
 })
 
 test('[simulada] un 403 en la bandeja se muestra y al reintentar carga la real', async ({
@@ -147,8 +121,8 @@ test('[simulada] sin conexión la venta no se da por registrada y al reenviarla 
   await form.getByLabel('Teléfono del comprador').fill('0991234567')
   await form.getByRole('radio', { name: 'Efectivo' }).check()
   await form.getByLabel('Dirección de entrega').fill(address)
-  await fillDeliveryDateTime(form, page, FUTURE_DAY, '11:00')
-  await pickOrderProduct(form, page, product.name)
+  await form.getByLabel('Fecha y hora aproximada de entrega (hora de Ecuador)').fill(`${DAY}T11:00`)
+  await form.getByLabel('Producto 1', { exact: true }).selectOption(productId)
   const map = form.locator('.location-picker__canvas')
   const box = (await map.boundingBox())!
   await map.click({ position: { x: box.width / 2 + 40, y: box.height / 2 + 30 } })

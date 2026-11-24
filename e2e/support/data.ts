@@ -47,21 +47,13 @@ export async function createZone(admin: Api, label: string): Promise<Zone> {
   return { id: zone.id, code: zone.code, depot: DEPOT }
 }
 
-export async function createNamedProduct(
-  admin: Api,
-  stock = 20,
-): Promise<{ id: string; name: string }> {
-  const name = `E2E Producto ${uniqueSuffix()}`
+export async function createProduct(admin: Api, stock = 20): Promise<string> {
   const product = await admin.post<{ id: string }>('/products', {
-    name,
+    name: `E2E Producto ${uniqueSuffix()}`,
     price: 5,
     stock,
   })
-  return { id: product.id, name }
-}
-
-export async function createProduct(admin: Api, stock = 20): Promise<string> {
-  return (await createNamedProduct(admin, stock)).id
+  return product.id
 }
 
 export interface NewOrder {

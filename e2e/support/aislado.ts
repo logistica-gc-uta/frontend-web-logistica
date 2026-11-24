@@ -8,49 +8,35 @@ import { at, guayaquilTimeIn, todayInGuayaquil } from './time'
  * y operan con el chofer del seed HOY, así que nunca corren contra la base de desarrollo ni contra
  * un servicio desplegado.
  */
-export const ISOLATED_API_PORTS = new Set(['3001', '3101'])
+export const ISOLATED_API_PORT = '3101'
 
 export function isolatedEnvironmentProblem(): string | null {
   if (process.env.E2E_AISLADO !== '1')
     return 'Se ejecuta solo con E2E_AISLADO=1 (ver docs/evidencias/69-e2e-aislado.md)'
-  const api = new URL(process.env.VITE_API_URL ?? API_URL)
+  const api = new URL(API_URL)
   if (api.hostname !== 'localhost' && api.hostname !== '127.0.0.1')
     return `La API ${api.origin} no es local: nunca se ejecuta contra un servicio desplegado`
-  if (!ISOLATED_API_PORTS.has(api.port))
-    return `La API ${api.origin} no es el backend aislado (puerto 3001 o 3101)`
+  if (api.port !== ISOLATED_API_PORT)
+    return `La API ${api.origin} no es el backend aislado (puerto ${ISOLATED_API_PORT})`
   return null
 }
 
-export async function setDeliverySchedule(
-  admin: Api,
-  startTime: string,
-  endTime: string,
-): Promise<{ startTime: string; endTime: string }> {
+/**
+ * Abre el horario de entrega a todo el día (00:00–23:59) en la base descartable: asignar exige rutas
+ * de HOY, y así el recorrido se puede repetir a cualquier hora (salvo los últimos minutos del día).
+ */
+export async function openFullDaySchedule(admin: Api): Promise<void> {
   const settings = await admin.get<{
     version: number
     deliverySchedule: { startTime: string; endTime: string }
   }>('/admin/shop-settings')
-  const previous = {
-    startTime: settings.deliverySchedule.startTime,
-    endTime: settings.deliverySchedule.endTime,
-  }
-  if (previous.startTime === startTime && previous.endTime === endTime) return previous
+  // El backend rechaza un cambio sin modificaciones: en una repetición el horario ya está abierto.
+  const { startTime, endTime } = settings.deliverySchedule
+  if (startTime === '00:00' && endTime === '23:59') return
   await admin.patch('/admin/shop-settings', {
     expectedVersion: settings.version,
-    deliverySchedule: { startTime, endTime },
+    deliverySchedule: { startTime: '00:00', endTime: '23:59' },
   })
-  return previous
-}
-
-/**
- * Abre el horario de entrega a todo el día (00:01–23:59) en la base descartable: asignar exige rutas
- * de HOY, y así el recorrido se puede repetir a cualquier hora (incluso de noche) sin romper la
- * validación del formulario de Configuración Shop (inicio > 00:00).
- */
-export async function openFullDaySchedule(
-  admin: Api,
-): Promise<{ startTime: string; endTime: string }> {
-  return setDeliverySchedule(admin, '01:00', '23:59')
 }
 
 /** Producto propio con precio y stock, sin publicar (la venta ADMIN no necesita imagen). */
