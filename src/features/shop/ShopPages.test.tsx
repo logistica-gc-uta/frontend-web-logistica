@@ -119,7 +119,7 @@ describe('Shop · inicio', () => {
     expect(scroll).not.toHaveBeenCalled()
     expect(api.product).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Hay regalos que lo dicen todo.',
+      'Hay regalos que lo dicen todo. ---',
     )
     await user.click(screen.getByRole('button', { name: /Destacar Taza personalizada/ }))
     expect(card).toHaveAttribute('aria-pressed', 'false')
